@@ -6,7 +6,6 @@ import subprocess
 import zipfile
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-upx", action="store_true")
 parser.add_argument("-i", type=int)
 args = parser.parse_args()
 
@@ -18,33 +17,24 @@ logger = logging.getLogger(__name__)
 # more info: https://golang.org/doc/install/source
 # [(env : value),(env : value)]
 envs = [
+    [['GOOS', 'android'], ['GOARCH', 'arm64']],
     [['GOOS', 'darwin'], ['GOARCH', 'amd64']],
     [['GOOS', 'darwin'], ['GOARCH', 'arm64']],
-    # [['GOOS', 'linux'], ['GOARCH', '386']],
+    [['GOOS', 'windows'], ['GOARCH', 'amd64']],
+    [['GOOS', 'windows'], ['GOARCH', 'arm64']],
     [['GOOS', 'linux'], ['GOARCH', 'amd64']],
-
+    [['GOOS', 'linux'], ['GOARCH', 'arm64']],
     [['GOOS', 'linux'], ['GOARCH', 'arm'], ['GOARM', '5']],
     [['GOOS', 'linux'], ['GOARCH', 'arm'], ['GOARM', '6']],
     [['GOOS', 'linux'], ['GOARCH', 'arm'], ['GOARM', '7']],
-    [['GOOS', 'linux'], ['GOARCH', 'arm64']],
-
-    # [['GOOS', 'linux'], ['GOARCH', 'mips'], ['GOMIPS', 'hardfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mips'], ['GOMIPS', 'softfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mipsle'], ['GOMIPS', 'hardfloat']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips'], ['GOMIPS', 'softfloat']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64'], ['GOMIPS64', 'softfloat']],
+    [['GOOS', 'linux'], ['GOARCH', 'mipsle']],
     [['GOOS', 'linux'], ['GOARCH', 'mipsle'], ['GOMIPS', 'softfloat']],
-
-    # [['GOOS', 'linux'], ['GOARCH', 'mips64'], ['GOMIPS64', 'hardfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mips64'], ['GOMIPS64', 'softfloat']],
-    [['GOOS', 'linux'], ['GOARCH', 'mips64le'], ['GOMIPS64', 'hardfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mips64le'], ['GOMIPS64', 'softfloat']],
-
-    [['GOOS', 'linux'], ['GOARCH', 'ppc64le']],
-
-    # [['GOOS', 'freebsd'], ['GOARCH', '386']],
-    [['GOOS', 'freebsd'], ['GOARCH', 'amd64']],
-
-    # [['GOOS', 'windows'], ['GOARCH', '386']],
-    [['GOOS', 'windows'], ['GOARCH', 'amd64']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64le']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64le'], ['GOMIPS64', 'softfloat']]
 ]
 
 
@@ -84,13 +74,6 @@ def go_build():
             subprocess.check_call(
                 f'go build -ldflags "-s -w -X main.version={VERSION}" -trimpath -o {bin_filename} ../', shell=True,
                 env=os_env)
-
-            if args.upx:
-                try:
-                    subprocess.check_call(f'upx -9 -q {bin_filename}', shell=True, stderr=subprocess.DEVNULL,
-                                          stdout=subprocess.DEVNULL)
-                except subprocess.CalledProcessError as e:
-                    logger.error(f'upx failed: {e.args}')
 
             with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED,
                                  compresslevel=5) as zf:
