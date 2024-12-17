@@ -1,1 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存命中情况饼状图</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .section {
+            width: 100%;
+            max-width: 100%;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .section h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+        .metrics {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .metrics p {
+            margin: 5px 10px 5px 0;
+            font-size: 1rem;
+            flex-basis: 50%;
+            white-space: nowrap;
+        }
+        .charts {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: nowrap;
+            margin-top: 10px;
+        }
+        .chart-container {
+            width: 190px;
+            height: 190px;
+            margin: 0 10px;
+        }
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        .main-container .section {
+            flex: 1;
+            margin: 0 10px;
+            max-width: calc(33.33% - 20px);
+        }
+        .system-info-container {
+            width: 100%;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
 
+    <!-- 国内、国外、节点部分 -->
+    <div class="main-container">
+        <!-- 国内部分 -->
+        <div class="section">
+            <h2>国内</h2>
+            <div class="metrics">
+                <p id="query-total-domestic">国内请求总数: <span>Loading...</span></p>
+                <p id="hit-total-domestic">国内缓存命中: <span>Loading...</span></p>
+                <p id="lazy-hit-total-domestic">国内过期缓存命中: <span>Loading...</span></p>
+                <p id="size-current-domestic">国内过期缓存条目数: <span>Loading...</span></p>
+                <p id="hit-rate-domestic">国内缓存命中率: <span>Loading...</span></p>
+                <p id="lazy-hit-rate-domestic">国内过期缓存命中率: <span>Loading...</span></p>
+            </div>
+            <div class="charts">
+                <div class="chart-container">
+                    <canvas id="totalHitChartDomestic"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="lazyHitChartDomestic"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 国外部分 -->
+        <div class="section">
+            <h2>国外</h2>
+            <div class="metrics">
+                <p id="query-total-foreign">国外请求总数: <span>Loading...</span></p>
+                <p id="hit-total-foreign">国外缓存命中: <span>Loading...</span></p>
+                <p id="lazy-hit-total-foreign">国外过期缓存命中: <span>Loading...</span></p>
+                <p id="size-current-foreign">国外过期缓存条目数: <span>Loading...</span></p>
+                <p id="hit-rate-foreign">国外缓存命中率: <span>Loading...</span></p>
+                <p id="lazy-hit-rate-foreign">国外过期缓存命中率: <span>Loading...</span></p>
+            </div>
+            <div class="charts">
+                <div class="chart-container">
+                    <canvas id="totalHitChartForeign"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="lazyHitChartForeign"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 节点部分 -->
+        <div class="section">
+            <h2>节点</h2>
+            <div class="metrics">
+                <p id="query-total-node">节点请求总数: <span>Loading...</span></p>
+                <p id="hit-total-node">节点缓存命中: <span>Loading...</span></p>
+                <p id="lazy-hit-total-node">节点过期缓存命中: <span>Loading...</span></p>
+                <p id="size-current-node">节点过期缓存条目数: <span>Loading...</span></p>
+                <p id="hit-rate-node">节点缓存命中率: <span>Loading...</span></p>
+                <p id="lazy-hit-rate-node">节点过期缓存命中率: <span>Loading...</span></p>
+            </div>
+            <div class="charts">
+                <div class="chart-container">
+                    <canvas id="totalHitChartNode"></canvas>
+                </div>
+                <div class="chart-container">
+                    <canvas id="lazyHitChartNode"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 系统信息板块 -->
+    <div class="system-info-container section">
+        <h2>系统信息</h2>
+        <div class="metrics">
+            <p id="start-time">启动时间: <span>Loading...</span></p>
+            <p id="cpu-time">CPU时间: <span>Loading...</span></p>
+            <p id="resident-memory">常驻内存: <span>Loading...</span></p>
+            <p id="virtual-memory">虚拟内存: <span>Loading...</span></p>
+            <p id="heap-idle-memory">待使用内存: <span>Loading...</span></p>
+            <p id="threads">线程数量: <span>Loading...</span></p>
+            <p id="open-fds">文件描述符数量: <span>Loading...</span></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script>
+        async function fetchData() {
+            try {
+                const response = await fetch('http://10.10.10.1:9099/metrics');
+                if (!response.ok) throw new Error('Network response was not ok');
+                return await response.text();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return null;
+            }
+        }
+
+        function parseMetrics(metricsText, cacheTag) {
+            const lines = metricsText.split('\n');
+            let metrics = { lazyHitTotal: 0, hitTotal: 0, queryTotal: 0, sizeCurrent: 0, startTime: 0 };
+            lines.forEach(line => {
+                if (line.startsWith(`mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`)) metrics.lazyHitTotal = convertToNumber(line.split(' ')[1]);
+                if (line.startsWith(`mosdns_cache_hit_total{tag="${cacheTag}"}`)) metrics.hitTotal = convertToNumber(line.split(' ')[1]);
+                if (line.startsWith(`mosdns_cache_query_total{tag="${cacheTag}"}`)) metrics.queryTotal = convertToNumber(line.split(' ')[1]);
+                if (line.startsWith(`mosdns_cache_size_current{tag="${cacheTag}"}`)) metrics.sizeCurrent = convertToNumber(line.split(' ')[1]);
+            });
+
+            const startTimeLine = lines.reverse().find(line => line.startsWith('process_start_time_seconds'));
+            if (startTimeLine) {
+                metrics.startTime = parseFloat(startTimeLine.split(' ')[1]);
+            }
+            return metrics;
+        }
+
+        function parseSystemMetrics(metricsText) {
+            const lines = metricsText.split('\n');
+            let systemMetrics = {
+                startTime: 0,
+                cpuTime: 0,
+                residentMemory: 0,
+                virtualMemory: 0,
+                heapIdleMemory: 0,
+                threads: 0,
+                openFds: 0
+            };
+
+            lines.forEach(line => {
+                if (line.startsWith('process_start_time_seconds')) {
+                    systemMetrics.startTime = parseFloat(line.split(' ')[1]);
+                }
+                if (line.startsWith('process_cpu_seconds_total')) {
+                    systemMetrics.cpuTime = parseFloat(line.split(' ')[1]);
+                }
+                if (line.startsWith('process_resident_memory_bytes')) {
+                    systemMetrics.residentMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)).toFixed(2);
+                }
+                if (line.startsWith('process_virtual_memory_bytes')) {
+                    systemMetrics.virtualMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)).toFixed(2);
+                }
+                if (line.startsWith('go_memstats_heap_idle_bytes')) {
+                    systemMetrics.heapIdleMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)).toFixed(2);
+                }
+                if (line.startsWith('go_threads')) {
+                    systemMetrics.threads = parseInt(line.split(' ')[1]);
+                }
+                if (line.startsWith('process_open_fds')) {
+                    systemMetrics.openFds = parseInt(line.split(' ')[1]);
+                }
+            });
+
+            return systemMetrics;
+        }
+
+        function convertToNumber(value) {
+            return parseFloat(value) || 0;
+        }
+
+        function calculateHitRates(metrics) {
+            const hitRate = (metrics.hitTotal / metrics.queryTotal * 100).toFixed(2);
+            const lazyHitRate = (metrics.lazyHitTotal / metrics.queryTotal * 100).toFixed(2);
+            return { hitRate, lazyHitRate };
+        }
+
+        function formatStartTime(seconds) {
+            const date = new Date(seconds * 1000);
+            return date.toLocaleString();
+        }
+
+        function updateMetricsDisplay(metrics, prefix) {
+            document.getElementById(`query-total-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : '节点')}请求总数: <span>${metrics.queryTotal}</span>`;
+            document.getElementById(`hit-total-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : '节点')}缓存命中: <span>${metrics.hitTotal}</span>`;
+            document.getElementById(`lazy-hit-total-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : '节点')}过期缓存命中: <span>${metrics.lazyHitTotal}</span>`;
+            document.getElementById(`size-current-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : '节点')}过期缓存条目数: <span>${metrics.sizeCurrent}</span>`;
+
+            const { hitRate, lazyHitRate } = calculateHitRates(metrics);
+            document.getElementById(`hit-rate-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : '节点')}缓存命中率: <span>${hitRate}%</span>`;
+            document.getElementById(`lazy-hit-rate-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : '节点')}过期缓存命中率: <span>${lazyHitRate}%</span>`;
+        }
+
+        function updateSystemMetricsDisplay(systemMetrics) {
+            document.getElementById('start-time').innerHTML = `启动时间: <span>${formatStartTime(systemMetrics.startTime)}</span>`;
+            document.getElementById('cpu-time').innerHTML = `CPU时间: <span>${systemMetrics.cpuTime} 秒</span>`;
+            document.getElementById('resident-memory').innerHTML = `常驻内存: <span>${systemMetrics.residentMemory} MB</span>`;
+            document.getElementById('virtual-memory').innerHTML = `虚拟内存: <span>${systemMetrics.virtualMemory} MB</span>`;
+            document.getElementById('heap-idle-memory').innerHTML = `待使用内存: <span>${systemMetrics.heapIdleMemory} MB</span>`;
+            document.getElementById('threads').innerHTML = `线程数量: <span>${systemMetrics.threads}</span>`;
+            document.getElementById('open-fds').innerHTML = `文件描述符数量: <span>${systemMetrics.openFds}</span>`;
+        }
+
+        function createPieChart(id, title, total, part) {
+            const ctx = document.getElementById(id).getContext('2d');
+            const data = {
+                labels: ['命中', '未命中'],
+                datasets: [{
+                    data: [part, total - part],
+                    backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)'],
+                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
+                    borderWidth: 1
+                }]
+            };
+            new Chart(ctx, {
+                type: 'pie',
+                data: data,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title,
+                            padding: 10,
+                            font: { size: 16 }
+                        },
+                        datalabels: {
+                            formatter: (value, context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = (value / total * 100).toFixed(2);
+                                return `${percentage}%`;
+                            },
+                            color: '#000',
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+
+        async function main() {
+            const metricsText = await fetchData();
+
+            if (metricsText) {
+                const systemMetrics = parseSystemMetrics(metricsText);
+                updateSystemMetricsDisplay(systemMetrics);
+
+                const domesticMetrics = parseMetrics(metricsText, 'cache_cn');
+                updateMetricsDisplay(domesticMetrics, 'domestic');
+                createPieChart('totalHitChartDomestic', '国内总缓存命中', domesticMetrics.queryTotal, domesticMetrics.hitTotal);
+                createPieChart('lazyHitChartDomestic', '国内过期缓存命中', domesticMetrics.queryTotal, domesticMetrics.lazyHitTotal);
+
+                const foreignMetrics = parseMetrics(metricsText, 'cache_google');
+                updateMetricsDisplay(foreignMetrics, 'foreign');
+                createPieChart('totalHitChartForeign', '国外总缓存命中', foreignMetrics.queryTotal, foreignMetrics.hitTotal);
+                createPieChart('lazyHitChartForeign', '国外过期缓存命中', foreignMetrics.queryTotal, foreignMetrics.lazyHitTotal);
+
+                const nodeMetrics = parseMetrics(metricsText, 'cache_node');
+                updateMetricsDisplay(nodeMetrics, 'node');
+                createPieChart('totalHitChartNode', '节点总缓存命中', nodeMetrics.queryTotal, nodeMetrics.hitTotal);
+                createPieChart('lazyHitChartNode', '节点过期缓存命中', nodeMetrics.queryTotal, nodeMetrics.lazyHitTotal);
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>
