@@ -18,33 +18,24 @@ logger = logging.getLogger(__name__)
 # more info: https://golang.org/doc/install/source
 # [(env : value),(env : value)]
 envs = [
+    [['GOOS', 'android'], ['GOARCH', 'arm64']],
     [['GOOS', 'darwin'], ['GOARCH', 'amd64']],
     [['GOOS', 'darwin'], ['GOARCH', 'arm64']],
-    # [['GOOS', 'linux'], ['GOARCH', '386']],
+    [['GOOS', 'windows'], ['GOARCH', 'amd64']],
+    [['GOOS', 'windows'], ['GOARCH', 'arm64']],
     [['GOOS', 'linux'], ['GOARCH', 'amd64']],
-
+    [['GOOS', 'linux'], ['GOARCH', 'arm64']],
     [['GOOS', 'linux'], ['GOARCH', 'arm'], ['GOARM', '5']],
     [['GOOS', 'linux'], ['GOARCH', 'arm'], ['GOARM', '6']],
     [['GOOS', 'linux'], ['GOARCH', 'arm'], ['GOARM', '7']],
-    [['GOOS', 'linux'], ['GOARCH', 'arm64']],
-
-    # [['GOOS', 'linux'], ['GOARCH', 'mips'], ['GOMIPS', 'hardfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mips'], ['GOMIPS', 'softfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mipsle'], ['GOMIPS', 'hardfloat']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips'], ['GOMIPS', 'softfloat']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64'], ['GOMIPS64', 'softfloat']],
+    [['GOOS', 'linux'], ['GOARCH', 'mipsle']],
     [['GOOS', 'linux'], ['GOARCH', 'mipsle'], ['GOMIPS', 'softfloat']],
-
-    # [['GOOS', 'linux'], ['GOARCH', 'mips64'], ['GOMIPS64', 'hardfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mips64'], ['GOMIPS64', 'softfloat']],
-    [['GOOS', 'linux'], ['GOARCH', 'mips64le'], ['GOMIPS64', 'hardfloat']],
-    # [['GOOS', 'linux'], ['GOARCH', 'mips64le'], ['GOMIPS64', 'softfloat']],
-
-    [['GOOS', 'linux'], ['GOARCH', 'ppc64le']],
-
-    # [['GOOS', 'freebsd'], ['GOARCH', '386']],
-    [['GOOS', 'freebsd'], ['GOARCH', 'amd64']],
-
-    # [['GOOS', 'windows'], ['GOARCH', '386']],
-    [['GOOS', 'windows'], ['GOARCH', 'amd64']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64le']],
+    [['GOOS', 'linux'], ['GOARCH', 'mips64le'], ['GOMIPS64', 'softfloat']]
 ]
 
 
