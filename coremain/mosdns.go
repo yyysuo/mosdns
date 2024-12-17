@@ -20,6 +20,7 @@
 package coremain
 
 import (
+                "embed"
 	"bytes"
 	"errors"
 	"fmt"
@@ -34,6 +35,9 @@ import (
 	"net/http"
 	"net/http/pprof"
 )
+
+               //go:embed www/mosdns.html
+               var content embed.FS
 
 type Mosdns struct {
 	logger *zap.Logger // non-nil logger.
@@ -174,9 +178,36 @@ func newMetricsReg() *prometheus.Registry {
 
 // initHttpMux initializes api entries. It MUST be called after m.metricsReg being initialized.
 func (m *Mosdns) initHttpMux() {
+    // 设置 CORS 头部
+    m.httpMux.Use(func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            // 设置跨域响应头
+            w.Header().Set("Access-Control-Allow-Origin", "*")  // 允许所有来源请求
+            w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+
+            // 处理 OPTIONS 请求（CORS 预检）
+            if r.Method == http.MethodOptions {
+                w.WriteHeader(http.StatusOK)
+                return
+            }
+
+            next.ServeHTTP(w, r)
+        })
+    })
+
+// 使用 http.HandlerFunc 将函数包装成 http.Handler
+m.httpMux.Method(http.MethodGet, "/graphic", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    data, err := content.ReadFile("www/mosdns.html")
+    if err != nil {
+        http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "text/html")
+    w.Write(data)
+}))
 	// Register metrics.
 	m.httpMux.Method(http.MethodGet, "/metrics", promhttp.HandlerFor(m.metricsReg, promhttp.HandlerOpts{}))
-
 	// Register pprof.
 	m.httpMux.Route("/debug/pprof", func(r chi.Router) {
 		r.Get("/*", pprof.Index)
