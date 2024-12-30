@@ -17,128 +17,124 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package main
+package domain_output
 
 import (
-	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"strings"
+	"strconv"
 	"sync"
 
-	"github.com/IrineSistiana/mosdns/v5/plugin/executable"
+	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
-	"github.com/IrineSistiana/mosdns/v5/pkg/utils"
-	"github.com/miekg/dns"
-	"go.uber.org/zap"
+	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 )
 
-const (
-	PluginType = "domain_output"
-)
+const PluginType = "domain_output"
 
 func init() {
-	executable.RegNewPluginFunc(PluginType, Init, func() any { return new(Args) })
+	// Register this plugin type with its initialization funcs.
+	coremain.RegNewPluginFunc(PluginType, Init, func() any { return new(Args) })
+
+	// Register a quick setup function for sequence.
+	sequence.MustRegExecQuickSetup(PluginType, QuickSetup)
 }
 
+// Args contains configuration for the plugin.
 type Args struct {
-	FilePath   string `yaml:"file_path"`
-	MaxEntries int    `yaml:"max_entries"`
+	FilePath   string `yaml:"file_path"`   // Path to the output file.
+	MaxEntries uint   `yaml:"max_entries"` // Max number of entries before writing to file.
 }
 
-func (a *Args) init() {
-	utils.SetDefaultUnsignNum(&a.MaxEntries, 100)
+var _ sequence.Executable = (*domainOutput)(nil)
+
+// domainOutput implements handler.ExecutablePlugin.
+type domainOutput struct {
+	filePath   string
+	maxEntries uint
+	domainData map[string]uint
+	mu         sync.Mutex
 }
 
-// domainStats 用来保存域名和其请求次数
-type domainStats struct {
-	sync.Mutex
-	stats map[string]int
-}
+// Exec implements handler.Executable.
+func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) error {
+	// Fetch the queried domain name
+	qname := qCtx.QName()
 
-func (d *domainStats) addDomain(domain string) {
-	d.Lock()
-	defer d.Unlock()
-	d.stats[domain]++
-}
+	// Update the domain count
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.domainData[qname]++
 
-func (d *domainStats) getStats() map[string]int {
-	d.Lock()
-	defer d.Unlock()
-	// 返回当前统计的域名数据
-	statsCopy := make(map[string]int)
-	for k, v := range d.stats {
-		statsCopy[k] = v
-	}
-	return statsCopy
-}
-
-type DomainOutputPlugin struct {
-	args    *Args
-	logger  *zap.Logger
-	stats   *domainStats
-	current int
-}
-
-func Init(bp *executable.BP, args any) (any, error) {
-	plugin := &DomainOutputPlugin{
-		args:    args.(*Args),
-		logger:  bp.L(),
-		stats:   &domainStats{stats: make(map[string]int)},
-		current: 0,
-	}
-
-	return plugin, nil
-}
-
-func (d *DomainOutputPlugin) Exec(ctx query_context.Context, next executable.ChainWalker) error {
-	// 获取请求的域名
-	q := ctx.Q()
-	if q == nil {
-		return next.ExecNext(ctx)
-	}
-
-	domain := q.Question[0].Name
-	// 统计域名请求
-	d.stats.addDomain(domain)
-
-	// 每达到 MaxEntries 条数据，写入文件
-	d.current++
-	if d.current >= d.args.MaxEntries {
-		d.writeToFile()
-		d.current = 0
-	}
-
-	return next.ExecNext(ctx)
-}
-
-func (d *DomainOutputPlugin) writeToFile() {
-	file, err := os.OpenFile(d.args.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		d.logger.Error("failed to open file", zap.String("file", d.args.FilePath), zap.Error(err))
-		return
-	}
-	defer file.Close()
-
-	writer := bufio.NewWriter(file)
-	for domain, count := range d.stats.getStats() {
-		_, err := fmt.Fprintf(writer, "%s %d\n", domain, count)
-		if err != nil {
-			d.logger.Error("failed to write to file", zap.String("file", d.args.FilePath), zap.Error(err))
-			return
+	// When the number of entries exceeds maxEntries, write to the file
+	if len(d.domainData) >= int(d.maxEntries) {
+		if err := d.writeToFile(); err != nil {
+			return fmt.Errorf("failed to write domain data to file: %v", err)
 		}
 	}
 
-	err = writer.Flush()
-	if err != nil {
-		d.logger.Error("failed to flush writer", zap.String("file", d.args.FilePath), zap.Error(err))
-	}
-	d.stats = &domainStats{stats: make(map[string]int)} // 清空统计数据
-}
-
-func (d *DomainOutputPlugin) Close() error {
-	// 插件关闭时写入剩余的统计数据
-	d.writeToFile()
 	return nil
 }
 
+// writeToFile writes the current domain statistics to the output file.
+func (d *domainOutput) writeToFile() error {
+	// Open the file for writing (will overwrite if exists)
+	file, err := os.OpenFile(d.filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open file %s: %v", d.filePath, err)
+	}
+	defer file.Close()
+
+	// Write domain stats to the file
+	for domain, count := range d.domainData {
+		_, err := fmt.Fprintf(file, "%s %d\n", domain, count)
+		if err != nil {
+			return fmt.Errorf("failed to write to file: %v", err)
+		}
+	}
+
+	// Clear the domainData map after writing to file
+	d.domainData = make(map[string]uint)
+
+	return nil
+}
+
+func Init(_ *coremain.BP, args any) (any, error) {
+	// Parse arguments from config
+	cfg := args.(*Args)
+	return &domainOutput{
+		filePath:   cfg.FilePath,
+		maxEntries: cfg.MaxEntries,
+		domainData: make(map[string]uint),
+	}, nil
+}
+
+func QuickSetup(_ sequence.BQ, s string) (any, error) {
+	// Quick setup based on a string (could be extended with more logic)
+	parts := split(s, ",")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid quick setup format, expected <file_path>,<max_entries>")
+	}
+
+	filePath := parts[0]
+	maxEntries, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid max_entries value: %v", err)
+	}
+
+	return &domainOutput{
+		filePath:   filePath,
+		maxEntries: uint(maxEntries),
+		domainData: make(map[string]uint),
+	}, nil
+}
+
+// Utility function to split string by a delimiter
+func split(s, delimiter string) []string {
+	var result []string
+	for _, part := range s {
+		result = append(result, part)
+	}
+	return result
+}
