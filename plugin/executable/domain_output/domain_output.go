@@ -157,7 +157,8 @@ func (d *domainOutput) writeToFile() {
 	defer file.Close()
 
 	for _, entry := range entries {
-		file.WriteString(fmt.Sprintf("%06d %s\n", entry[0], entry[1]))
+		// Format count to 10 digits
+		file.WriteString(fmt.Sprintf("%010d %s\n", entry[0], entry[1]))
 	}
 }
 
