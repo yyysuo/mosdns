@@ -21,6 +21,8 @@ package domain_output
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -40,51 +42,69 @@ func init() {
 }
 
 type Args struct {
-	FilePath  string `yaml:"file_path"`
+	FileStat   string `yaml:"file_stat"`
+	FileRule   string `yaml:"file_rule"`
 	MaxEntries int    `yaml:"max_entries"`
 }
 
 type domainOutput struct {
-	filePath  string
+	fileStat   string
+	fileRule   string
 	maxEntries int
-	stats     map[string]int
-	mu        sync.Mutex
+	stats      map[string]int
+	mu         sync.Mutex
+	totalCount int
 }
 
 func Init(_ *coremain.BP, args any) (any, error) {
 	cfg := args.(*Args)
-	return &domainOutput{
-		filePath:  cfg.FilePath,
+	d := &domainOutput{
+		fileStat:   cfg.FileStat,
+		fileRule:   cfg.FileRule,
 		maxEntries: cfg.MaxEntries,
-		stats:     make(map[string]int),
-	}, nil
+		stats:      make(map[string]int),
+	}
+	// Load previous stats from the file when the plugin starts
+	d.loadFromFile()
+	return d, nil
 }
 
 func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	params := strings.Split(s, ",")
-	if len(params) != 2 {
+	if len(params) != 3 {
 		return nil, errors.New("invalid quick setup arguments")
 	}
-	filePath := params[0]
-	maxEntries, err := strconv.Atoi(params[1])
+	fileStat := params[0]
+	fileRule := params[1]
+	maxEntries, err := strconv.Atoi(params[2])
 	if err != nil {
 		return nil, err
 	}
-	return &domainOutput{
-		filePath:  filePath,
+	d := &domainOutput{
+		fileStat:   fileStat,
+		fileRule:   fileRule,
 		maxEntries: maxEntries,
-		stats:     make(map[string]int),
-	}, nil
+		stats:      make(map[string]int),
+	}
+	// Load previous stats from the file when the plugin starts
+	d.loadFromFile()
+	return d, nil
 }
 
 func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) error {
 	for _, question := range qCtx.Q().Question {
-		domain := question.Name
+		domain := strings.TrimSuffix(question.Name, ".") // Remove the trailing dot from the domain
 		d.mu.Lock()
 		d.stats[domain]++
+		d.totalCount++
 		d.mu.Unlock()
 	}
-	d.checkAndWrite()
+
+	// Trigger write if maxEntries is reached
+	if d.totalCount >= d.maxEntries {
+		d.checkAndWrite()
+	}
+
 	return nil
 }
 
@@ -92,10 +112,35 @@ func (d *domainOutput) checkAndWrite() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if len(d.stats) < d.maxEntries {
+	// Write to file when maxEntries are reached
+	d.writeToFile()
+	d.writeRuleFile()
+}
+
+func (d *domainOutput) loadFromFile() {
+	// Load previous stats from fileStat
+	file, err := os.Open(d.fileStat)
+	if err != nil {
+		// If file does not exist, no previous data
 		return
 	}
+	defer file.Close()
 
+	// Read lines and update stats map
+	var domain string
+	var count int
+	for {
+		_, err := fmt.Fscanf(file, "%d %s\n", &count, &domain)
+		if err != nil {
+			break
+		}
+		d.mu.Lock()
+		d.stats[domain] = count
+		d.mu.Unlock()
+	}
+}
+
+func (d *domainOutput) writeToFile() {
 	entries := make([][2]interface{}, 0, len(d.stats))
 	for domain, count := range d.stats {
 		entries = append(entries, [2]interface{}{count, domain})
@@ -105,13 +150,44 @@ func (d *domainOutput) checkAndWrite() {
 		return entries[i][0].(int) > entries[j][0].(int)
 	})
 
-	file, err := os.Create(d.filePath)
+	file, err := os.Create(d.fileStat)
 	if err != nil {
 		return
 	}
 	defer file.Close()
 
-	for i := 0; i < len(entries) && i < d.maxEntries; i++ {
-		file.WriteString(fmt.Sprintf("%06d %s\n", entries[i][0], entries[i][1]))
+	for _, entry := range entries {
+		file.WriteString(fmt.Sprintf("%06d %s\n", entry[0], entry[1]))
 	}
+}
+
+func (d *domainOutput) writeRuleFile() {
+	entries := make([][2]interface{}, 0, len(d.stats))
+	for domain, count := range d.stats {
+		entries = append(entries, [2]interface{}{count, domain})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i][0].(int) > entries[j][0].(int)
+	})
+
+	file, err := os.Create(d.fileRule)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	for _, entry := range entries {
+		file.WriteString(fmt.Sprintf("full:%s\n", entry[1]))
+	}
+}
+
+// Shutdown hook to ensure writing unflushed stats
+func (d *domainOutput) Shutdown() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Write any remaining stats if there are unflushed entries
+	d.writeToFile()
+	d.writeRuleFile()
 }
