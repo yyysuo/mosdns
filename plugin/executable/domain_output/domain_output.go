@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
@@ -42,36 +43,47 @@ func init() {
 }
 
 type Args struct {
-	FileStat   string `yaml:"file_stat"`
-	FileRule   string `yaml:"file_rule"`
-	MaxEntries int    `yaml:"max_entries"`
+	FileStat     string `yaml:"file_stat"`
+	FileRule     string `yaml:"file_rule"`
+	MaxEntries   int    `yaml:"max_entries"`
+	DumpInterval int    `yaml:"dump_interval"`
 }
 
 type domainOutput struct {
-	fileStat   string
-	fileRule   string
-	maxEntries int
-	stats      map[string]int
-	mu         sync.Mutex
-	totalCount int
+	fileStat     string
+	fileRule     string
+	maxEntries   int
+	dumpInterval time.Duration
+	stats        map[string]int
+	mu           sync.Mutex
+	totalCount   int
+	stopChan     chan struct{}
 }
 
 func Init(_ *coremain.BP, args any) (any, error) {
 	cfg := args.(*Args)
-	d := &domainOutput{
-		fileStat:   cfg.FileStat,
-		fileRule:   cfg.FileRule,
-		maxEntries: cfg.MaxEntries,
-		stats:      make(map[string]int),
+	if cfg.DumpInterval <= 0 {
+		cfg.DumpInterval = 60 // 默认值为60秒
 	}
-	// Load previous stats from the file when the plugin starts
+	d := &domainOutput{
+		fileStat:     cfg.FileStat,
+		fileRule:     cfg.FileRule,
+		maxEntries:   cfg.MaxEntries,
+		dumpInterval: time.Duration(cfg.DumpInterval) * time.Second,
+		stats:        make(map[string]int),
+		stopChan:     make(chan struct{}),
+	}
 	d.loadFromFile()
+
+	// 启动定时写入协程
+	go d.startDumpTicker()
+
 	return d, nil
 }
 
 func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	params := strings.Split(s, ",")
-	if len(params) != 3 {
+	if len(params) != 4 {
 		return nil, errors.New("invalid quick setup arguments")
 	}
 	fileStat := params[0]
@@ -80,14 +92,23 @@ func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := &domainOutput{
-		fileStat:   fileStat,
-		fileRule:   fileRule,
-		maxEntries: maxEntries,
-		stats:      make(map[string]int),
+	dumpInterval, err := strconv.Atoi(params[3])
+	if err != nil || dumpInterval <= 0 {
+		dumpInterval = 60 // 默认值为60秒
 	}
-	// Load previous stats from the file when the plugin starts
+	d := &domainOutput{
+		fileStat:     fileStat,
+		fileRule:     fileRule,
+		maxEntries:   maxEntries,
+		dumpInterval: time.Duration(dumpInterval) * time.Second,
+		stats:        make(map[string]int),
+		stopChan:     make(chan struct{}),
+	}
 	d.loadFromFile()
+
+	// 启动定时写入协程
+	go d.startDumpTicker()
+
 	return d, nil
 }
 
@@ -157,7 +178,6 @@ func (d *domainOutput) writeToFile() {
 	defer file.Close()
 
 	for _, entry := range entries {
-		// Format count to 10 digits
 		file.WriteString(fmt.Sprintf("%010d %s\n", entry[0], entry[1]))
 	}
 }
@@ -183,8 +203,22 @@ func (d *domainOutput) writeRuleFile() {
 	}
 }
 
+func (d *domainOutput) startDumpTicker() {
+	ticker := time.NewTicker(d.dumpInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			d.checkAndWrite()
+		case <-d.stopChan:
+			return
+		}
+	}
+}
+
 // Shutdown hook to ensure writing unflushed stats
 func (d *domainOutput) Shutdown() {
+	close(d.stopChan)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
