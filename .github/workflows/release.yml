@@ -3,7 +3,7 @@ name: Release mosdns
 on:
   push:
     tags:
-      - 'v8'
+      - 'v*'
   workflow_dispatch:
 
 jobs:
