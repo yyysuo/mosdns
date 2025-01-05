@@ -156,7 +156,8 @@
     <script>
         async function fetchData() {
             try {
-                const response = await fetch('http://10.10.10.1:9099/metrics');
+                const host = window.location.hostname;
+                const response = await fetch(`http://${host}:9099/metrics`);
                 if (!response.ok) throw new Error('Network response was not ok');
                 return await response.text();
             } catch (error) {
