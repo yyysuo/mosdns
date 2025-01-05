@@ -195,7 +195,7 @@ func (m *Mosdns) initHttpMux() {
     
     m.httpMux.Use(corsMiddleware)
 
-    // 修改 metrics 处理
+    // metrics 处理 (只注册一次)
     metricsHandler := promhttp.HandlerFor(m.metricsReg, promhttp.HandlerOpts{})
     wrappedMetricsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         m.logger.Debug("Metrics endpoint accessed", 
@@ -219,8 +219,6 @@ func (m *Mosdns) initHttpMux() {
         }
     })
 
-    // Register metrics.
-    m.httpMux.Method(http.MethodGet, "/metrics", promhttp.HandlerFor(m.metricsReg, promhttp.HandlerOpts{}))
     // Register pprof.
     m.httpMux.Route("/debug/pprof", func(r chi.Router) {
         r.Get("/*", pprof.Index)
