@@ -178,61 +178,74 @@ func newMetricsReg() *prometheus.Registry {
 
 // initHttpMux initializes api entries. It MUST be called after m.metricsReg being initialized.
 func (m *Mosdns) initHttpMux() {
-    // 设置 CORS 头部
-    m.httpMux.Use(func(next http.Handler) http.Handler {
+    // 全局 CORS 中间件
+    corsMiddleware := func(next http.Handler) http.Handler {
         return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-            // 设置跨域响应头
-            w.Header().Set("Access-Control-Allow-Origin", "*")  // 允许所有来源请求
+            w.Header().Set("Access-Control-Allow-Origin", "*")
             w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
-
-            // 处理 OPTIONS 请求（CORS 预检）
+            
             if r.Method == http.MethodOptions {
                 w.WriteHeader(http.StatusOK)
                 return
             }
-
             next.ServeHTTP(w, r)
         })
+    }
+    
+    m.httpMux.Use(corsMiddleware)
+
+    // 修改 metrics 处理
+    metricsHandler := promhttp.HandlerFor(m.metricsReg, promhttp.HandlerOpts{})
+    wrappedMetricsHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        m.logger.Debug("Metrics endpoint accessed", 
+            zap.String("remote_addr", r.RemoteAddr),
+            zap.String("method", r.Method))
+        metricsHandler.ServeHTTP(w, r)
+    })
+    m.httpMux.Method(http.MethodGet, "/metrics", wrappedMetricsHandler)
+
+    // graphic 路由
+    m.httpMux.Get("/graphic", func(w http.ResponseWriter, r *http.Request) {
+        data, err := content.ReadFile("www/mosdns.html")
+        if err != nil {
+            m.logger.Error("Error reading embedded file", zap.Error(err))
+            http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+            return
+        }
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        if _, err := w.Write(data); err != nil {
+            m.logger.Error("Error writing response", zap.Error(err))
+        }
     })
 
-// 使用 http.HandlerFunc 将函数包装成 http.Handler
-m.httpMux.Method(http.MethodGet, "/graphic", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    data, err := content.ReadFile("www/mosdns.html")
-    if err != nil {
-        http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
-        return
-    }
-    w.Header().Set("Content-Type", "text/html")
-    w.Write(data)
-}))
-	// Register metrics.
-	m.httpMux.Method(http.MethodGet, "/metrics", promhttp.HandlerFor(m.metricsReg, promhttp.HandlerOpts{}))
-	// Register pprof.
-	m.httpMux.Route("/debug/pprof", func(r chi.Router) {
-		r.Get("/*", pprof.Index)
-		r.Get("/cmdline", pprof.Cmdline)
-		r.Get("/profile", pprof.Profile)
-		r.Get("/symbol", pprof.Symbol)
-		r.Get("/trace", pprof.Trace)
-	})
+    // Register metrics.
+    m.httpMux.Method(http.MethodGet, "/metrics", promhttp.HandlerFor(m.metricsReg, promhttp.HandlerOpts{}))
+    // Register pprof.
+    m.httpMux.Route("/debug/pprof", func(r chi.Router) {
+        r.Get("/*", pprof.Index)
+        r.Get("/cmdline", pprof.Cmdline)
+        r.Get("/profile", pprof.Profile)
+        r.Get("/symbol", pprof.Symbol)
+        r.Get("/trace", pprof.Trace)
+    })
 
-	// A helper page for invalid request.
-	invalidApiReqHelper := func(w http.ResponseWriter, req *http.Request) {
-		b := new(bytes.Buffer)
-		_, _ = fmt.Fprintf(b, "Invalid request %s %s\n\n", req.Method, req.RequestURI)
-		b.WriteString("Available api urls:\n")
-		_ = chi.Walk(m.httpMux, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-			b.WriteString(method)
-			b.WriteByte(' ')
-			b.WriteString(route)
-			b.WriteByte('\n')
-			return nil
-		})
-		_, _ = w.Write(b.Bytes())
-	}
-	m.httpMux.NotFound(invalidApiReqHelper)
-	m.httpMux.MethodNotAllowed(invalidApiReqHelper)
+    // A helper page for invalid request.
+    invalidApiReqHelper := func(w http.ResponseWriter, req *http.Request) {
+        b := new(bytes.Buffer)
+        _, _ = fmt.Fprintf(b, "Invalid request %s %s\n\n", req.Method, req.RequestURI)
+        b.WriteString("Available api urls:\n")
+        _ = chi.Walk(m.httpMux, func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+            b.WriteString(method)
+            b.WriteByte(' ')
+            b.WriteString(route)
+            b.WriteByte('\n')
+            return nil
+        })
+        _, _ = w.Write(b.Bytes())
+    }
+    m.httpMux.NotFound(invalidApiReqHelper)
+    m.httpMux.MethodNotAllowed(invalidApiReqHelper)
 }
 
 func (m *Mosdns) loadPresetPlugins() error {
