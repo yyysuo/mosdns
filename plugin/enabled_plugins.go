@@ -59,6 +59,7 @@ import (
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/redirect"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/reverse_lookup"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/domain_output"
+	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/cname_remover"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence/fallback"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sleep"
