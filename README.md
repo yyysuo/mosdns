@@ -41,6 +41,7 @@ full:dns.msftncsi.com
 三、使用resend将realiplist.txt中的域名发送到指定的dns服务器（tcp）
 
 /cus/bin/mosdns resend resend /cus/mosdns/gen/realiplist.txt 10 10.10.10.1:53
+
 resend为添加的命令，/cus/mosdns/gen/realiplist.txt为本地文件 10为每秒发多少个dns请求 10.10.10.1:53为指定的dns服务器，只支持tcp
 
 
