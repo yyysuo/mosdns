@@ -8,6 +8,7 @@ docker 镜像: [docker hub](https://hub.docker.com/r/irinesistiana/mosdns)
 
 
 添加的功能：
+
 一、输出域名列表
   - tag: my_realiplist
     type: domain_output        #输出域名列表
