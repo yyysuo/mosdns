@@ -57,6 +57,7 @@ type domainOutput struct {
 	stats        map[string]int
 	mu           sync.Mutex
 	totalCount   int
+	entryCounter int // 独立计数器，用于统计当前已处理的请求数
 	stopChan     chan struct{}
 }
 
@@ -118,11 +119,12 @@ func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) er
 		d.mu.Lock()
 		d.stats[domain]++
 		d.totalCount++
+		d.entryCounter++
 		d.mu.Unlock()
 	}
 
-	// Trigger write if maxEntries is reached
-	if d.totalCount >= d.maxEntries {
+	// 如果达到maxEntries计数，则立即触发写入并清空计数器
+	if d.entryCounter >= d.maxEntries {
 		d.checkAndWrite()
 	}
 
@@ -132,22 +134,17 @@ func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) er
 func (d *domainOutput) checkAndWrite() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	// Write to file when maxEntries are reached
-	d.writeToFile()
-	d.writeRuleFile()
+	d.writeAll()
+	d.entryCounter = 0 // 清空计数器，等待下一轮触发
 }
 
 func (d *domainOutput) loadFromFile() {
-	// Load previous stats from fileStat
 	file, err := os.Open(d.fileStat)
 	if err != nil {
-		// If file does not exist, no previous data
 		return
 	}
 	defer file.Close()
 
-	// Read lines and update stats map
 	var domain string
 	var count int
 	for {
@@ -216,13 +213,17 @@ func (d *domainOutput) startDumpTicker() {
 	}
 }
 
-// Shutdown hook to ensure writing unflushed stats
 func (d *domainOutput) Shutdown() {
 	close(d.stopChan)
+
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	// Write any remaining stats if there are unflushed entries
+	d.writeAll() // 写入所有数据
+}
+
+func (d *domainOutput) writeAll() {
 	d.writeToFile()
 	d.writeRuleFile()
 }
+
