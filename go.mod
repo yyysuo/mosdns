@@ -8,7 +8,7 @@ require (
 	github.com/google/nftables v0.2.0
 	github.com/kardianos/service v1.2.2
 	github.com/klauspost/compress v1.17.11
-	github.com/miekg/dns v1.1.62
+	github.com/miekg/dns v1.1.63
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/nadoo/ipset v0.5.0
 	github.com/prometheus/client_golang v1.20.5
