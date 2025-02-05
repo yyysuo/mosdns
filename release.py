@@ -6,7 +6,6 @@ import subprocess
 import zipfile
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-upx", action="store_true")
 parser.add_argument("-i", type=int)
 args = parser.parse_args()
 
@@ -75,13 +74,6 @@ def go_build():
             subprocess.check_call(
                 f'go build -ldflags "-s -w -X main.version={VERSION}" -trimpath -o {bin_filename} ../', shell=True,
                 env=os_env)
-
-            if args.upx:
-                try:
-                    subprocess.check_call(f'upx -9 -q {bin_filename}', shell=True, stderr=subprocess.DEVNULL,
-                                          stdout=subprocess.DEVNULL)
-                except subprocess.CalledProcessError as e:
-                    logger.error(f'upx failed: {e.args}')
 
             with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED,
                                  compresslevel=5) as zf:
