@@ -83,7 +83,7 @@ func newFallbackPlugin(bp *coremain.BP, args *Args) (*fallback, error) {
 		return nil, fmt.Errorf("can not find secondary executable %s", args.Secondary)
 	}
 	threshold := time.Duration(args.Threshold) * time.Millisecond
-	if threshold <= 0 {
+	if threshold < 0 {
 		threshold = defaultFallbackThreshold
 	}
 
