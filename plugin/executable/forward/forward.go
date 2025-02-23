@@ -235,88 +235,106 @@ func (f *Forward) Close() error {
 }
 
 func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us []*upstreamWrapper) (*dns.Msg, error) {
-	if len(us) == 0 {
-		return nil, errors.New("no upstream to exchange")
-	}
+    if len(us) == 0 {
+        return nil, errors.New("no upstream to exchange")
+    }
 
-	queryPayload, err := pool.PackBuffer(qCtx.Q())
-	if err != nil {
-		return nil, err
-	}
-	defer pool.ReleaseBuf(queryPayload)
+    queryPayload, err := pool.PackBuffer(qCtx.Q())
+    if err != nil {
+        return nil, err
+    }
+    defer pool.ReleaseBuf(queryPayload)
 
-	concurrent := f.args.Concurrent
-	if concurrent <= 0 {
-		concurrent = 1
-	}
-	if concurrent > maxConcurrentQueries {
-		concurrent = maxConcurrentQueries
-	}
+    concurrent := f.args.Concurrent
+    if concurrent <= 0 {
+        concurrent = 1
+    }
+    if concurrent > maxConcurrentQueries {
+        concurrent = maxConcurrentQueries
+    }
 
-	type res struct {
-		r   *dns.Msg
-		err error
-	}
+    type res struct {
+        r   *dns.Msg
+        err error
+    }
 
-	resChan := make(chan res)
-	done := make(chan struct{})
-	defer close(done)
+    resChan := make(chan res)
+    done := make(chan struct{})
+    defer close(done)
 
-	r := rand.IntN(len(us))
-	for i := 0; i < concurrent; i++ {
-		u := us[(r+i)%len(us)]
-		qc := copyPayload(queryPayload)
-		go func(uqid uint32, question dns.Question) {
-			defer pool.ReleaseBuf(qc)
-			// Give each upstream a fixed timeout to finish the query.
-			upstreamCtx, cancel := context.WithTimeout(context.Background(), queryTimeout)
-			defer cancel()
+    var lastValidRes *dns.Msg
 
-			var r *dns.Msg
-			respPayload, err := u.ExchangeContext(upstreamCtx, *qc)
-			if err != nil {
-				f.logger.Warn(
-					"upstream error",
-					zap.Uint32("uqid", uqid),
-					zap.String("qname", question.Name),
-					zap.Uint16("qclass", question.Qclass),
-					zap.Uint16("qtype", question.Qtype),
-					zap.String("upstream", u.name()),
-					zap.Error(err),
-				)
-			} else {
-				r = new(dns.Msg)
-				err = r.Unpack(*respPayload)
-				pool.ReleaseBuf(respPayload)
-				if err != nil {
-					r = nil
-				}
-			}
-			select {
-			case resChan <- res{r: r, err: err}:
-			case <-done:
-			}
-		}(qCtx.Id(), qCtx.QQuestion())
-	}
+    r := rand.IntN(len(us))
+    for i := 0; i < concurrent; i++ {
+        u := us[(r+i)%len(us)]
+        qc := copyPayload(queryPayload)
+        go func(uqid uint32, question dns.Question) {
+            defer pool.ReleaseBuf(qc)
+            upstreamCtx, cancel := context.WithTimeout(context.Background(), queryTimeout)
+            defer cancel()
 
-	for i := 0; i < concurrent; i++ {
-		select {
-		case res := <-resChan:
-			r, err := res.r, res.err
-			if err != nil {
-				continue
-			}
+            var r *dns.Msg
+            respPayload, err := u.ExchangeContext(upstreamCtx, *qc)
+            if err != nil {
+                f.logger.Warn(
+                    "upstream error",
+                    zap.Uint32("uqid", uqid),
+                    zap.String("qname", question.Name),
+                    zap.Uint16("qclass", question.Qclass),
+                    zap.Uint16("qtype", question.Qtype),
+                    zap.String("upstream", u.name()),
+                    zap.Error(err),
+                )
+            } else {
+                r = new(dns.Msg)
+                err = r.Unpack(*respPayload)
+                pool.ReleaseBuf(respPayload)
+                if err != nil {
+                    r = nil
+                }
+            }
+            select {
+            case resChan <- res{r: r, err: err}:
+            case <-done:
+            }
+        }(qCtx.Id(), qCtx.QQuestion())
+    }
 
-			// Retry until the last
-			if i < concurrent-1 && r.Rcode != dns.RcodeSuccess && r.Rcode != dns.RcodeNameError {
-				continue
-			}
-			return r, nil
-		case <-ctx.Done():
-			return nil, context.Cause(ctx)
-		}
-	}
-	return nil, errors.New("all upstream servers failed")
+    for i := 0; i < concurrent; i++ {
+        select {
+        case res := <-resChan:
+            r, err := res.r, res.err
+            if err != nil {
+                continue
+            }
+
+            if len(r.Answer) > 0 {
+                for _, ans := range r.Answer {
+                    if a, ok := ans.(*dns.A); ok && len(a.A) > 0 {
+                        return r, nil
+                    }
+                    if aaaa, ok := ans.(*dns.AAAA); ok && len(aaaa.AAAA) > 0 {
+                        return r, nil
+                    }
+                }
+            }
+
+            if r.Rcode == dns.RcodeSuccess || r.Rcode == dns.RcodeNameError {
+                if lastValidRes == nil {
+                    lastValidRes = r
+                }
+            }
+
+        case <-ctx.Done():
+            return nil, context.Cause(ctx)
+        }
+    }
+
+    if lastValidRes != nil {
+        return lastValidRes, nil
+    }
+
+    return nil, errors.New("all upstream servers failed or returned no IP address")
 }
 
 func quickSetup(bq sequence.BQ, s string) (any, error) {
