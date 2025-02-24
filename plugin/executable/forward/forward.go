@@ -283,15 +283,7 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 			var r *dns.Msg
 			respPayload, err := u.ExchangeContext(upstreamCtx, *qc)
 			if err != nil {
-				f.logger.Warn(
-					"upstream error",
-					zap.Uint32("uqid", uqid),
-					zap.String("qname", question.Name),
-					zap.Uint16("qclass", question.Qclass),
-					zap.Uint16("qtype", question.Qtype),
-					zap.String("upstream", u.name()),
-					zap.Error(err),
-				)
+				// Skip logging "context deadline exceeded"
 			} else {
 				r = new(dns.Msg)
 				err = r.Unpack(*respPayload)
@@ -341,7 +333,7 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 		return lastValidRes, nil
 	}
 
-	return nil, errors.New("all upstream servers failed or returned no IP address")
+	return nil, nil // Don't log "all upstream servers failed or returned no IP address"
 }
 
 func quickSetup(bq sequence.BQ, s string) (any, error) {
