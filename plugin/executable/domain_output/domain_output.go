@@ -43,22 +43,28 @@ func init() {
 }
 
 type Args struct {
-	FileStat     string `yaml:"file_stat"`
-	FileRule     string `yaml:"file_rule"`
-	MaxEntries   int    `yaml:"max_entries"`
-	DumpInterval int    `yaml:"dump_interval"`
+	FileStat       string `yaml:"file_stat"`
+	FileRule       string `yaml:"file_rule"`
+	GenRule        string `yaml:"gen_rule"`        // 生成规则文件的路径
+	Pattern        string `yaml:"pattern"`         // 规则模板，模板中的 "DOMAIN" 替换为域名
+	AppendedString string `yaml:"appended_string"` // 如果配置了此项，则在生成的文件第一行添加此字符串
+	MaxEntries     int    `yaml:"max_entries"`
+	DumpInterval   int    `yaml:"dump_interval"`
 }
 
 type domainOutput struct {
-	fileStat     string
-	fileRule     string
-	maxEntries   int
-	dumpInterval time.Duration
-	stats        map[string]int
-	mu           sync.Mutex
-	totalCount   int
-	entryCounter int // 独立计数器，用于统计当前已处理的请求数
-	stopChan     chan struct{}
+	fileStat       string
+	fileRule       string
+	genRule        string // 生成规则文件路径
+	pattern        string // 规则模板
+	appendedString string // 附加字符串，写入生成规则文件的第一行
+	maxEntries     int
+	dumpInterval   time.Duration
+	stats          map[string]int
+	mu             sync.Mutex
+	totalCount     int
+	entryCounter   int // 用于判断写入的计数器
+	stopChan       chan struct{}
 }
 
 func Init(_ *coremain.BP, args any) (any, error) {
@@ -67,12 +73,15 @@ func Init(_ *coremain.BP, args any) (any, error) {
 		cfg.DumpInterval = 60 // 默认值为60秒
 	}
 	d := &domainOutput{
-		fileStat:     cfg.FileStat,
-		fileRule:     cfg.FileRule,
-		maxEntries:   cfg.MaxEntries,
-		dumpInterval: time.Duration(cfg.DumpInterval) * time.Second,
-		stats:        make(map[string]int),
-		stopChan:     make(chan struct{}),
+		fileStat:       cfg.FileStat,
+		fileRule:       cfg.FileRule,
+		genRule:        cfg.GenRule,
+		pattern:        cfg.Pattern,
+		appendedString: cfg.AppendedString,
+		maxEntries:     cfg.MaxEntries,
+		dumpInterval:   time.Duration(cfg.DumpInterval) * time.Second,
+		stats:          make(map[string]int),
+		stopChan:       make(chan struct{}),
 	}
 	d.loadFromFile()
 
@@ -84,26 +93,31 @@ func Init(_ *coremain.BP, args any) (any, error) {
 
 func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	params := strings.Split(s, ",")
-	if len(params) != 4 {
+	if len(params) != 6 {
 		return nil, errors.New("invalid quick setup arguments")
 	}
 	fileStat := params[0]
 	fileRule := params[1]
-	maxEntries, err := strconv.Atoi(params[2])
+	genRule := params[2]
+	pattern := params[3]
+	maxEntries, err := strconv.Atoi(params[4])
 	if err != nil {
 		return nil, err
 	}
-	dumpInterval, err := strconv.Atoi(params[3])
+	dumpInterval, err := strconv.Atoi(params[5])
 	if err != nil || dumpInterval <= 0 {
-		dumpInterval = 60 // 默认值为60秒
+		dumpInterval = 60
 	}
+	// QuickSetup 中未支持 appended_string，可按需要扩展（比如第7个参数）
 	d := &domainOutput{
-		fileStat:     fileStat,
-		fileRule:     fileRule,
-		maxEntries:   maxEntries,
-		dumpInterval: time.Duration(dumpInterval) * time.Second,
-		stats:        make(map[string]int),
-		stopChan:     make(chan struct{}),
+		fileStat:       fileStat,
+		fileRule:       fileRule,
+		genRule:        genRule,
+		pattern:        pattern,
+		maxEntries:     maxEntries,
+		dumpInterval:   time.Duration(dumpInterval) * time.Second,
+		stats:          make(map[string]int),
+		stopChan:       make(chan struct{}),
 	}
 	d.loadFromFile()
 
@@ -115,7 +129,7 @@ func QuickSetup(_ sequence.BQ, s string) (any, error) {
 
 func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) error {
 	for _, question := range qCtx.Q().Question {
-		domain := strings.TrimSuffix(question.Name, ".") // Remove the trailing dot from the domain
+		domain := strings.TrimSuffix(question.Name, ".") // 去掉末尾的点
 		d.mu.Lock()
 		d.stats[domain]++
 		d.totalCount++
@@ -123,7 +137,7 @@ func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) er
 		d.mu.Unlock()
 	}
 
-	// 如果达到maxEntries计数，则立即触发写入并清空计数器
+	// 达到 maxEntries 时立即写入并清空 entryCounter（但统计数据不清空）
 	if d.entryCounter >= d.maxEntries {
 		d.checkAndWrite()
 	}
@@ -135,7 +149,7 @@ func (d *domainOutput) checkAndWrite() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.writeAll()
-	d.entryCounter = 0 // 清空计数器，等待下一轮触发
+	d.entryCounter = 0 // 清空写入计数器
 }
 
 func (d *domainOutput) loadFromFile() {
@@ -159,14 +173,7 @@ func (d *domainOutput) loadFromFile() {
 }
 
 func (d *domainOutput) writeToFile() {
-	entries := make([][2]interface{}, 0, len(d.stats))
-	for domain, count := range d.stats {
-		entries = append(entries, [2]interface{}{count, domain})
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i][0].(int) > entries[j][0].(int)
-	})
+	entries := d.getSortedEntries()
 
 	file, err := os.Create(d.fileStat)
 	if err != nil {
@@ -180,14 +187,7 @@ func (d *domainOutput) writeToFile() {
 }
 
 func (d *domainOutput) writeRuleFile() {
-	entries := make([][2]interface{}, 0, len(d.stats))
-	for domain, count := range d.stats {
-		entries = append(entries, [2]interface{}{count, domain})
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i][0].(int) > entries[j][0].(int)
-	})
+	entries := d.getSortedEntries()
 
 	file, err := os.Create(d.fileRule)
 	if err != nil {
@@ -198,6 +198,57 @@ func (d *domainOutput) writeRuleFile() {
 	for _, entry := range entries {
 		file.WriteString(fmt.Sprintf("full:%s\n", entry[1]))
 	}
+}
+
+// 新增：生成规则文件，将 pattern 中的 "DOMAIN" 替换为每个域名。
+// 如果配置了 appendedString，则在文件第一行写入该字符串。
+func (d *domainOutput) writeGenRuleFile() {
+	if d.genRule == "" || d.pattern == "" {
+		return
+	}
+
+	entries := make([]string, 0, len(d.stats))
+	// 遍历所有域名
+	for domain := range d.stats {
+		line := strings.ReplaceAll(d.pattern, "DOMAIN", domain)
+		entries = append(entries, line)
+	}
+	// 按字母顺序排序
+	sort.Strings(entries)
+
+	file, err := os.Create(d.genRule)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	// 如果配置了 appendedString，则写入到第一行
+	if d.appendedString != "" {
+		file.WriteString(d.appendedString + "\n")
+	}
+
+	for _, line := range entries {
+		file.WriteString(line + "\n")
+	}
+}
+
+// getSortedEntries 返回一个按统计值降序排序的切片，每个元素为 [count, domain]
+func (d *domainOutput) getSortedEntries() [][2]interface{} {
+	entries := make([][2]interface{}, 0, len(d.stats))
+	for domain, count := range d.stats {
+		entries = append(entries, [2]interface{}{count, domain})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i][0].(int) > entries[j][0].(int)
+	})
+	return entries
+}
+
+// writeAll 同时写入统计、规则和生成规则文件
+func (d *domainOutput) writeAll() {
+	d.writeToFile()
+	d.writeRuleFile()
+	d.writeGenRuleFile()
 }
 
 func (d *domainOutput) startDumpTicker() {
@@ -218,12 +269,5 @@ func (d *domainOutput) Shutdown() {
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	d.writeAll() // 写入所有数据
+	d.writeAll() // 关闭时无条件写入所有数据
 }
-
-func (d *domainOutput) writeAll() {
-	d.writeToFile()
-	d.writeRuleFile()
-}
-
