@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"sync"
 
 	"github.com/IrineSistiana/mosdns/v5/pkg/nftset_utils"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
@@ -37,6 +38,10 @@ type nftSetPlugin struct {
 	args      *Args
 	v4Handler *nftset_utils.NftSetHandler
 	v6Handler *nftset_utils.NftSetHandler
+
+	mu     sync.RWMutex
+	seenV4 map[netip.Prefix]struct{}
+	seenV6 map[netip.Prefix]struct{}
 }
 
 func newNftSetPlugin(args *Args) (*nftSetPlugin, error) {
@@ -50,11 +55,13 @@ func newNftSetPlugin(args *Args) (*nftSetPlugin, error) {
 	}
 
 	p := &nftSetPlugin{
-		args: args,
+		args:   args,
+		seenV4: make(map[netip.Prefix]struct{}),
+		seenV6: make(map[netip.Prefix]struct{}),
 	}
 
 	newHandler := func(sa SetArgs) (*nftset_utils.NftSetHandler, error) {
-		if !(len(sa.Table) > 0 && len(sa.TableFamily) > 0 && len(sa.Set) > 0) {
+		if sa.TableFamily == "" || sa.Table == "" || sa.Set == "" {
 			return nil, nil
 		}
 		f, ok := parseTableFamily(sa.TableFamily)
@@ -67,6 +74,7 @@ func newNftSetPlugin(args *Args) (*nftSetPlugin, error) {
 			SetName:     sa.Set,
 		}), nil
 	}
+
 	var err error
 	p.v4Handler, err = newHandler(args.IPv4)
 	if err != nil {
@@ -82,20 +90,21 @@ func newNftSetPlugin(args *Args) (*nftSetPlugin, error) {
 
 func (p *nftSetPlugin) Exec(_ context.Context, qCtx *query_context.Context) error {
 	r := qCtx.R()
-	if r != nil {
-		if err := p.addElems(r); err != nil {
-			return fmt.Errorf("nftable: %w", err)
-		}
+	if r == nil {
+		return nil
+	}
+	if err := p.addElems(r); err != nil {
+		return fmt.Errorf("nftable: %w", err)
 	}
 	return nil
 }
 
 func (p *nftSetPlugin) addElems(r *dns.Msg) error {
-	var v4Elems []netip.Prefix
-	var v6Elems []netip.Prefix
+	var toAddV4 []netip.Prefix
+	var toAddV6 []netip.Prefix
 
-	for i := range r.Answer {
-		switch rr := r.Answer[i].(type) {
+	for _, ans := range r.Answer {
+		switch rr := ans.(type) {
 		case *dns.A:
 			if p.v4Handler == nil {
 				continue
@@ -103,9 +112,19 @@ func (p *nftSetPlugin) addElems(r *dns.Msg) error {
 			addr, ok := netip.AddrFromSlice(rr.A)
 			addr = addr.Unmap()
 			if !ok || !addr.Is4() {
-				return fmt.Errorf("internel: dns.A record [%s] is not a ipv4 address", rr.A)
+				return fmt.Errorf("internal: dns.A record [%s] is not ipv4", rr.A)
 			}
-			v4Elems = append(v4Elems, netip.PrefixFrom(addr, p.args.IPv4.Mask))
+			pfx := netip.PrefixFrom(addr, p.args.IPv4.Mask)
+
+			p.mu.RLock()
+			_, seen := p.seenV4[pfx]
+			p.mu.RUnlock()
+			if !seen {
+				p.mu.Lock()
+				p.seenV4[pfx] = struct{}{}
+				p.mu.Unlock()
+				toAddV4 = append(toAddV4, pfx)
+			}
 
 		case *dns.AAAA:
 			if p.v6Handler == nil {
@@ -113,26 +132,36 @@ func (p *nftSetPlugin) addElems(r *dns.Msg) error {
 			}
 			addr, ok := netip.AddrFromSlice(rr.AAAA)
 			if !ok {
-				return fmt.Errorf("internel: dns.AAAA record [%s] is not a ipv6 address", rr.AAAA)
+				return fmt.Errorf("internal: dns.AAAA record [%s] is not ipv6", rr.AAAA)
 			}
 			if addr.Is4() {
 				addr = netip.AddrFrom16(addr.As16())
 			}
-			v6Elems = append(v6Elems, netip.PrefixFrom(addr, p.args.IPv6.Mask))
+			pfx := netip.PrefixFrom(addr, p.args.IPv6.Mask)
+
+			p.mu.RLock()
+			_, seen := p.seenV6[pfx]
+			p.mu.RUnlock()
+			if !seen {
+				p.mu.Lock()
+				p.seenV6[pfx] = struct{}{}
+				p.mu.Unlock()
+				toAddV6 = append(toAddV6, pfx)
+			}
+
 		default:
 			continue
 		}
 	}
 
-	if p.v4Handler != nil && len(v4Elems) > 0 {
-		if err := p.v4Handler.AddElems(v4Elems...); err != nil {
-			return fmt.Errorf("failed to add ipv4 elems %s: %w", v4Elems, err)
+	if p.v4Handler != nil && len(toAddV4) > 0 {
+		if err := p.v4Handler.AddElems(toAddV4...); err != nil {
+			return fmt.Errorf("failed to add ipv4 elems %v: %w", toAddV4, err)
 		}
 	}
-
-	if p.v6Handler != nil && len(v6Elems) > 0 {
-		if err := p.v6Handler.AddElems(v6Elems...); err != nil {
-			return fmt.Errorf("failed to add ipv6 elems %s: %w", v6Elems, err)
+	if p.v6Handler != nil && len(toAddV6) > 0 {
+		if err := p.v6Handler.AddElems(toAddV6...); err != nil {
+			return fmt.Errorf("failed to add ipv6 elems %v: %w", toAddV6, err)
 		}
 	}
 	return nil
