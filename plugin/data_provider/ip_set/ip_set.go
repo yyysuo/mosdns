@@ -93,8 +93,11 @@ func NewIPSet(bp *coremain.BP, args *Args) (*IPSet, error) {
 }
 
 // LoadFromIPsAndFiles loads plain IPs and files (including .srs) into the list.
-func LoadFromIPsAndFiles(ips []string, files []string, l *netlist.List) error {
-	return loadFromIPsAndFiles(ips, files, l)
+func LoadFromIPsAndFiles(ips, files []string, l *netlist.List) error {
+	if err := loadFromIPs(ips, l); err != nil {
+		return err
+	}
+	return loadFromFiles(files, l)
 }
 
 func parseNetipPrefix(s string) (netip.Prefix, error) {
@@ -149,9 +152,24 @@ func loadFromFile(path string, l *netlist.List) error {
 		return err
 	}
 
+	// capture last txt line
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	var lastTxt string
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" && !strings.HasPrefix(line, "#") {
+			lastTxt = line
+		}
+	}
+
 	// try .srs binary format first
-	if ok, cnt := tryLoadSRS(data, l); ok {
+	if ok, cnt, lastSrs := tryLoadSRS(data, l); ok {
 		fmt.Printf("[ip_set] loaded %d rules from srs file: %s\n", cnt, path)
+		if lastSrs != "" {
+			fmt.Printf("[ip_set] last srs rule: %s\n", lastSrs)
+		} else {
+			fmt.Printf("[ip_set] last srs rule: <none>\n")
+		}
 		return nil
 	}
 
@@ -162,6 +180,11 @@ func loadFromFile(path string, l *netlist.List) error {
 	}
 	after := l.Len()
 	fmt.Printf("[ip_set] loaded %d rules from text file: %s\n", after-before, path)
+	if lastTxt != "" {
+		fmt.Printf("[ip_set] last txt rule: %s\n", lastTxt)
+	} else {
+		fmt.Printf("[ip_set] last txt rule: <none>\n")
+	}
 	return nil
 }
 
@@ -179,7 +202,6 @@ func (mg MatcherGroup) Match(addr netip.Addr) bool {
 }
 
 // --- SRS binary parsing ---
-
 var (
 	srsMagic            = [3]byte{'S', 'R', 'S'}
 	ruleItemIPCIDR      = uint8(6) // index for IPCIDR in SRS format
@@ -188,58 +210,76 @@ var (
 )
 
 // tryLoadSRS attempts to parse data as an SRS file and load IPCIDR entries.
-func tryLoadSRS(data []byte, l *netlist.List) (bool, int) {
+func tryLoadSRS(data []byte, l *netlist.List) (bool, int, string) {
 	r := bytes.NewReader(data)
 	var mb [3]byte
 	if _, err := io.ReadFull(r, mb[:]); err != nil || mb != srsMagic {
-		return false, 0
+		return false, 0, ""
 	}
 	var version uint8
 	if err := binary.Read(r, binary.BigEndian, &version); err != nil || version > maxSupportedVersion {
-		return false, 0
+		return false, 0, ""
 	}
 	zr, err := zlib.NewReader(r)
 	if err != nil {
-		return false, 0
+		return false, 0, ""
 	}
 	defer zr.Close()
 	br := bufio.NewReader(zr)
 
 	length, err := binary.ReadUvarint(br)
 	if err != nil {
-		return false, 0
+		return false, 0, ""
 	}
 	count := 0
+	var last string
 	for i := uint64(0); i < length; i++ {
-		count += readRule(br, l)
+		// readRule now returns (ct, lastRule)
+		ct, lr := readRule(br, l)
+		if lr != "" {
+			last = lr
+		}
+		count += ct
 	}
-	return true, count
+	return true, count, last
 }
 
 // readRule reads one rule; recurses into logical blocks if needed.
-func readRule(r *bufio.Reader, l *netlist.List) int {
+// returns count and last prefix string
+func readRule(r *bufio.Reader, l *netlist.List) (int, string) {
 	ct := 0
+	var last string
 	mode, err := r.ReadByte()
 	if err != nil {
-		return 0
+		return 0, ""
 	}
 	switch mode {
 	case 0: // default rule
-		ct += readDefault(r, l)
+		c, lr := readDefault(r, l)
+		ct += c
+		if lr != "" {
+			last = lr
+		}
 	case 1: // logical rule
 		_, _ = r.ReadByte()           // skip logical operator
 		n, _ := binary.ReadUvarint(r) // number of sub-rules
 		for j := uint64(0); j < n; j++ {
-			ct += readRule(r, l)
+			c, lr := readRule(r, l)
+			ct += c
+			if lr != "" {
+				last = lr
+			}
 		}
 		_, _ = r.ReadByte() // skip invert flag
 	}
-	return ct
+	return ct, last
 }
 
 // readDefault processes IPCIDR items until final marker.
-func readDefault(r *bufio.Reader, l *netlist.List) int {
+// returns count and last prefix string
+func readDefault(r *bufio.Reader, l *netlist.List) (int, string) {
 	count := 0
+	var last string
 	for {
 		item, err := r.ReadByte()
 		if err != nil {
@@ -249,19 +289,20 @@ func readDefault(r *bufio.Reader, l *netlist.List) int {
 		case ruleItemIPCIDR:
 			ipset, err := parseIPSet(r)
 			if err != nil {
-				return count
+				return count, last
 			}
 			for _, pfx := range ipset.Prefixes() {
 				l.Append(pfx)
 				count++
+				last = pfx.String()
 			}
 		case ruleItemFinal:
-			return count
+			return count, last
 		default:
-			return count
+			return count, last
 		}
 	}
-	return count
+	return count, last
 }
 
 // parseIPSet reads a varbin-encoded list of IP ranges and builds an IPSet value.
