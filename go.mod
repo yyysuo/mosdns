@@ -12,7 +12,7 @@ require (
 	github.com/miekg/dns v1.1.66
 	github.com/nadoo/ipset v0.5.0
 	github.com/prometheus/client_golang v1.22.0
-	github.com/quic-go/quic-go v0.51.0
+	github.com/quic-go/quic-go v0.52.0
 	github.com/sagernet/sing v0.6.7
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
