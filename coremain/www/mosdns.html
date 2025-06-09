@@ -1,330 +1,655 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>缓存命中情况饼状图</title>
+    <title>MosDNS 监控面板</title>
+
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Chart.js 和 datalabels 插件 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
     <style>
-        /* 基础样式 */
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            padding: 20px;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        /* === START OF REFACTORED CSS === */
+        /* CSS Variables - Now only define default values. All theme-specific values are set via JS. */
+        :root {
+            /* Basic Colors */
+            --bg-color: #f7f9fd;
+            --text-color: #2c3e50;
+            --card-bg: #ffffff;
+            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            --border-color: #e0e6ec;
+            --accent-color: #4a90e2; /* Default accent */
+            --error-color: #e74c3c;
+            --label-color: #7f8c8d;
+            --value-color: #34495e;
+
+            /* Control/Button Colors */
+            --control-bg: #f0f4f7;
+            --control-border: #d5dce2;
+            --control-text: #5e727e;
+            --control-hover-bg: #e5edf3;
+            --control-active-bg: var(--accent-color);
+            --control-active-text: #ffffff;
+            --toggle-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+
+            /* Status Colors */
+            --status-green: #2ecc71;
+            --status-yellow: #f1c40f;
+            --status-red: #e74c3c;
+
+            /* Gradient Colors (for header/card title bars) */
+            --gradient-start: #4a90e2;
+            --gradient-mid: #2e86de;
+            --gradient-end: #4a90e2;
+
+            /* Radii */
+            --radius-main: 1rem;
+            --radius-bar: 0.2rem;
+            --radius-control: 0.75rem;
         }
 
-        /* 清空缓存按钮样式 */
-        #flush-cache-btn {
-            background-color: #4a90e2;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            margin-bottom: 20px;
-            transition: background-color 0.2s;
-        }
-        #flush-cache-btn:hover {
-            background-color: #357ABD;
+        /* Base styles */
+        html { font-size: 16px; }
+        body { font-family: 'SF Pro Text', 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out; min-height: 100vh; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; position: relative; }
+        .header h1 { font-size: 2.5rem; color: var(--accent-color); margin: 0 0 0.8rem 0; font-weight: 700; letter-spacing: -0.03em; }
+        /* === START OF NEW MODIFICATION: Gradient Bar Animation === */
+        .header-gradient-bar,
+        .card-title-gradient-bar {
+            width: 100%; max-width: 160px; height: 5px; border-radius: var(--radius-bar);
+            background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start));
+            background-size: 200% auto; /* Make the background twice as wide */
+            animation: gradient-scroll 6s linear infinite; /* Apply the animation */
+            margin: 0 auto 1.5rem auto; 
+            transition: background-image 0.4s ease-in-out; /* Keep existing transition for color change */
         }
 
-        .main-container {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            flex-wrap: wrap;
+        /* Keyframe animation for the gradient scroll effect */
+        @keyframes gradient-scroll {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 0%; } /* Scrolls the 200% wide background across */
+        }
+        /* === END OF NEW MODIFICATION === */
+        
+        .main-container { display: grid; grid-template-columns: repeat(auto-fit, 420px); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; align-items: start; }
+        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.8rem; display: none; flex-direction: column; box-sizing: border-box; transition: all 0.3s ease-in-out; border: 1px solid var(--border-color); }
+        .card.visible { display: flex; }
+        .card:hover { transform: translateY(-0.35rem); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12); }
+        .card-content { display: flex; flex-direction: column; gap: 1.5rem; }
+        .metrics-container { display: grid; grid-template-columns: auto 1fr auto; gap: 0.8rem 1rem; align-items: center; }
+        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+        .metrics-container p { margin: 0; font-size: 1.05rem; display: contents; }
+        .metrics-container .fas { color: var(--accent-color); width: 1.2em; text-align: center; opacity: 0.85; }
+        .label { font-weight: 500; color: var(--label-color); text-align: left; white-space: nowrap; }
+        .value { color: var(--value-color); font-weight: 600; text-align: right; }
+        h2, h3 { color: var(--text-color); border-bottom: none; padding-bottom: 0; margin-top: 0; margin-bottom: 0.6rem; font-weight: 600; display: flex; align-items: center; gap: 0.6rem; }
+        h2 { font-size: 1.6rem; }
+        h3 { font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; margin-bottom: 1rem; }
+
+        h2 .title-text {
+            flex-grow: 1;
+            text-align: left;
+            white-space: nowrap; 
+            overflow: hidden;    
+            text-overflow: ellipsis;
+        }
+        
+        /* Unified base styles for control labels (buttons, checkboxes) */
+        .control-base-label {
+            background-color: var(--control-bg); 
+            border: 1px solid var(--control-border); 
+            padding: 0.6rem 0.9rem; 
+            color: var(--control-text); 
+            font-size: 0.95rem; 
+            font-weight: 500; 
+            cursor: pointer; 
+            outline: none; 
+            border-radius: var(--radius-control); 
+            transition: all 0.2s ease; 
+            box-sizing: border-box;
+
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 0.5em; /* Default gap for icon/text in theme selector buttons */
+        }
+
+        .control-base-label:hover {
+            border-color: var(--accent-color); 
+            background-color: var(--control-hover-bg); 
+        }
+
+        .control-base-label.active { /* Used by theme selector buttons */
+            background-color: var(--control-active-bg); 
+            color: var(--control-active-text); 
+            border-color: var(--accent-color); 
+            box-shadow: 0 3px 8px -2px var(--accent-color); 
+            font-weight: 600; 
+        }
+
+        /* Specific styles for "显示卡片" toggle buttons */
+        .card-toggle-container .toggle-group {
+            grid-template-columns: repeat(2, 1fr); /* Force 2 columns */
+            gap: 0.8rem;
             width: 100%;
-            max-width: 1400px;
-            gap: 20px;
         }
 
-        .section {
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            padding: 20px;
-            flex: 1;
-            min-width: 300px;
-            transition: transform 0.2s;
+        .card-toggle-container .toggle-group label {
+            /* Inherits most from .control-base-label */
+            justify-content: flex-start; /* Align content to the start */
+            gap: 0.5rem; /* Space between checkbox and text */
+            flex-wrap: nowrap; /* Prevent wrapping for the label itself */
         }
 
-        .section:hover {
-            transform: translateY(-2px);
-        }
-
-        .section h2 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 1.5rem;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 8px;
-        }
-
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .metrics p {
-            margin: 0;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-        }
-
-        .metrics p span {
-            color: #4a90e2;
-            font-weight: 600;
-            margin-left: 5px;
-        }
-
-        .charts {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-
-        .chart-container {
+        /* Styles for checkbox input within labels */
+        .toggle-group input[type="checkbox"] { 
+            appearance: none;-webkit-appearance: none;-moz-appearance: none;
+            width: 18px;height: 18px;
+            border: 2px solid var(--control-border);
+            border-radius: 4px;
+            background-color: var(--card-bg);
             position: relative;
-            height: 200px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0; /* Prevent checkbox from shrinking */
+            margin: 0; /* Remove default margin from input */
+        }
+        .toggle-group input[type="checkbox"]:checked { 
+            background-color: var(--accent-color); 
+            border-color: var(--accent-color); 
+        }
+        .toggle-group input[type="checkbox"]:checked::after { 
+            content: '\2713';display: block;position: absolute;
+            top: 50%;left: 50%;transform: translate(-50%, -50%);
+            font-size: 14px;color: white; 
+        }
+        
+        /* Text span within toggle labels (Show Cards & Auto-Refresh) */
+        .toggle-label-text {
+            white-space: nowrap; /* Force no wrap */
+            overflow: hidden;    /* Hide overflow */
+            text-overflow: clip; /* No ellipsis, clip directly */
+            flex-grow: 1; /* Allow text to take remaining space */
+            text-align: left; /* Align text to left */
         }
 
-        .system-info-container {
+        /* Specific layout for "启用自动刷新" toggle button */
+        .auto-refresh-toggle-container {
+            width: 100%; /* Make it full width */
+        }
+        .auto-refresh-toggle-container label {
+            /* Inherits from .control-base-label and its hover/active states */
+            width: 100%; /* Make the label fill its container */
+            justify-content: flex-start; /* Align checkbox and text to start */
+            gap: 0.5rem; /* Space between checkbox and text */
+        }
+
+        h2 .status-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; transition: background-color 0.3s ease-in-out; flex-shrink: 0; }
+        h2 .status-dot.status-green { background-color: var(--status-green); }
+        h2 .status-dot.status-yellow { background-color: var(--status-yellow); }
+
+        .card-title-gradient-bar { /* Reused for header-gradient-bar and card-title-gradient-bar */
+             /* Properties moved to the animated rule above */
+             max-width: 100%; /* Ensure it's not limited by the 160px max-width of header-gradient-bar */
+             margin-left: 0;
+             margin-right: 0;
+        }
+        .value.accent { color: var(--accent-color); font-weight: 700; }
+        .chart-container { position: relative; width: 140px; height: 140px; background-color: var(--card-bg); border-radius: var(--radius-main); padding: 0.5rem; box-sizing: border-box; }
+        .footer-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: auto; padding: 1.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-main); background-color: var(--card-bg); box-shadow: var(--card-shadow); align-items: flex-start; width: 100%; max-width: 1800px; }
+        
+        /* Theme Selector Buttons */
+        .theme-selector { display: grid; gap: 0.8rem; width: 100%; grid-template-columns: repeat(2, 1fr); }
+        .theme-selector button { 
+            /* Inherits from .control-base-label and its hover/active states */
+            justify-content: center; /* Center icon and text */
+        }
+        .theme-selector button i { margin-right: 0.3em; }
+
+        /* General .toggle-group and checkbox styles, inherited by both sections if not overridden */
+        .control-group { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; }
+        /* Generic .toggle-group rule, used for "操作与刷新" section (excluding auto-refresh button) */
+        .toggle-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Auto-fit columns for non-specific toggle groups */
+            gap: 0.8rem;
             width: 100%;
         }
+        
+        .action-buttons { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; width: 100%; justify-content: flex-start; }
+        .refresh-control-group .action-buttons { flex-direction: column; gap: 0.8rem; align-items: flex-start; }
+        .action-buttons button { padding: 0.7rem 1.4rem; border-radius: var(--radius-control); border: 1px solid var(--control-border); background-color: var(--control-bg); color: var(--control-text); font-size: 0.95rem; transition: all 0.2s ease-in-out; cursor: pointer; outline: none; display: inline-flex; align-items: center; gap: 0.5rem; width: auto; }
+        .refresh-control-group .action-buttons #refresh-now-btn { width: 100%; justify-content: center; }
+        .refresh-control-group .action-buttons #flush-cache-btn { width: 100%; justify-content: center; }
+        .action-buttons button:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        .action-buttons button.primary { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
+        .action-buttons button.primary:hover { background-color: var(--gradient-mid); border-color: var(--gradient-mid); }
+        
+        /* Optimized timestamp style */
+        span#last_updated { 
+            font-size: 0.9rem;
+            color: var(--label-color); 
+            margin-top: 0.8rem;
+            width: 100%; 
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* Default to left align */
+            gap: 0.4rem;
+            font-weight: 500;
+            padding-left: 0.1em; /* Small adjustment for visual balance if needed */
+        }
+        span#last_updated .fas { 
+            color: var(--accent-color); 
+            font-size: 1.1em;
+        }
 
-        /* 响应式设计 */
-        @media (max-width: 1200px) {
-            .main-container {
-                gap: 15px;
-            }
+        .error { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 1.5rem; border-radius: var(--radius-main); margin-top: 2rem; }
+        #loading-spinner { display: none; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 4rem auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading #loading-spinner { display: block; }
+        .loading #main-content, .loading .footer-panel { opacity: 0.5; pointer-events: none; }
+
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            .main-container { grid-template-columns: repeat(auto-fit, 380px); }
+            body { padding: 1.5rem; }
+            .header { margin-bottom: 1.5rem; }
+            .footer-panel { grid-template-columns: 1fr; gap: 1.5rem; }
+            .card { padding: 1.5rem; }
+            .footer-panel { padding: 1.5rem; }
+            .action-buttons { justify-content: center; }
+            .refresh-control-group .action-buttons { align-items: center; }
             
-            .section {
-                min-width: calc(50% - 15px);
+            /* Center timestamp on smaller screens */
+            span#last_updated {
+                justify-content: center; 
+                text-align: center; 
             }
+            /* General toggle-group for "操作与刷新" section */
+            .toggle-group { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); justify-content: center; }
         }
 
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-
-            .main-container {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .section {
-                min-width: 100%;
-                margin: 0;
-                padding: 15px;
-            }
-
-            .metrics {
-                grid-template-columns: 1fr;
-                gap: 8px;
-            }
-
-            .metrics p {
-                font-size: 0.9rem;
-                padding: 10px;
-            }
-
-            .charts {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-
-            .chart-container {
-                height: 180px;
-            }
-
-            .section h2 {
-                font-size: 1.3rem;
-                margin-bottom: 12px;
-            }
+            html { font-size: 15px; }
+            body { padding: 1rem; }
+            .main-container { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+            .header-gradient-bar { max-width: 120px; height: 4px; margin-bottom: 1rem; }
+            .card, .footer-panel { padding: 1rem; border-radius: 0.8rem; }
+            h2 { font-size: 1.4rem; margin-bottom: 0.3rem; }
+            h3 { font-size: 1.2rem; padding-bottom: 0.4rem; margin-bottom: 0.7rem; }
+            .chart-container { width: 110px; height: 110px; padding: 0.3rem; }
         }
 
         @media (max-width: 480px) {
-            body {
-                padding: 8px;
-            }
-
-            .section {
-                padding: 12px;
-                border-radius: 8px;
-            }
-
-            .metrics p {
-                font-size: 0.85rem;
-                padding: 8px;
-            }
-
-            .chart-container {
-                height: 160px;
-            }
+            html { font-size: 14px; }
+            .header h1 { font-size: 1.8rem; }
+            .header-gradient-bar { max-width: 90px; height: 3px; }
+            .card { padding: 0.8rem; }
+            /* For card-toggle-container, revert to 1 column on very small screens */
+            .card-toggle-container .toggle-group { grid-template-columns: 1fr; }
+            .action-buttons button { padding: 0.6rem 1rem; font-size: 0.85rem; }
         }
-
-        /* Loading 动画 */
-        .loading {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid rgba(74,144,226,0.3);
-            border-radius: 50%;
-            border-top-color: #4a90e2;
-            animation: spin 1s linear infinite;
-            margin-left: 5px;
-            vertical-align: middle;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        /* === END OF REFACTORED CSS === */
     </style>
 </head>
 <body>
+    <div class="header">
+        <h1>MosDNS 监控面板</h1>
+        <div class="header-gradient-bar"></div>
+    </div>
 
-    <!-- 清空 fakeip 缓存按钮 -->
-    <button id="flush-cache-btn">清空fakeip缓存</button>
+    <div id="loading-spinner"></div>
 
-    <!-- 主内容区域（新增第4个饼状图区域排在最前面） -->
-    <div class="main-container">
-        <!-- 全部数据部分（cache_all） -->
-        <div class="section">
-            <h2>全部</h2>
-            <div class="metrics">
-                <p id="query-total-all">全部请求总数: <span>Loading...</span></p>
-                <p id="hit-total-all">全部缓存命中: <span>Loading...</span></p>
-                <p id="lazy-hit-total-all">全部过期缓存命中: <span>Loading...</span></p>
-                <p id="size-current-all">全部过期缓存条目数: <span>Loading...</span></p>
-                <p id="hit-rate-all">全部缓存命中率: <span>Loading...</span></p>
-                <p id="lazy-hit-rate-all">全部过期缓存命中率: <span>Loading...</span></p>
+    <div id="main-content" class="main-container">
+        <!-- Cache cards will be populated by JS -->
+    </div>
+
+    <div class="footer-panel">
+        <div class="system-info-container control-group">
+            <h3><i class="fas fa-server"></i> 系统信息</h3>
+            <div class="metrics-container" id="metrics-system"></div>
+        </div>
+
+        <div class="card-toggle-container control-group">
+            <h3><i class="fas fa-eye"></i> 显示卡片</h3>
+            <div class="toggle-group" id="card-toggles">
+                <!-- Toggles will be populated by JS -->
             </div>
-            <div class="charts">
-                <div class="chart-container">
-                    <canvas id="totalHitChartAll"></canvas>
-                </div>
-                <div class="chart-container">
-                    <canvas id="lazyHitChartAll"></canvas>
-                </div>
+        </div>
+        
+        <div class="theme-control-group control-group">
+            <h3><i class="fas fa-palette"></i> 主题切换</h3>
+            <div class="theme-selector" id="theme-selector">
+                <!-- Theme buttons are generated by JS -->
             </div>
         </div>
 
-        <!-- 国内部分 -->
-        <div class="section">
-            <h2>国内</h2>
-            <div class="metrics">
-                <p id="query-total-domestic">国内请求总数: <span>Loading...</span></p>
-                <p id="hit-total-domestic">国内缓存命中: <span>Loading...</span></p>
-                <p id="lazy-hit-total-domestic">国内过期缓存命中: <span>Loading...</span></p>
-                <p id="size-current-domestic">国内过期缓存条目数: <span>Loading...</span></p>
-                <p id="hit-rate-domestic">国内缓存命中率: <span>Loading...</span></p>
-                <p id="lazy-hit-rate-domestic">国内过期缓存命中率: <span>Loading...</span></p>
+        <div class="refresh-cache-control-group control-group">
+            <h3><i class="fas fa-tools"></i> 操作与刷新</h3>
+            <div class="auto-refresh-toggle-container">
+                <label for="auto-refresh-toggle" class="control-base-label">
+                    <input type="checkbox" id="auto-refresh-toggle"> 
+                    <span class="toggle-label-text">启用自动刷新 (5s)</span>
+                </label>
             </div>
-            <div class="charts">
-                <div class="chart-container">
-                    <canvas id="totalHitChartDomestic"></canvas>
-                </div>
-                <div class="chart-container">
-                    <canvas id="lazyHitChartDomestic"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- 国外部分 -->
-        <div class="section">
-            <h2>国外</h2>
-            <div class="metrics">
-                <p id="query-total-foreign">国外请求总数: <span>Loading...</span></p>
-                <p id="hit-total-foreign">国外缓存命中: <span>Loading...</span></p>
-                <p id="lazy-hit-total-foreign">国外过期缓存命中: <span>Loading...</span></p>
-                <p id="size-current-foreign">国外过期缓存条目数: <span>Loading...</span></p>
-                <p id="hit-rate-foreign">国外缓存命中率: <span>Loading...</span></p>
-                <p id="lazy-hit-rate-foreign">国外过期缓存命中率: <span>Loading...</span></p>
-            </div>
-            <div class="charts">
-                <div class="chart-container">
-                    <canvas id="totalHitChartForeign"></canvas>
-                </div>
-                <div class="chart-container">
-                    <canvas id="lazyHitChartForeign"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- 节点部分 -->
-        <div class="section">
-            <h2>节点</h2>
-            <div class="metrics">
-                <p id="query-total-node">节点请求总数: <span>Loading...</span></p>
-                <p id="hit-total-node">节点缓存命中: <span>Loading...</span></p>
-                <p id="lazy-hit-total-node">节点过期缓存命中: <span>Loading...</span></p>
-                <p id="size-current-node">节点过期缓存条目数: <span>Loading...</span></p>
-                <p id="hit-rate-node">节点缓存命中率: <span>Loading...</span></p>
-                <p id="lazy-hit-rate-node">节点过期缓存命中率: <span>Loading...</span></p>
-            </div>
-            <div class="charts">
-                <div class="chart-container">
-                    <canvas id="totalHitChartNode"></canvas>
-                </div>
-                <div class="chart-container">
-                    <canvas id="lazyHitChartNode"></canvas>
-                </div>
+            <div class="action-buttons">
+                <button id="refresh-now-btn" class="primary"><i class="fas fa-sync-alt"></i> 立即刷新</button>
+                <button id="flush-cache-btn"><i class="fas fa-broom"></i> 清空 FakeIP 缓存</button>
+                <span id="last_updated"><i class="fas fa-clock"></i> </span>
             </div>
         </div>
     </div>
 
-    <!-- 系统信息板块 -->
-    <div class="system-info-container section">
-        <h2>系统信息</h2>
-        <div class="metrics">
-            <p id="start-time">启动时间: <span>Loading...</span></p>
-            <p id="cpu-time">CPU时间: <span>Loading...</span></p>
-            <p id="resident-memory">常驻内存: <span>Loading...</span></p>
-            <!-- 移除虚拟内存，新增 go 版本展示 -->
-            <p id="go-version">go版本: <span>Loading...</span></p>
-            <p id="heap-idle-memory">待使用内存: <span>Loading...</span></p>
-            <p id="threads">线程数量: <span>Loading...</span></p>
-            <p id="open-fds">文件描述符数量: <span>Loading...</span></p>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
     <script>
-        async function fetchData() {
-            try {
-                const response = await fetch('/metrics');
-                if (!response.ok) throw new Error('Network response was not ok');
-                return await response.text();
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                return null;
+        const REFRESH_INTERVAL = 5000;
+        let chartInstances = {};
+        let autoRefreshTimer;
+        let isRefreshing = false;
+
+        Chart.register(ChartDataLabels);
+
+        // Helper function for creating DOM elements
+        function createElement(tag, className, innerText = '') {
+            const el = document.createElement(tag);
+            if (className) el.className = className;
+            if (innerText) el.innerText = innerText;
+            return el;
+        }
+
+        // Helper function for number formatting
+        function formatNumber(num) {
+            if (typeof num !== 'number') {
+                num = parseFloat(num);
+                if (isNaN(num)) return num;
+            }
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toLocaleString();
+        }
+
+        // Consolidated theme data with all CSS variables and Chart.js colors
+        const themeMap = {
+            'light': {
+                name: '默认亮色', icon: 'fa-sun',
+                cssVars: {
+                    '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff',
+                    '--card-shadow': '0 8px 20px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec',
+                    '--accent-color': '#4a90e2', '--error-color': '#e74c3c', '--label-color': '#7f8c8d',
+                    '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2',
+                    '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3',
+                    '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff',
+                    '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2',
+                },
+                chartColors: {
+                    hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)',
+                    hitBorder: '#4a90e2', missBorder: '#bdc3c7', text: '#2c3e50'
+                }
+            },
+            'dark': {
+                name: '默认暗色', icon: 'fa-moon',
+                cssVars: {
+                    '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828',
+                    '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a',
+                    '--accent-color': '#5096ff', '--error-color': '#e74c3c', '--label-color': '#bbbbbb',
+                    '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a',
+                    '--control-text': '#e0e0e0', '--control-hover-bg': '#404040',
+                    '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff',
+                    '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff',
+                },
+                chartColors: {
+                    hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)',
+                    hitBorder: '#5096ff', missBorder: '#707070', text: '#e0e0e0'
+                }
+            },
+            'cyberpunk': {
+                name: '赛博朋克', icon: 'fa-robot',
+                cssVars: {
+                    '--bg-color': '#0c0221', '--text-color': '#e0e1dd', '--card-bg': '#1a0f3d',
+                    '--card-shadow': '0 10px 30px rgba(42,7,102,.6)', '--border-color': '#3b2a60',
+                    '--accent-color': '#00f6ff', '--error-color': '#ff005c', '--label-color': '#a9a2c1',
+                    '--value-color': '#f0f0f0', '--control-bg': '#1e114d', '--control-border': '#4a3a79',
+                    '--control-text': '#a0a0e0', '--control-hover-bg': '#2e1e5d',
+                    '--control-active-bg': '#00f6ff', '--control-active-text': '#0c0221',
+                    '--gradient-start': '#00f6ff', '--gradient-mid': '#ff005c', '--gradient-end': '#00f6ff',
+                },
+                chartColors: {
+                    hit: 'rgba(0,246,255,.7)', miss: 'rgba(255,0,92,.3)',
+                    hitBorder: '#00f6ff', missBorder: '#ff005c', text: '#e0e1dd'
+                }
+            },
+            'forest': {
+                name: '静谧森林', icon: 'fa-tree',
+                cssVars: {
+                    '--bg-color': '#e8f5e9', '--text-color': '#2e3d32', '--card-bg': '#fff',
+                    '--card-shadow': '0 6px 18px rgba(0,0,0,.06)', '--border-color': '#d0e0d0',
+                    '--accent-color': '#4a7c59', '--error-color': '#c0392b', '--label-color': '#607b6c',
+                    '--value-color': '#2e3d32', '--control-bg': '#e1f0e2', '--control-border': '#c8d8c8',
+                    '--control-text': '#506f5c', '--control-hover-bg': '#d6e8d7',
+                    '--control-active-bg': '#4a7c59', '--control-active-text': '#fff',
+                    '--gradient-start': '#4a7c59', '--gradient-mid': '#3a6246', '--gradient-end': '#4a7c59',
+                },
+                chartColors: {
+                    hit: 'rgba(74,124,89,.7)', miss: 'rgba(160,180,165,.3)',
+                    hitBorder: '#4a7c59', missBorder: '#a0a0a0', text: '#2e3d32'
+                }
+            },
+            'sunset': {
+                name: '日落余晖', icon: 'fa-cloud-sun-rain',
+                cssVars: {
+                    '--bg-color': '#2c203a', '--text-color': '#fde8d7', '--card-bg': '#3a2a4e',
+                    '--card-shadow': '0 10px 30px rgba(44,32,58,.6)', '--border-color': '#553e70',
+                    '--accent-color': '#ff8c42', '--error-color': '#e74c3c', '--label-color': '#d3b7e8',
+                    '--value-color': '#fde8d7', '--control-bg': '#4a3360', '--control-border': '#5c4278',
+                    '--control-text': '#e0c8f5', '--control-hover-bg': '#5a4370',
+                    '--control-active-bg': '#ff8c42', '--control-active-text': '#2c203a',
+                    '--gradient-start': '#ff8c42', '--gradient-mid': '#ff4d6d', '--gradient-end': '#ff8c42',
+                },
+                chartColors: {
+                    hit: 'rgba(255,140,66,.7)', miss: 'rgba(255,77,109,.3)',
+                    hitBorder: '#ff8c42', missBorder: '#ff4d6d', text: '#fde8d7'
+                }
+            },
+            'monochrome': {
+                name: '高级灰', icon: 'fa-grip-lines',
+                cssVars: {
+                    '--bg-color': '#eef1f4', '--text-color': '#2b2e31', '--card-bg': '#fff',
+                    '--card-shadow': '0 6px 18px rgba(0,0,0,.07)', '--border-color': '#d8dee3',
+                    '--accent-color': '#4a4a4a', '--error-color': '#b00020', '--label-color': '#7f8c8d',
+                    '--value-color': '#1a1a1a', '--control-bg': '#e1e4e7', '--control-border': '#c9ccd0',
+                    '--control-text': '#5e6872', '--control-hover-bg': '#d6dbdf',
+                    '--control-active-bg': '#4a4a4a', '--control-active-text': '#fff',
+                    '--gradient-start': '#666', '--gradient-mid': '#333', '--gradient-end': '#666',
+                },
+                chartColors: {
+                    hit: 'rgba(74,74,74,.7)', miss: 'rgba(160,160,160,.3)',
+                    hitBorder: '#4a4a4a', missBorder: '#a0a0a0', text: '#2b2e31'
+                }
+            },
+            'google': {
+                name: 'Google 风格', icon: 'fa-brands fa-google',
+                cssVars: {
+                    '--bg-color': '#f8f9fa', '--text-color': '#212529', '--card-bg': '#ffffff',
+                    '--card-shadow': '0 1px 4px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.05)',
+                    '--border-color': '#e8e8e8', '--accent-color': '#34A853', '--error-color': '#EA4335',
+                    '--label-color': '#707070', '--value-color': '#3C4043',
+                    '--control-bg': '#e6f4ea', '--control-border': '#b1e0b9', '--control-text': '#34A853',
+                    '--control-hover-bg': '#d9f3de', '--control-active-bg': '#34A853', '--control-active-text': '#ffffff',
+                    '--gradient-start': '#4285F4', '--gradient-mid': '#FBBC05', '--gradient-end': '#EA4335',
+                },
+                chartColors: {
+                    hit: 'rgba(52, 168, 83, 0.7)', miss: 'rgba(234, 67, 53, 0.3)',
+                    hitBorder: '#4285F4', missBorder: '#FBBC05', text: '#3C4043'
+                }
+            },
+            'mac': {
+                name: 'Mac 风格', icon: 'fa-brands fa-apple',
+                cssVars: {
+                    '--bg-color': '#F0F0F5', '--text-color': '#1c1c1e', '--card-bg': '#ffffff',
+                    '--card-shadow': '0 0.5px 2px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.04)',
+                    '--border-color': '#E5E5EA', '--accent-color': '#007AFF', '--error-color': '#FF3B30',
+                    '--label-color': '#666666', '--value-color': '#1c1c1e',
+                    '--control-bg': '#EFEFF4', '--control-border': '#D1D1D6', '--control-text': '#1c1c1e',
+                    '--control-hover-bg': '#DCDCE0', '--control-active-bg': '#007AFF', '--control-active-text': '#ffffff',
+                    '--gradient-start': '#007AFF', '--gradient-mid': '#34A8FF', '--gradient-end': '#007AFF',
+                },
+                chartColors: {
+                    hit: 'rgba(0, 122, 255, 0.7)', miss: 'rgba(180, 180, 185, 0.2)',
+                    hitBorder: '#007aff', missBorder: '#d1d1d6', text: '#1c1c1e'
+                }
+            }
+        };
+        const body = document.body;
+        const themeSelector = document.getElementById('theme-selector');
+        let currentChartColors = {};
+
+        // Function to update theme buttons with active state
+        function updateThemeButtons(activeMode) {
+            themeSelector.innerHTML = '';
+            for (const mode in themeMap) {
+                const themeData = themeMap[mode];
+                const button = createElement('button', 'control-base-label');
+                button.dataset.theme = mode;
+                button.innerHTML = `<i class="${themeData.icon}"></i> ${themeData.name}`;
+                if (mode === activeMode) {
+                    button.classList.add('active');
+                }
+                button.addEventListener('click', () => setTheme(mode));
+                themeSelector.appendChild(button);
             }
         }
+
+        // Function to set the theme
+        function setTheme(mode) {
+            body.className = '';
+            if (mode !== 'light') {
+                body.classList.add(`theme-${mode}`);
+            }
+
+            const root = document.documentElement;
+            const themeVars = themeMap[mode].cssVars;
+            for (const prop in themeVars) {
+                root.style.setProperty(prop, themeVars[prop]);
+            }
+
+            localStorage.setItem('theme', mode);
+            updateThemeButtons(mode);
+
+            currentChartColors = themeMap[mode].chartColors;
+
+            // Recreate charts with new colors
+            setTimeout(() => {
+                Object.values(chartInstances).forEach(chart => chart.destroy());
+                chartInstances = {};
+                refreshData(true, true);
+            }, 50);
+        }
+
+        // Initialize theme on page load
+        const initialTheme = localStorage.getItem('theme') || 'light';
+        setTheme(initialTheme);
+
+        const iconMap = {
+            '请求总数': 'fa-globe',
+            '缓存命中': 'fa-check-circle',
+            '过期缓存命中': 'fa-history',
+            '缓存命中率': 'fa-bullseye',
+            '过期缓存命中率': 'fa-bullseye',
+            '缓存条目数': 'fa-database',
+            '启动时间': 'fa-power-off',
+            'CPU 时间': 'fa-microchip',
+            '常驻内存 (RSS)': 'fa-memory',
+            '待用堆内存 (Idle)': 'fa-box-open',
+            'Go 版本': 'fa-code-branch',
+            '线程数': 'fa-sitemap',
+            '打开文件描述符': 'fa-folder-open',
+        };
+
+        function updateMetrics(containerId, metricsData) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            metricsData.forEach(metric => {
+                const p = createElement('p');
+                const iconClass = iconMap[metric.label] || 'fa-question-circle';
+                const icon = createElement('i', `fas ${iconClass}`);
+                const labelSpan = createElement('span', 'label', metric.label + ':');
+                const valueSpan = createElement('span', 'value');
+
+                if (metric.numericValue !== undefined) {
+                    valueSpan.innerText = formatNumber(metric.numericValue);
+                } else {
+                    valueSpan.innerText = metric.value;
+                }
+
+                if (metric.accent) valueSpan.classList.add('accent');
+                
+                p.append(icon, labelSpan, valueSpan);
+                container.appendChild(p);
+            });
+        }
+        
+        const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node'];
+        const cacheTitles = {
+            'cache_all': '全部缓存', 'cache_cn': '国内缓存', 'cache_google': '国外缓存', 'cache_node': '节点缓存'
+        };
+        let visibleCards = JSON.parse(localStorage.getItem('visibleMosdnsCards')) || cacheOrder;
+
+        function setupCardToggles() {
+            const toggleContainer = document.getElementById('card-toggles');
+            toggleContainer.innerHTML = '';
+            cacheOrder.forEach(tag => {
+                const label = createElement('label', 'control-base-label');
+                const checkbox = createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.dataset.tag = tag;
+                checkbox.checked = visibleCards.includes(tag);
+                checkbox.addEventListener('change', handleToggleChange);
+                
+                const labelTextSpan = createElement('span', 'toggle-label-text', cacheTitles[tag]);
+                label.append(checkbox, labelTextSpan); 
+
+                toggleContainer.appendChild(label);
+            });
+        }
+        function handleToggleChange(event) {
+            const tag = event.target.dataset.tag;
+            if (event.target.checked) {
+                if (!visibleCards.includes(tag)) visibleCards.push(tag);
+            } else {
+                visibleCards = visibleCards.filter(t => t !== tag);
+            }
+            localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards));
+            refreshData(true, true);
+        }
+
+        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+        let autoRefreshEnabled = false;
+
+        autoRefreshToggle.addEventListener('change', (e) => {
+          autoRefreshEnabled = e.target.checked;
+          localStorage.setItem('autoRefresh', autoRefreshEnabled);
+          if (autoRefreshEnabled) startAutoRefresh();
+          else stopAutoRefresh();
+        });
 
         function parseMetrics(metricsText, cacheTag) {
             const lines = metricsText.split('\n');
             let metrics = { lazyHitTotal: 0, hitTotal: 0, queryTotal: 0, sizeCurrent: 0, startTime: 0 };
             lines.forEach(line => {
-                if (line.startsWith(`mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`)) metrics.lazyHitTotal = convertToNumber(line.split(' ')[1]);
-                if (line.startsWith(`mosdns_cache_hit_total{tag="${cacheTag}"}`)) metrics.hitTotal = convertToNumber(line.split(' ')[1]);
-                if (line.startsWith(`mosdns_cache_query_total{tag="${cacheTag}"}`)) metrics.queryTotal = convertToNumber(line.split(' ')[1]);
-                if (line.startsWith(`mosdns_cache_size_current{tag="${cacheTag}"}`)) metrics.sizeCurrent = convertToNumber(line.split(' ')[1]);
+                if (line.startsWith(`mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`)) metrics.lazyHitTotal = parseFloat(line.split(' ')[1]) || 0;
+                if (line.startsWith(`mosdns_cache_hit_total{tag="${cacheTag}"}`)) metrics.hitTotal = parseFloat(line.split(' ')[1]) || 0;
+                if (line.startsWith(`mosdns_cache_query_total{tag="${cacheTag}"}`)) metrics.queryTotal = parseFloat(line.split(' ')[1]) || 0;
+                if (line.startsWith(`mosdns_cache_size_current{tag="${cacheTag}"}`)) metrics.sizeCurrent = parseFloat(line.split(' ')[1]) || 0;
             });
 
             const startTimeLine = lines.reverse().find(line => line.startsWith('process_start_time_seconds'));
             if (startTimeLine) {
-                metrics.startTime = parseFloat(startTimeLine.split(' ')[1]);
+                metrics.startTime = parseFloat(startTimeLine.split(' ')[1]) || 0;
             }
             return metrics;
         }
@@ -343,26 +668,25 @@
 
             lines.forEach(line => {
                 if (line.startsWith('process_start_time_seconds')) {
-                    systemMetrics.startTime = parseFloat(line.split(' ')[1]);
+                    systemMetrics.startTime = parseFloat(line.split(' ')[1]) || 0;
                 }
                 if (line.startsWith('process_cpu_seconds_total')) {
-                    systemMetrics.cpuTime = parseFloat(line.split(' ')[1]);
+                    systemMetrics.cpuTime = parseFloat(line.split(' ')[1]) || 0;
                 }
                 if (line.startsWith('process_resident_memory_bytes')) {
-                    systemMetrics.residentMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)).toFixed(2);
+                    systemMetrics.residentMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)) || 0;
                 }
                 if (line.startsWith('go_memstats_heap_idle_bytes')) {
-                    systemMetrics.heapIdleMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)).toFixed(2);
+                    systemMetrics.heapIdleMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)) || 0;
                 }
                 if (line.startsWith('go_threads')) {
-                    systemMetrics.threads = parseInt(line.split(' ')[1]);
+                    systemMetrics.threads = parseInt(line.split(' ')[1]) || 0;
                 }
                 if (line.startsWith('process_open_fds')) {
-                    systemMetrics.openFds = parseInt(line.split(' ')[1]);
+                    systemMetrics.openFds = parseInt(line.split(' ')[1]) || 0;
                 }
-                // 提取 go 版本信息: 例如 line: go_info{version="go1.24.2"} 1
                 if (line.startsWith('go_info{version="')) {
-                    const match = line.match(/go_info\{version="go([^"]+)"\}/);
+                    const match = line.match(/go_info\{version="([^"]+)"\}/);
                     if (match && match[1]) {
                         systemMetrics.goVersion = match[1];
                     }
@@ -372,132 +696,297 @@
             return systemMetrics;
         }
 
-        function convertToNumber(value) {
-            return parseFloat(value) || 0;
-        }
-
-        function calculateHitRates(metrics) {
-            const hitRate = (metrics.hitTotal / metrics.queryTotal * 100).toFixed(2);
-            const lazyHitRate = (metrics.lazyHitTotal / metrics.queryTotal * 100).toFixed(2);
-            return { hitRate, lazyHitRate };
-        }
-
         function formatStartTime(seconds) {
             const date = new Date(seconds * 1000);
             return date.toLocaleString();
         }
 
-        function updateMetricsDisplay(metrics, prefix) {
-            document.getElementById(`query-total-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : (prefix === 'node' ? '节点' : '全部'))}请求总数: <span>${metrics.queryTotal}</span>`;
-            document.getElementById(`hit-total-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : (prefix === 'node' ? '节点' : '全部'))}缓存命中: <span>${metrics.hitTotal}</span>`;
-            document.getElementById(`lazy-hit-total-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : (prefix === 'node' ? '节点' : '全部'))}过期缓存命中: <span>${metrics.lazyHitTotal}</span>`;
-            document.getElementById(`size-current-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : (prefix === 'node' ? '节点' : '全部'))}过期缓存条目数: <span>${metrics.sizeCurrent}</span>`;
+        async function fetchData() {
+            if (isRefreshing) return null;
+            isRefreshing = true;
+            document.body.classList.add('loading');
+            try {
+                const response = await fetch('/metrics');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const text = await response.text();
 
-            const { hitRate, lazyHitRate } = calculateHitRates(metrics);
-            document.getElementById(`hit-rate-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : (prefix === 'node' ? '节点' : '全部'))}缓存命中率: <span>${hitRate}%</span>`;
-            document.getElementById(`lazy-hit-rate-${prefix}`).innerHTML = `${prefix === 'domestic' ? '国内' : (prefix === 'foreign' ? '国外' : (prefix === 'node' ? '节点' : '全部'))}过期缓存命中率: <span>${lazyHitRate}%</span>`;
+                const data = { caches: {}, system: {} };
+                const systemMetrics = parseSystemMetrics(text);
+
+                // 全部缓存
+                const allMetrics = parseMetrics(text, 'cache_all');
+                const hitRateAll = allMetrics.queryTotal > 0 ? ((allMetrics.hitTotal / allMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                const lazyRateAll = allMetrics.queryTotal > 0 ? ((allMetrics.lazyHitTotal / allMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                data.caches['cache_all'] = {
+                    query_total: allMetrics.queryTotal,
+                    hit_total: allMetrics.hitTotal,
+                    lazy_hit_total: allMetrics.lazyHitTotal,
+                    size_current: allMetrics.sizeCurrent,
+                    hit_rate: hitRateAll,
+                    lazy_hit_rate: lazyRateAll
+                };
+                // 国内缓存
+                const domesticMetrics = parseMetrics(text, 'cache_cn');
+                const hitRateDomestic = domesticMetrics.queryTotal > 0 ? ((domesticMetrics.hitTotal / domesticMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                const lazyRateDomestic = domesticMetrics.queryTotal > 0 ? ((domesticMetrics.lazyHitTotal / domesticMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                data.caches['cache_cn'] = {
+                    query_total: domesticMetrics.queryTotal,
+                    hit_total: domesticMetrics.hitTotal,
+                    lazy_hit_total: domesticMetrics.lazyHitTotal,
+                    size_current: domesticMetrics.sizeCurrent,
+                    hit_rate: hitRateDomestic,
+                    lazy_hit_rate: lazyRateDomestic
+                };
+                // 国外缓存
+                const foreignMetrics = parseMetrics(text, 'cache_google');
+                const hitRateForeign = foreignMetrics.queryTotal > 0 ? ((foreignMetrics.hitTotal / foreignMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                const lazyRateForeign = foreignMetrics.queryTotal > 0 ? ((foreignMetrics.lazyHitTotal / foreignMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                data.caches['cache_google'] = {
+                    query_total: foreignMetrics.queryTotal,
+                    hit_total: foreignMetrics.hitTotal,
+                    lazy_hit_total: foreignMetrics.lazyHitTotal,
+                    size_current: foreignMetrics.sizeCurrent,
+                    hit_rate: hitRateForeign,
+                    lazy_hit_rate: lazyRateForeign
+                };
+                // 节点缓存
+                const nodeMetrics = parseMetrics(text, 'cache_node');
+                const hitRateNode = nodeMetrics.queryTotal > 0 ? ((nodeMetrics.hitTotal / nodeMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                const lazyRateNode = nodeMetrics.queryTotal > 0 ? ((nodeMetrics.lazyHitTotal / nodeMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
+                data.caches['cache_node'] = {
+                    query_total: nodeMetrics.queryTotal,
+                    hit_total: nodeMetrics.hitTotal,
+                    lazy_hit_total: nodeMetrics.lazyHitTotal,
+                    size_current: nodeMetrics.sizeCurrent,
+                    hit_rate: hitRateNode,
+                    lazy_hit_rate: lazyRateNode
+                };
+
+                data.system.start_time = formatStartTime(systemMetrics.startTime);
+                data.system.cpu_time = systemMetrics.cpuTime.toFixed(2) + ' 秒';
+                data.system.resident_memory = systemMetrics.residentMemory.toFixed(2) + ' MB';
+                data.system.heap_idle_memory = systemMetrics.heapIdleMemory.toFixed(2) + ' MB';
+                data.system.go_version = systemMetrics.goVersion;
+                data.system.threads = systemMetrics.threads;
+                data.system.open_fds = systemMetrics.openFds;
+
+                return data;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                const mainContent = document.getElementById('main-content');
+                if (mainContent) {
+                    mainContent.innerHTML = `<p class="error" style="text-align:center; grid-column: 1 / -1; font-size: 1.2rem; padding: 2rem;">
+                        <i class="fas fa-exclamation-triangle"></i> 无法连接到 MosDNS 的 /metrics 接口。<br>
+                        请确保 MosDNS 正在运行，并且此页面能够正确访问 /metrics 接口。<br><small>${error.message}</small>
+                    </p>`;
+                }
+                return null;
+            } finally {
+                isRefreshing = false;
+                document.body.classList.remove('loading');
+            }
         }
 
-        function updateSystemMetricsDisplay(systemMetrics) {
-            document.getElementById('start-time').innerHTML = `启动时间: <span>${formatStartTime(systemMetrics.startTime)}</span>`;
-            document.getElementById('cpu-time').innerHTML = `CPU时间: <span>${systemMetrics.cpuTime} 秒</span>`;
-            document.getElementById('resident-memory').innerHTML = `常驻内存: <span>${systemMetrics.residentMemory} MB</span>`;
-            document.getElementById('go-version').innerHTML = `go版本: <span>${systemMetrics.goVersion}</span>`;
-            document.getElementById('heap-idle-memory').innerHTML = `待使用内存: <span>${systemMetrics.heapIdleMemory} MB</span>`;
-            document.getElementById('threads').innerHTML = `线程数量: <span>${systemMetrics.threads}</span>`;
-            document.getElementById('open-fds').innerHTML = `文件描述符数量: <span>${systemMetrics.openFds}</span>`;
+        function createCacheCard(tag, title) {
+            const card = createElement('div', 'card');
+            card.dataset.tag = tag;
+            const h2 = createElement('h2');
+            const titleText = createElement('span', 'title-text', title);
+            const statusDot = createElement('span', 'status-dot');
+            statusDot.id = `status-dot-${tag}`;
+            h2.append(createElement('i', 'fas fa-server'), titleText, statusDot);
+            const gradientBar = createElement('div', 'card-title-gradient-bar');
+
+            const cardContent = createElement('div', 'card-content');
+            const metricsContainer = createElement('div', 'metrics-container');
+            metricsContainer.id = `metrics-${tag}`;
+            const chartsContainer = createElement('div', 'charts');
+            const totalHitChartContainer = createElement('div', 'chart-container');
+            const lazyHitChartContainer = createElement('div', 'chart-container');
+            const totalHitCanvas = createElement('canvas');
+            const lazyHitCanvas = createElement('canvas');
+            totalHitCanvas.id = `chart-hit-${tag}`;
+            lazyHitCanvas.id = `chart-lazy-${tag}`;
+            totalHitChartContainer.appendChild(totalHitCanvas);
+            lazyHitChartContainer.appendChild(lazyHitCanvas);
+            chartsContainer.append(totalHitChartContainer, lazyHitChartContainer);
+            cardContent.append(metricsContainer, chartsContainer);
+            card.append(h2, gradientBar, cardContent);
+            return card;
         }
 
-        function createPieChart(id, title, total, part) {
-            const ctx = document.getElementById(id).getContext('2d');
+        function createOrUpdatePieChart(id, title, hit, total) {
+            const ctx = document.getElementById(id);
+            if (!ctx) {
+                console.warn(`Canvas element with id '${id}' not found. Skipping chart creation.`);
+                return;
+            }
+            const miss = Math.max(0, total - hit);
+
+            const hitColor = currentChartColors.hit;
+            const missColor = currentChartColors.miss;
+            const hitBorder = currentChartColors.hitBorder;
+            const missBorder = currentChartColors.missBorder;
+            const textColor = currentChartColors.text;
+            
             const data = {
                 labels: ['命中', '未命中'],
                 datasets: [{
-                    data: [part, total - part],
-                    backgroundColor: ['rgba(75, 192, 192, 0.2)', 'rgba(255, 99, 132, 0.2)'],
-                    borderColor: ['rgba(75, 192, 192, 1)', 'rgba(255, 99, 132, 1)'],
-                    borderWidth: 1
+                    data: [hit, miss],
+                    backgroundColor: [hitColor, missColor],
+                    borderColor: [hitBorder, missBorder],
+                    borderWidth: 1.5
                 }]
             };
-            new Chart(ctx, {
-                type: 'pie',
-                data: data,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: title,
-                            padding: 10,
-                            font: { size: 16 }
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: true, text: title, color: textColor, font: { size: 12, weight: 'bold' } },
+                    legend: { display: false },
+                    datalabels: {
+                        formatter: (value, context) => {
+                            const sum = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            if (sum === 0) return '';
+                            const percentage = (value / sum);
+                            return percentage > 0.05 ? `${(percentage * 100).toFixed(percentage < 0.1 ? 1 : 0)}%` : '';
                         },
-                        datalabels: {
-                            formatter: (value, context) => {
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = (value / total * 100).toFixed(2);
-                                return `${percentage}%`;
-                            },
-                            color: '#000',
-                            font: {
-                                weight: 'bold'
-                            }
-                        }
+                        color: textColor, 
+                        font: { weight: 'bold', size: 11 }
                     }
                 },
-                plugins: [ChartDataLabels]
-            });
-        }
+                cutout: '70%',
+            };
 
-        async function main() {
-            const metricsText = await fetchData();
-
-            if (metricsText) {
-                const systemMetrics = parseSystemMetrics(metricsText);
-                updateSystemMetricsDisplay(systemMetrics);
-
-                // 全部数据（cache_all）
-                const allMetrics = parseMetrics(metricsText, 'cache_all');
-                updateMetricsDisplay(allMetrics, 'all');
-                createPieChart('totalHitChartAll', '全部总缓存命中', allMetrics.queryTotal, allMetrics.hitTotal);
-                createPieChart('lazyHitChartAll', '全部过期缓存命中', allMetrics.queryTotal, allMetrics.lazyHitTotal);
-
-                // 国内
-                const domesticMetrics = parseMetrics(metricsText, 'cache_cn');
-                updateMetricsDisplay(domesticMetrics, 'domestic');
-                createPieChart('totalHitChartDomestic', '国内总缓存命中', domesticMetrics.queryTotal, domesticMetrics.hitTotal);
-                createPieChart('lazyHitChartDomestic', '国内过期缓存命中', domesticMetrics.queryTotal, domesticMetrics.lazyHitTotal);
-
-                // 国外
-                const foreignMetrics = parseMetrics(metricsText, 'cache_google');
-                updateMetricsDisplay(foreignMetrics, 'foreign');
-                createPieChart('totalHitChartForeign', '国外总缓存命中', foreignMetrics.queryTotal, foreignMetrics.hitTotal);
-                createPieChart('lazyHitChartForeign', '国外过期缓存命中', foreignMetrics.queryTotal, foreignMetrics.lazyHitTotal);
-
-                // 节点
-                const nodeMetrics = parseMetrics(metricsText, 'cache_node');
-                updateMetricsDisplay(nodeMetrics, 'node');
-                createPieChart('totalHitChartNode', '节点总缓存命中', nodeMetrics.queryTotal, nodeMetrics.hitTotal);
-                createPieChart('lazyHitChartNode', '节点过期缓存命中', nodeMetrics.queryTotal, nodeMetrics.lazyHitTotal);
+            if (chartInstances[id]) {
+                chartInstances[id].data = data;
+                chartInstances[id].options = options;
+                chartInstances[id].update('none');
+            } else {
+                chartInstances[id] = new Chart(ctx, { type: 'doughnut', data, options, plugins: [ChartDataLabels] });
             }
         }
 
-        // 添加清空缓存按钮事件，成功后自动刷新页面
+        async function refreshData(forceRebuild = false, updateCharts = false) {
+            const data = await fetchData();
+            if (!data) {
+                stopAutoRefresh();
+                autoRefreshToggle.checked = false;
+                autoRefreshEnabled = false;
+                localStorage.setItem('autoRefresh', false);
+                return;
+            } else if (autoRefreshEnabled && !autoRefreshTimer) {
+                startAutoRefresh();
+            }
+
+            const mainContent = document.getElementById('main-content');
+
+            if (forceRebuild) {
+                mainContent.innerHTML = '';
+                Object.values(chartInstances).forEach(chart => chart.destroy());
+                chartInstances = {};
+
+                cacheOrder.forEach(tag => {
+                    if (data.caches[tag] && visibleCards.includes(tag)) {
+                        mainContent.appendChild(createCacheCard(tag, cacheTitles[tag]));
+                    }
+                });
+            }
+            
+            cacheOrder.forEach(tag => {
+                const card = mainContent.querySelector(`.card[data-tag="${tag}"]`);
+                if (card) {
+                    card.classList.toggle('visible', visibleCards.includes(tag));
+                    if (visibleCards.includes(tag)) {
+                        const cardData = data.caches[tag];
+                        updateMetrics(`metrics-${tag}`, [
+                            { label: '请求总数', numericValue: cardData.query_total },
+                            { label: '缓存命中', numericValue: cardData.hit_total },
+                            { label: '过期缓存命中', numericValue: cardData.lazy_hit_total },
+                            { label: '缓存命中率', value: cardData.hit_rate, accent: true },
+                            { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true },
+                            { label: '缓存条目数', numericValue: cardData.size_current },
+                        ]);
+                        const statusDot = document.getElementById(`status-dot-${tag}`);
+                        if (statusDot) {
+                            statusDot.classList.remove('status-green', 'status-yellow');
+                            statusDot.classList.add(cardData.query_total > 0 ? 'status-green' : 'status-yellow');
+                        }
+                        const chartsContainer = card.querySelector('.charts');
+                        if (chartsContainer) {
+                            chartsContainer.style.display = cardData.query_total > 0 ? 'flex' : 'none';
+                        }
+                        if(updateCharts && cardData.query_total > 0) {
+                            createOrUpdatePieChart(`chart-hit-${tag}`, '命中', cardData.hit_total, cardData.query_total);
+                            createOrUpdatePieChart(`chart-lazy-${tag}`, '过期命中', cardData.lazy_hit_total, cardData.query_total);
+                        }
+                    }
+                }
+            });
+
+            updateMetrics('metrics-system', [
+                { label: '启动时间', value: data.system.start_time },
+                { label: 'CPU 时间', value: data.system.cpu_time },
+                { label: '常驻内存 (RSS)', value: data.system.resident_memory },
+                { label: '待用堆内存 (Idle)', value: data.system.heap_idle_memory },
+                { label: 'Go 版本', value: data.system.go_version, accent: true },
+                { label: '线程数', numericValue: data.system.threads },
+                { label: '打开文件描述符', numericValue: data.system.open_fds },
+            ]);
+
+            document.getElementById('last_updated').innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+            autoRefreshTimer = setInterval(() => {
+                refreshData(false, true); 
+            }, REFRESH_INTERVAL);
+            console.log('Auto-refresh started.');
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+                console.log('Auto-refresh stopped.');
+            }
+        }
+
+        document.getElementById('refresh-now-btn').addEventListener('click', () => {
+            refreshData(false, true);
+        });
+
         document.getElementById('flush-cache-btn').addEventListener('click', async () => {
-            const confirmed = window.confirm("确定要清空fakeip缓存吗？");
-            if (confirmed) {
+            if (window.confirm("确定要清空 FakeIP 缓存吗？")) {
                 try {
-                    const response = await fetch('/plugins/cache_all/flush');
+                    const response = await fetch('/plugins/cache_all/flush', { method: 'GET' });
                     if (response.ok) {
                         window.location.reload();
+                    } else {
+                        alert(`清空失败: ${response.statusText}`);
                     }
                 } catch (error) {
                     console.error('清空缓存请求出错:', error);
-                    alert("请求出错！");
+                    alert(`请求出错: ${error.message}`);
                 }
             }
         });
+        
+        setupCardToggles(); // Initial setup of card toggles
 
-        main();
+        const savedAutoRefresh = localStorage.getItem('autoRefresh');
+        autoRefreshEnabled = (savedAutoRefresh === null) ? true : (savedAutoRefresh === 'true');
+        autoRefreshToggle.checked = autoRefreshEnabled;
+
+        refreshData(true, true); // Initial data fetch and render (force rebuild)
+
+        if (autoRefreshEnabled) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+        // === END OF REFACTORED JAVASCRIPT ===
     </script>
 </body>
 </html>
