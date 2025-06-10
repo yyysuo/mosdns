@@ -23,13 +23,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+              "net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
+               
+               "github.com/go-chi/chi/v5"
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
@@ -67,7 +69,7 @@ type domainOutput struct {
 	stopChan       chan struct{}
 }
 
-func Init(_ *coremain.BP, args any) (any, error) {
+func Init(bp *coremain.BP, args any) (any, error) {
 	cfg := args.(*Args)
 	if cfg.DumpInterval <= 0 {
 		cfg.DumpInterval = 60 // 默认值为60秒
@@ -87,6 +89,8 @@ func Init(_ *coremain.BP, args any) (any, error) {
 
 	// 启动定时写入协程
 	go d.startDumpTicker()
+	// 注册 /plugins/<tag>/flush，刷新并重写所有文件
+	bp.RegAPI(d.Api())
 
 	return d, nil
 }
@@ -270,4 +274,37 @@ func (d *domainOutput) Shutdown() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.writeAll() // 关闭时无条件写入所有数据
+}
+
+// Api 返回 domain_output 插件的路由，包含 /flush
+func (d *domainOutput) Api() *chi.Mux {
+	r := chi.NewRouter()
+	
+	// GET /plugins/{your_plugin_tag}/flush
+	r.Get("/flush", func(w http.ResponseWriter, req *http.Request) {
+		// 1. 清空内存统计
+		d.mu.Lock()
+		d.stats = make(map[string]int)
+		d.totalCount = 0
+		d.entryCounter = 0
+		// 2. 立即写入所有三个文件：stat、rule、gen_rule
+		d.writeAll()
+		d.mu.Unlock()
+
+		// 3. 返回确认
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("domain_output flushed and files rewritten"))
+	})
+
+              // save 路由：不清空，立即写文件
+              r.Get("/save", func(w http.ResponseWriter, req *http.Request) {
+                  d.mu.Lock()
+                  d.writeAll()
+                  d.mu.Unlock()
+           
+                  w.WriteHeader(http.StatusOK)
+                  w.Write([]byte("domain_output files saved"))
+              })
+
+	return r
 }
