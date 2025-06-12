@@ -25,6 +25,7 @@ import (
 	"fmt"
               "net/http"
 	"os"
+              "syscall"
 	"sort"
 	"strconv"
 	"strings"
@@ -276,6 +277,23 @@ func (d *domainOutput) Shutdown() {
 	d.writeAll() // 关闭时无条件写入所有数据
 }
 
+// restartSelf 用 syscall.Exec 重新启动当前二进制
+func restartSelf() {
+    // 微小延迟，确保 HTTP 响应已发送
+    time.Sleep(100 * time.Millisecond)
+
+    bin, err := os.Executable()
+    if err != nil {
+        // 无法获取可执行文件路径时直接退出，
+        // 让外部如 systemd/容器重启它
+        os.Exit(0)
+    }
+    args := os.Args
+    env := os.Environ()
+    // 下面这一行正常情况下不会返回
+    syscall.Exec(bin, args, env)
+}
+
 // Api 返回 domain_output 插件的路由，包含 /flush
 func (d *domainOutput) Api() *chi.Mux {
 	r := chi.NewRouter()
@@ -293,7 +311,9 @@ func (d *domainOutput) Api() *chi.Mux {
 
 		// 3. 返回确认
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("domain_output flushed and files rewritten"))
+		w.Write([]byte("domain_output flushed and files rewritten; restarting…"))
+
+                             go restartSelf()
 	})
 
               // save 路由：不清空，立即写文件
@@ -303,7 +323,9 @@ func (d *domainOutput) Api() *chi.Mux {
                   d.mu.Unlock()
            
                   w.WriteHeader(http.StatusOK)
-                  w.Write([]byte("domain_output files saved"))
+                  w.Write([]byte("domain_output files saved; restarting…"))
+
+                  go restartSelf()
               })
 
 	return r
