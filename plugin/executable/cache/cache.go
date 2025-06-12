@@ -1,22 +1,3 @@
-/*
- * Copyright (C) 2020-2022, IrineSistiana
- *
- * This file is part of mosdns.
- *
- * mosdns is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * mosdns is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package cache
 
 import (
@@ -25,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -45,6 +28,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -69,10 +53,49 @@ const (
 var _ sequence.RecursiveExecutable = (*Cache)(nil)
 
 type Args struct {
-	Size         int    `yaml:"size"`
-	LazyCacheTTL int    `yaml:"lazy_cache_ttl"`
-	DumpFile     string `yaml:"dump_file"`
-	DumpInterval int    `yaml:"dump_interval"`
+	Size         int      `yaml:"size"`
+	LazyCacheTTL int      `yaml:"lazy_cache_ttl"`
+	ExcludeIPs   []string `yaml:"exclude_ip"`
+	DumpFile     string   `yaml:"dump_file"`
+	DumpInterval int      `yaml:"dump_interval"`
+}
+
+type argsRaw struct {
+	Size         int         `yaml:"size"`
+	LazyCacheTTL int         `yaml:"lazy_cache_ttl"`
+	ExcludeIP    interface{} `yaml:"exclude_ip"`
+	DumpFile     string      `yaml:"dump_file"`
+	DumpInterval int         `yaml:"dump_interval"`
+}
+
+// UnmarshalYAML supports both scalar (space-separated) and sequence forms for exclude_ip.
+func (a *Args) UnmarshalYAML(node *yaml.Node) error {
+	var raw argsRaw
+	if err := node.Decode(&raw); err != nil {
+		return err
+	}
+	a.Size = raw.Size
+	a.LazyCacheTTL = raw.LazyCacheTTL
+	a.DumpFile = raw.DumpFile
+	a.DumpInterval = raw.DumpInterval
+
+	switch v := raw.ExcludeIP.(type) {
+	case string:
+		a.ExcludeIPs = strings.Fields(v)
+	case []interface{}:
+		for _, x := range v {
+			if s, ok := x.(string); ok {
+				a.ExcludeIPs = append(a.ExcludeIPs, s)
+			} else {
+				return fmt.Errorf("exclude_ip list contains non-string: %#v", x)
+			}
+		}
+	case nil:
+		// nothing
+	default:
+		return fmt.Errorf("exclude_ip must be string or list, got %T", v)
+	}
+	return nil
 }
 
 func (a *Args) init() {
@@ -81,19 +104,25 @@ func (a *Args) init() {
 }
 
 type Cache struct {
-	args *Args
-
-	logger       *zap.Logger
-	backend      *cache.Cache[key, *item]
+	args        *Args
+	logger      *zap.Logger
+	backend     *cache.Cache[key, *item]
 	lazyUpdateSF singleflight.Group
-	closeOnce    sync.Once
-	closeNotify  chan struct{}
-	updatedKey   atomic.Uint64
+	closeOnce   sync.Once
+	closeNotify chan struct{}
+	updatedKey  atomic.Uint64
 
 	queryTotal   prometheus.Counter
 	hitTotal     prometheus.Counter
 	lazyHitTotal prometheus.Counter
 	size         prometheus.GaugeFunc
+
+	excludeNets []*net.IPNet // parsed exclude_ip CIDRs
+}
+
+type Opts struct {
+	Logger     *zap.Logger
+	MetricsTag string
 }
 
 func Init(bp *coremain.BP, args any) (any, error) {
@@ -109,8 +138,6 @@ func Init(bp *coremain.BP, args any) (any, error) {
 	return c, nil
 }
 
-// QuickSetup format: [size]
-// default is 1024. If size is < 1024, 1024 will be used.
 func quickSetupCache(bq sequence.BQ, s string) (any, error) {
 	size := 0
 	if len(s) > 0 {
@@ -120,13 +147,7 @@ func quickSetupCache(bq sequence.BQ, s string) (any, error) {
 		}
 		size = i
 	}
-	// Don't register metrics in quick setup.
 	return NewCache(&Args{Size: size}, Opts{Logger: bq.L()}), nil
-}
-
-type Opts struct {
-	Logger     *zap.Logger
-	MetricsTag string
 }
 
 func NewCache(args *Args, opts Opts) *Cache {
@@ -137,6 +158,19 @@ func NewCache(args *Args, opts Opts) *Cache {
 		logger = zap.NewNop()
 	}
 
+	// parse exclude_ip CIDRs
+	var excludeNets []*net.IPNet
+	for _, cidr := range args.ExcludeIPs {
+		_, ipnet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			logger.Warn("invalid exclude_ip, skip", zap.String("cidr", cidr), zap.Error(err))
+			continue
+		}
+
+                logger.Debug("parsed exclude_ip network", zap.String("input", cidr), zap.String("network", ipnet.String()))
+		excludeNets = append(excludeNets, ipnet)
+	}
+
 	backend := cache.New[key, *item](cache.Opts{Size: args.Size})
 	lb := map[string]string{"tag": opts.MetricsTag}
 	p := &Cache{
@@ -144,6 +178,7 @@ func NewCache(args *Args, opts Opts) *Cache {
 		logger:      logger,
 		backend:     backend,
 		closeNotify: make(chan struct{}),
+		excludeNets: excludeNets,
 
 		queryTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        "query_total",
@@ -177,6 +212,30 @@ func NewCache(args *Args, opts Opts) *Cache {
 	return p
 }
 
+func (c *Cache) containsExcluded(msg *dns.Msg) bool {
+	if len(c.excludeNets) == 0 {
+		return false
+	}
+	for _, rr := range msg.Answer {
+		var ip net.IP
+		switch rr := rr.(type) {
+		case *dns.A:
+			ip = rr.A
+		case *dns.AAAA:
+			ip = rr.AAAA
+		default:
+			continue
+		}
+		for _, net := range c.excludeNets {
+			if net.Contains(ip) {
+				c.logger.Debug("skip lazy cache: excluded IP", zap.String("cidr", net.String()), zap.String("ip", ip.String()))
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (c *Cache) RegMetricsTo(r prometheus.Registerer) error {
 	for _, collector := range [...]prometheus.Collector{c.queryTotal, c.hitTotal, c.lazyHitTotal, c.size} {
 		if err := r.Register(collector); err != nil {
@@ -191,7 +250,7 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 	q := qCtx.Q()
 
 	msgKey := getMsgKey(q)
-	if len(msgKey) == 0 { // skip cache
+	if len(msgKey) == 0 {
 		return next.ExecNext(ctx, qCtx)
 	}
 
@@ -200,23 +259,25 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 		c.lazyHitTotal.Inc()
 		c.doLazyUpdate(msgKey, qCtx, next)
 	}
-	if cachedResp != nil { // cache hit
+	if cachedResp != nil {
 		c.hitTotal.Inc()
-		cachedResp.Id = q.Id // change msg id
+		cachedResp.Id = q.Id
 		qCtx.SetResponse(cachedResp)
 	}
 
-	err := next.ExecNext(ctx, qCtx)
-
-	if r := qCtx.R(); r != nil && cachedResp != r { // pointer compare. r is not cachedResp
-		saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
-		c.updatedKey.Add(1)
-	}
-	return err
+              err := next.ExecNext(ctx, qCtx)
+              r := qCtx.R()
+           
+              // —— 统一排除逻辑 —— 
+              // 不管是首次写入还是延迟更新，都先检查 containsExcluded
+              if r != nil && !c.containsExcluded(r) {
+                  saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
+                  c.updatedKey.Add(1)
+              }
+              // 如果 r == nil 或 IP 在排除网段内，则不会写入缓存
+              return err
 }
 
-// doLazyUpdate starts a new goroutine to execute next node and update the cache in the background.
-// It has an inner singleflight.Group to de-duplicate same msgKey.
 func (c *Cache) doLazyUpdate(msgKey string, qCtx *query_context.Context, next sequence.ChainWalker) {
 	qCtxCopy := qCtx.Copy()
 	lazyUpdateFunc := func() (any, error) {
@@ -233,14 +294,14 @@ func (c *Cache) doLazyUpdate(msgKey string, qCtx *query_context.Context, next se
 		}
 
 		r := qCtx.R()
-		if r != nil {
+		if r != nil && !c.containsExcluded(r) {
 			saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
 			c.updatedKey.Add(1)
 		}
 		c.logger.Debug("lazy cache updated", qCtx.InfoField())
 		return nil, nil
 	}
-	c.lazyUpdateSF.DoChan(msgKey, lazyUpdateFunc) // DoChan won't block this goroutine
+	c.lazyUpdateSF.DoChan(msgKey, lazyUpdateFunc)
 }
 
 func (c *Cache) Close() error {
@@ -270,7 +331,6 @@ func (c *Cache) loadDump() error {
 	return nil
 }
 
-// startDumpLoop starts a dump loop in another goroutine. It does not block.
 func (c *Cache) startDumpLoop() {
 	if len(c.args.DumpFile) == 0 {
 		return
@@ -281,13 +341,11 @@ func (c *Cache) startDumpLoop() {
 		for {
 			select {
 			case <-ticker.C:
-				// Check if we have enough changes to dump.
 				keyUpdated := c.updatedKey.Swap(0)
-				if keyUpdated < minimumChangesToDump { // Nop.
+				if keyUpdated < minimumChangesToDump {
 					c.updatedKey.Add(keyUpdated)
 					continue
 				}
-
 				if err := c.dumpCache(); err != nil {
 					c.logger.Error("dump cache", zap.Error(err))
 				}
@@ -302,7 +360,6 @@ func (c *Cache) dumpCache() error {
 	if len(c.args.DumpFile) == 0 {
 		return nil
 	}
-
 	f, err := os.Create(c.args.DumpFile)
 	if err != nil {
 		return err
@@ -342,7 +399,6 @@ func (c *Cache) Api() *chi.Mux {
 
 func (c *Cache) writeDump(w io.Writer) (int, error) {
 	en := 0
-
 	gw, _ := gzip.NewWriterLevel(w, gzip.BestSpeed)
 	gw.Name = dumpHeader
 
@@ -352,18 +408,14 @@ func (c *Cache) writeDump(w io.Writer) (int, error) {
 		if err != nil {
 			return fmt.Errorf("failed to marshal protobuf, %w", err)
 		}
-
 		l := make([]byte, 8)
 		binary.BigEndian.PutUint64(l, uint64(len(b)))
-		_, err = gw.Write(l)
-		if err != nil {
+		if _, err := gw.Write(l); err != nil {
 			return fmt.Errorf("failed to write header, %w", err)
 		}
-		_, err = gw.Write(b)
-		if err != nil {
+		if _, err := gw.Write(b); err != nil {
 			return fmt.Errorf("failed to write data, %w", err)
 		}
-
 		en += len(block.GetEntries())
 		block.Reset()
 		return nil
@@ -385,8 +437,6 @@ func (c *Cache) writeDump(w io.Writer) (int, error) {
 			Msg:                 msg,
 		}
 		block.Entries = append(block.Entries, e)
-
-		// Block is big enough for a write operation.
 		if len(block.Entries) >= dumpBlockSize {
 			return writeBlock()
 		}
@@ -395,7 +445,6 @@ func (c *Cache) writeDump(w io.Writer) (int, error) {
 	if err := c.backend.Range(rangeFunc); err != nil {
 		return en, err
 	}
-
 	if len(block.GetEntries()) > 0 {
 		if err := writeBlock(); err != nil {
 			return en, err
@@ -404,8 +453,6 @@ func (c *Cache) writeDump(w io.Writer) (int, error) {
 	return en, gw.Close()
 }
 
-// readDump reads dumped data from r. It returns the number of bytes read,
-// number of entries read and any error encountered.
 func (c *Cache) readDump(r io.Reader) (int, error) {
 	en := 0
 	gr, err := gzip.NewReader(r)
@@ -431,14 +478,12 @@ func (c *Cache) readDump(r io.Reader) (int, error) {
 		if u > dumpMaximumBlockLength {
 			return fmt.Errorf("invalid header, block length is big, %d", u)
 		}
-
 		b := pool.GetBuf(int(u))
 		defer pool.ReleaseBuf(b)
 		_, err = io.ReadFull(gr, *b)
 		if err != nil {
 			return fmt.Errorf("failed to read block data, %w", err)
 		}
-
 		block := new(CacheDumpBlock)
 		if err := proto.Unmarshal(*b, block); err != nil {
 			return fmt.Errorf("failed to decode block data, %w", err)
@@ -453,7 +498,6 @@ func (c *Cache) readDump(r io.Reader) (int, error) {
 			if err := resp.Unpack(entry.GetMsg()); err != nil {
 				return fmt.Errorf("failed to decode dns msg, %w", err)
 			}
-
 			i := &item{
 				resp:           resp,
 				storedTime:     storedTime,
@@ -468,7 +512,7 @@ func (c *Cache) readDump(r io.Reader) (int, error) {
 		err = readBlock()
 		if err != nil {
 			if err == errReadHeaderEOF {
-				err = nil // This is expected if there is no block to read.
+				err = nil
 			}
 			break
 		}
