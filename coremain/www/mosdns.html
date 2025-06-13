@@ -346,6 +346,10 @@
                 <button id="show-rules-btn2"><i class="fas fa-eye"></i> 显示realip域名</button>
                 <button id="show-rules-btn3"><i class="fas fa-eye"></i> 显示无V4域名</button>
                 <button id="show-rules-btn4"><i class="fas fa-eye"></i> 显示无V6域名</button>
+                <button id="show-cache-btn1"><i class="fas fa-eye"></i> 显示总缓存</button>
+                <button id="show-cache-btn2"><i class="fas fa-eye"></i> 显示CN缓存</button>
+                <button id="show-cache-btn3"><i class="fas fa-eye"></i> 显示!CN缓存</button>
+                <button id="show-cache-btn4"><i class="fas fa-eye"></i> 显示节点缓存</button>
                 <button id="restart-mosdns-btn"><i class="fas fa-redo"></i> 重启 mosdns</button>
                 <span id="last_updated"><i class="fas fa-clock"></i> </span>
             </div>
@@ -1052,6 +1056,43 @@
          document.getElementById('show-rules-btn4').addEventListener('click', () => {
              const endpoints = [
                  '/plugins/my_nov6list/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+
+         // 显示缓存条目：结果拉回到当前页面
+         document.getElementById('show-cache-btn1').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/cache_all/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+
+         document.getElementById('show-cache-btn2').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/cache_cn/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+         
+         document.getElementById('show-cache-btn3').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/cache_google/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+         
+         document.getElementById('show-cache-btn4').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/cache_node/show'
              ];
              endpoints.forEach(url => {
                  window.open(url, '_blank');
