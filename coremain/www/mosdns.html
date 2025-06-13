@@ -340,6 +340,13 @@
             <div class="action-buttons">
                 <button id="refresh-now-btn" class="primary"><i class="fas fa-sync-alt"></i> 立即刷新</button>
                 <button id="flush-cache-btn"><i class="fas fa-broom"></i> 清空 FakeIP 缓存</button>
+                <button id="save-rules-btn"><i class="fas fa-save"></i> 保存分流规则</button>
+                <button id="flush-rules-btn"><i class="fas fa-trash-alt"></i> 清空分流规则</button>
+                <button id="show-rules-btn1"><i class="fas fa-eye"></i> 显示fakeip域名</button>
+                <button id="show-rules-btn2"><i class="fas fa-eye"></i> 显示realip域名</button>
+                <button id="show-rules-btn3"><i class="fas fa-eye"></i> 显示无V4域名</button>
+                <button id="show-rules-btn4"><i class="fas fa-eye"></i> 显示无V6域名</button>
+                <button id="restart-mosdns-btn"><i class="fas fa-redo"></i> 重启 mosdns</button>
                 <span id="last_updated"><i class="fas fa-clock"></i> </span>
             </div>
         </div>
@@ -973,6 +980,98 @@
             }
         });
         
+        // 1. “保存分流规则”
+        document.getElementById('save-rules-btn').addEventListener('click', () => {
+            const endpoints = [
+                '/plugins/my_fakeiplist/save',
+                '/plugins/my_nodenov4list/save',
+                '/plugins/my_nodenov6list/save',
+                '/plugins/my_notinlist/save',
+                '/plugins/my_nov4list/save',
+                '/plugins/my_nov6list/save',
+                '/plugins/my_realiplist/save'
+            ];
+            endpoints.forEach((url, idx) => {
+                setTimeout(() => {
+                    fetch(url, { method: 'GET' })
+                      .catch(err => console.error(`保存规则失败 ${url}:`, err));
+                }, idx * 100);
+            });
+            
+            alert('✅ 分流规则已保存');
+        });
+        
+        // 2. “清空分流规则”
+        document.getElementById('flush-rules-btn').addEventListener('click', () => {
+            if (!window.confirm('确定要清空所有分流规则吗？')) return;
+            const endpoints = [
+                '/plugins/my_fakeiplist/flush',
+                '/plugins/my_nodenov4list/flush',
+                '/plugins/my_nodenov6list/flush',
+                '/plugins/my_notinlist/flush',
+                '/plugins/my_nov4list/flush',
+                '/plugins/my_nov6list/flush',
+                '/plugins/my_realiplist/flush'
+            ];
+            endpoints.forEach((url, idx) => {
+                setTimeout(() => {
+                    fetch(url, { method: 'GET' })
+                      .catch(err => console.error(`清空规则失败 ${url}:`, err));
+                }, idx * 100);
+            });
+        });
+        
+         // 显示分流规则：结果拉回到当前页面
+         document.getElementById('show-rules-btn1').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/my_fakeiplist/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+
+         document.getElementById('show-rules-btn2').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/my_realiplist/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+         
+         document.getElementById('show-rules-btn3').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/my_nov4list/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+         
+         document.getElementById('show-rules-btn4').addEventListener('click', () => {
+             const endpoints = [
+                 '/plugins/my_nov6list/show'
+             ];
+             endpoints.forEach(url => {
+                 window.open(url, '_blank');
+             });
+         });
+         
+        // 4. “重启 mosdns”
+        document.getElementById('restart-mosdns-btn').addEventListener('click', () => {
+            if (!window.confirm('确定要重启 mosdns 吗？')) return;
+            fetch('/plugins/my_fakeiplist/restartall', { method: 'GET' })
+              .then(resp => {
+                if (!resp.ok) throw new Error(resp.statusText);
+                setTimeout(() => location.reload(), 1000);
+              })
+              .catch(err => {
+                console.error('重启 mosdns 失败:', err);
+                alert(`重启失败: ${err.message}`);
+              });
+        });
+
         setupCardToggles(); // Initial setup of card toggles
 
         const savedAutoRefresh = localStorage.getItem('autoRefresh');
