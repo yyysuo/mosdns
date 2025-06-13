@@ -23,16 +23,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-              "net/http"
+        "io"
+        "net/http"
 	"os"
-              "syscall"
+        "syscall"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
                
-               "github.com/go-chi/chi/v5"
+        "github.com/go-chi/chi/v5"
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
@@ -327,6 +328,24 @@ func (d *domainOutput) Api() *chi.Mux {
 
                   go restartSelf()
               })
+
+	// GET /plugins/{tag}/show
+	// 将 file_stat 文件内容以纯文本输出到浏览器
+	r.Get("/show", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+		f, err := os.Open(d.fileStat)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to open stat file: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer f.Close()
+
+		if _, err := io.Copy(w, f); err != nil {
+			http.Error(w, fmt.Sprintf("failed to send stat file content: %v", err), http.StatusInternalServerError)
+			return
+		}
+	})
 
 	return r
 }
