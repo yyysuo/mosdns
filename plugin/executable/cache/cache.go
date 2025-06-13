@@ -394,7 +394,61 @@ func (c *Cache) Api() *chi.Mux {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
+
+	// 新增：以纯文本方式展示完整缓存记录
+	r.Get("/show", func(w http.ResponseWriter, req *http.Request) {
+		// 设为纯文本，并让浏览器 inline 打开，文件名 *.txt
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Disposition", `inline; filename="cache.txt"`)
+
+		now := time.Now()
+		err := c.backend.Range(func(k key, v *item, cacheExpirationTime time.Time) error {
+			// 如果不想跳过过期条目，可删掉下面 4 行
+			if cacheExpirationTime.Before(now) {
+				return nil
+			}
+
+			fmt.Fprintf(w, "----- Cache Entry -----\n")
+			fmt.Fprintf(w, "Key:           %s\n", keyToString(k))
+			fmt.Fprintf(w, "StoredTime:    %s\n", v.storedTime.Format(time.RFC3339))
+			fmt.Fprintf(w, "MsgExpire:     %s\n", v.expirationTime.Format(time.RFC3339))
+			fmt.Fprintf(w, "CacheExpire:   %s\n", cacheExpirationTime.Format(time.RFC3339))
+			fmt.Fprintf(w, "DNS Message:\n%s\n", dnsMsgToString(v.resp))
+			return nil
+		})
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to enumerate cache: %v", err), http.StatusInternalServerError)
+		}
+	})
+
 	return r
+}
+
+// keyToString 把底层 []byte key 转成人类可读的 "name TYPE CLASS"
+func keyToString(k key) string {
+	data := []byte(k)
+	// 先解析域名
+	name, offset, err := dns.UnpackDomainName(data, 0)
+	if err != nil {
+		// 解析失败就退回到 hex
+		return fmt.Sprintf("%x", data)
+	}
+	// 剩下至少 4 字节：TYPE(2) + CLASS(2)
+	if len(data) < offset+4 {
+		return name
+	}
+	typ := binary.BigEndian.Uint16(data[offset : offset+2])
+	class := binary.BigEndian.Uint16(data[offset+2 : offset+4])
+	return fmt.Sprintf("%s %s %s", name, dns.TypeToString[typ], dns.ClassToString[class])
+}
+
+// dnsMsgToString 将 *dns.Msg 转为可读文本
+func dnsMsgToString(msg *dns.Msg) string {
+	if msg == nil {
+		return "<nil>\n"
+	}
+	// msg.String() 自带多行格式
+	return strings.TrimSpace(msg.String()) + "\n"
 }
 
 func (c *Cache) writeDump(w io.Writer) (int, error) {
