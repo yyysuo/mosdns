@@ -313,8 +313,6 @@ func (d *domainOutput) Api() *chi.Mux {
 		// 3. 返回确认
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("domain_output flushed and files rewritten; restarting…"))
-
-                             go restartSelf()
 	})
 
               // save 路由：不清空，立即写文件
@@ -325,8 +323,6 @@ func (d *domainOutput) Api() *chi.Mux {
            
                   w.WriteHeader(http.StatusOK)
                   w.Write([]byte("domain_output files saved; restarting…"))
-
-                  go restartSelf()
               })
 
 	// GET /plugins/{tag}/show
@@ -345,6 +341,14 @@ func (d *domainOutput) Api() *chi.Mux {
 			http.Error(w, fmt.Sprintf("failed to send stat file content: %v", err), http.StatusInternalServerError)
 			return
 		}
+	})
+
+	// GET /plugins/{tag}/restartall
+	// 仅执行重启逻辑（调用 restartSelf）
+	r.Get("/restartall", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mosdns restarted"))
+		go restartSelf()
 	})
 
 	return r
