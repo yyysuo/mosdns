@@ -4,1129 +4,385 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MosDNS 监控面板</title>
-
-    <!-- Font Awesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-    <!-- Chart.js 和 datalabels 插件 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-
     <style>
-        /* === START OF REFACTORED CSS === */
-        /* CSS Variables - Now only define default values. All theme-specific values are set via JS. */
         :root {
-            /* Basic Colors */
-            --bg-color: #f7f9fd;
-            --text-color: #2c3e50;
-            --card-bg: #ffffff;
-            --card-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-            --border-color: #e0e6ec;
-            --accent-color: #4a90e2; /* Default accent */
-            --error-color: #e74c3c;
-            --label-color: #7f8c8d;
-            --value-color: #34495e;
-
-            /* Control/Button Colors */
-            --control-bg: #f0f4f7;
-            --control-border: #d5dce2;
-            --control-text: #5e727e;
-            --control-hover-bg: #e5edf3;
-            --control-active-bg: var(--accent-color);
-            --control-active-text: #ffffff;
-            --toggle-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-
-            /* Status Colors */
-            --status-green: #2ecc71;
-            --status-yellow: #f1c40f;
-            --status-red: #e74c3c;
-
-            /* Gradient Colors (for header/card title bars) */
-            --gradient-start: #4a90e2;
-            --gradient-mid: #2e86de;
-            --gradient-end: #4a90e2;
-
-            /* Radii */
-            --radius-main: 1rem;
-            --radius-bar: 0.2rem;
-            --radius-control: 0.75rem;
+            --bg-color: #f7f9fd; --text-color: #2c3e50; --card-bg: #ffffff;
+            --card-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); --border-color: #e0e6ec;
+            --accent-color: #4a90e2; --error-color: #e74c3c; --label-color: #7f8c8d;
+            --value-color: #34495e; --control-bg: #f0f4f7; --control-border: #d5dce2;
+            --control-text: #5e727e; --control-hover-bg: #e5edf3;
+            --control-active-bg: var(--accent-color); --control-active-text: #ffffff;
+            --status-green: #2ecc71; --status-yellow: #f1c40f;
+            --gradient-start: #4a90e2; --gradient-mid: #2e86de; --gradient-end: #4a90e2;
+            --radius-main: 0.8rem; --radius-bar: 0.2rem; --radius-control: 0.5rem;
+            --danger-bg-color: rgba(231, 76, 60, 0.1); --danger-border-color: rgba(231, 76, 60, 0.3);
+            --danger-text-color: #e74c3c; --danger-hover-bg-color: #e74c3c; --danger-hover-text-color: #ffffff;
+            --glass-blur-strength: 12px;
         }
-
-        /* Base styles */
-        html { font-size: 16px; }
-        body { font-family: 'SF Pro Text', 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out; min-height: 100vh; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
-        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; position: relative; }
-        .header h1 { font-size: 2.5rem; color: var(--accent-color); margin: 0 0 0.8rem 0; font-weight: 700; letter-spacing: -0.03em; }
-        /* === START OF NEW MODIFICATION: Gradient Bar Animation === */
-        .header-gradient-bar,
-        .card-title-gradient-bar {
-            width: 100%; max-width: 160px; height: 5px; border-radius: var(--radius-bar);
-            background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start));
-            background-size: 200% auto; /* Make the background twice as wide */
-            animation: gradient-scroll 6s linear infinite; /* Apply the animation */
-            margin: 0 auto 1.5rem auto; 
-            transition: background-image 0.4s ease-in-out; /* Keep existing transition for color change */
-        }
-
-        /* Keyframe animation for the gradient scroll effect */
-        @keyframes gradient-scroll {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 100% 0%; } /* Scrolls the 200% wide background across */
-        }
-        /* === END OF NEW MODIFICATION === */
-        
-        .main-container { display: grid; grid-template-columns: repeat(auto-fit, 420px); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; align-items: start; }
-        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.8rem; display: none; flex-direction: column; box-sizing: border-box; transition: all 0.3s ease-in-out; border: 1px solid var(--border-color); }
+        html { font-size: 16px; scroll-behavior: smooth; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out; min-height: 100vh; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+        body.custom-background { background-size: cover; background-position: center; background-attachment: fixed; }
+        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; }
+        .header h1 { font-size: 2.2rem; color: var(--text-color); margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: -0.03em; }
+        .header .header-gradient-bar { width: 80px; height: 4px; margin: 0 auto 1.5rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
+        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: background-image 0.4s ease; }
+        @keyframes gradient-scroll { 100% { background-position: 100% 0%; } }
+        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; align-items: start; }
+        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; box-sizing: border-box; transition: all 0.3s ease; border: 1px solid var(--border-color); }
         .card.visible { display: flex; }
-        .card:hover { transform: translateY(-0.35rem); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12); }
-        .card-content { display: flex; flex-direction: column; gap: 1.5rem; }
-        .metrics-container { display: grid; grid-template-columns: auto 1fr auto; gap: 0.8rem 1rem; align-items: center; }
-        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
-        .metrics-container p { margin: 0; font-size: 1.05rem; display: contents; }
-        .metrics-container .fas { color: var(--accent-color); width: 1.2em; text-align: center; opacity: 0.85; }
-        .label { font-weight: 500; color: var(--label-color); text-align: left; white-space: nowrap; }
-        .value { color: var(--value-color); font-weight: 600; text-align: right; }
-        h2, h3 { color: var(--text-color); border-bottom: none; padding-bottom: 0; margin-top: 0; margin-bottom: 0.6rem; font-weight: 600; display: flex; align-items: center; gap: 0.6rem; }
-        h2 { font-size: 1.6rem; }
-        h3 { font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem; margin-bottom: 1rem; }
-
-        h2 .title-text {
-            flex-grow: 1;
-            text-align: left;
-            white-space: nowrap; 
-            overflow: hidden;    
-            text-overflow: ellipsis;
-        }
-        
-        /* Unified base styles for control labels (buttons, checkboxes) */
-        .control-base-label {
-            background-color: var(--control-bg); 
-            border: 1px solid var(--control-border); 
-            padding: 0.6rem 0.9rem; 
-            color: var(--control-text); 
-            font-size: 0.95rem; 
-            font-weight: 500; 
-            cursor: pointer; 
-            outline: none; 
-            border-radius: var(--radius-control); 
-            transition: all 0.2s ease; 
-            box-sizing: border-box;
-
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 0.5em; /* Default gap for icon/text in theme selector buttons */
-        }
-
-        .control-base-label:hover {
-            border-color: var(--accent-color); 
-            background-color: var(--control-hover-bg); 
-        }
-
-        .control-base-label.active { /* Used by theme selector buttons */
-            background-color: var(--control-active-bg); 
-            color: var(--control-active-text); 
-            border-color: var(--accent-color); 
-            box-shadow: 0 3px 8px -2px var(--accent-color); 
-            font-weight: 600; 
-        }
-
-        /* Specific styles for "显示卡片" toggle buttons */
-        .card-toggle-container .toggle-group {
-            grid-template-columns: repeat(2, 1fr); /* Force 2 columns */
-            gap: 0.8rem;
-            width: 100%;
-        }
-
-        .card-toggle-container .toggle-group label {
-            /* Inherits most from .control-base-label */
-            justify-content: flex-start; /* Align content to the start */
-            gap: 0.5rem; /* Space between checkbox and text */
-            flex-wrap: nowrap; /* Prevent wrapping for the label itself */
-        }
-
-        /* Styles for checkbox input within labels */
-        .toggle-group input[type="checkbox"] { 
-            appearance: none;-webkit-appearance: none;-moz-appearance: none;
-            width: 18px;height: 18px;
-            border: 2px solid var(--control-border);
-            border-radius: 4px;
-            background-color: var(--card-bg);
-            position: relative;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            flex-shrink: 0; /* Prevent checkbox from shrinking */
-            margin: 0; /* Remove default margin from input */
-        }
-        .toggle-group input[type="checkbox"]:checked { 
-            background-color: var(--accent-color); 
-            border-color: var(--accent-color); 
-        }
-        .toggle-group input[type="checkbox"]:checked::after { 
-            content: '\2713';display: block;position: absolute;
-            top: 50%;left: 50%;transform: translate(-50%, -50%);
-            font-size: 14px;color: white; 
-        }
-        
-        /* Text span within toggle labels (Show Cards & Auto-Refresh) */
-        .toggle-label-text {
-            white-space: nowrap; /* Force no wrap */
-            overflow: hidden;    /* Hide overflow */
-            text-overflow: clip; /* No ellipsis, clip directly */
-            flex-grow: 1; /* Allow text to take remaining space */
-            text-align: left; /* Align text to left */
-        }
-
-        /* Specific layout for "启用自动刷新" toggle button */
-        .auto-refresh-toggle-container {
-            width: 100%; /* Make it full width */
-        }
-        .auto-refresh-toggle-container label {
-            /* Inherits from .control-base-label and its hover/active states */
-            width: 100%; /* Make the label fill its container */
-            justify-content: flex-start; /* Align checkbox and text to start */
-            gap: 0.5rem; /* Space between checkbox and text */
-        }
-
-        h2 .status-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; transition: background-color 0.3s ease-in-out; flex-shrink: 0; }
-        h2 .status-dot.status-green { background-color: var(--status-green); }
-        h2 .status-dot.status-yellow { background-color: var(--status-yellow); }
-
-        .card-title-gradient-bar { /* Reused for header-gradient-bar and card-title-gradient-bar */
-             /* Properties moved to the animated rule above */
-             max-width: 100%; /* Ensure it's not limited by the 160px max-width of header-gradient-bar */
-             margin-left: 0;
-             margin-right: 0;
-        }
-        .value.accent { color: var(--accent-color); font-weight: 700; }
-        .chart-container { position: relative; width: 140px; height: 140px; background-color: var(--card-bg); border-radius: var(--radius-main); padding: 0.5rem; box-sizing: border-box; }
-        .footer-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: auto; padding: 1.8rem; border: 1px solid var(--border-color); border-radius: var(--radius-main); background-color: var(--card-bg); box-shadow: var(--card-shadow); align-items: flex-start; width: 100%; max-width: 1800px; }
-        
-        /* Theme Selector Buttons */
-        .theme-selector { display: grid; gap: 0.8rem; width: 100%; grid-template-columns: repeat(2, 1fr); }
-        .theme-selector button { 
-            /* Inherits from .control-base-label and its hover/active states */
-            justify-content: center; /* Center icon and text */
-        }
-        .theme-selector button i { margin-right: 0.3em; }
-
-        /* General .toggle-group and checkbox styles, inherited by both sections if not overridden */
-        .control-group { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; }
-        /* Generic .toggle-group rule, used for "操作与刷新" section (excluding auto-refresh button) */
-        .toggle-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Auto-fit columns for non-specific toggle groups */
-            gap: 0.8rem;
-            width: 100%;
-        }
-        
-        .action-buttons { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap; margin-top: 0.5rem; width: 100%; justify-content: flex-start; }
-        .refresh-control-group .action-buttons { flex-direction: column; gap: 0.8rem; align-items: flex-start; }
-        .action-buttons button { padding: 0.7rem 1.4rem; border-radius: var(--radius-control); border: 1px solid var(--control-border); background-color: var(--control-bg); color: var(--control-text); font-size: 0.95rem; transition: all 0.2s ease-in-out; cursor: pointer; outline: none; display: inline-flex; align-items: center; gap: 0.5rem; width: auto; }
-        .refresh-control-group .action-buttons #refresh-now-btn { width: 100%; justify-content: center; }
-        .refresh-control-group .action-buttons #flush-cache-btn { width: 100%; justify-content: center; }
-        .action-buttons button:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
-        .action-buttons button.primary { background-color: var(--accent-color); color: white; border-color: var(--accent-color); }
-        .action-buttons button.primary:hover { background-color: var(--gradient-mid); border-color: var(--gradient-mid); }
-        
-        /* Optimized timestamp style */
-        span#last_updated { 
-            font-size: 0.9rem;
-            color: var(--label-color); 
-            margin-top: 0.8rem;
-            width: 100%; 
-            display: flex;
-            align-items: center;
-            justify-content: flex-start; /* Default to left align */
-            gap: 0.4rem;
-            font-weight: 500;
-            padding-left: 0.1em; /* Small adjustment for visual balance if needed */
-        }
-        span#last_updated .fas { 
-            color: var(--accent-color); 
-            font-size: 1.1em;
-        }
-
-        .error { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 1.5rem; border-radius: var(--radius-main); margin-top: 2rem; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12); }
+        h2 { font-size: 1.5rem; color: var(--text-color); margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.7rem; }
+        h2 .title-text { flex-grow: 1; text-align: left; }
+        h2 .status-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; transition: background-color 0.3s ease; flex-shrink: 0; }
+        h2 .status-dot.status-green { background-color: var(--status-green); } h2 .status-dot.status-yellow { background-color: var(--status-yellow); }
+        .card-title-gradient-bar { max-width: 100%; margin: 0.5rem 0 1.2rem 0; }
+        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 1.2rem; margin-top: 1rem; border-top: 1px solid var(--border-color); }
+        .chart-container { position: relative; width: 130px; height: 130px; }
         #loading-spinner { display: none; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 4rem auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading #loading-spinner { display: block; }
-        .loading #main-content, .loading .footer-panel { opacity: 0.5; pointer-events: none; }
-
-        /* Responsive adjustments */
-        @media (max-width: 992px) {
-            .main-container { grid-template-columns: repeat(auto-fit, 380px); }
-            body { padding: 1.5rem; }
-            .header { margin-bottom: 1.5rem; }
-            .footer-panel { grid-template-columns: 1fr; gap: 1.5rem; }
-            .card { padding: 1.5rem; }
-            .footer-panel { padding: 1.5rem; }
-            .action-buttons { justify-content: center; }
-            .refresh-control-group .action-buttons { align-items: center; }
-            
-            /* Center timestamp on smaller screens */
-            span#last_updated {
-                justify-content: center; 
-                text-align: center; 
-            }
-            /* General toggle-group for "操作与刷新" section */
-            .toggle-group { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); justify-content: center; }
-        }
-
-        @media (max-width: 768px) {
-            html { font-size: 15px; }
-            body { padding: 1rem; }
-            .main-container { grid-template-columns: 1fr; }
-            .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
-            .header-gradient-bar { max-width: 120px; height: 4px; margin-bottom: 1rem; }
-            .card, .footer-panel { padding: 1rem; border-radius: 0.8rem; }
-            h2 { font-size: 1.4rem; margin-bottom: 0.3rem; }
-            h3 { font-size: 1.2rem; padding-bottom: 0.4rem; margin-bottom: 0.7rem; }
-            .chart-container { width: 110px; height: 110px; padding: 0.3rem; }
-        }
-
-        @media (max-width: 480px) {
-            html { font-size: 14px; }
-            .header h1 { font-size: 1.8rem; }
-            .header-gradient-bar { max-width: 90px; height: 3px; }
-            .card { padding: 0.8rem; }
-            /* For card-toggle-container, revert to 1 column on very small screens */
-            .card-toggle-container .toggle-group { grid-template-columns: 1fr; }
-            .action-buttons button { padding: 0.6rem 1rem; font-size: 0.85rem; }
-        }
-        /* === END OF REFACTORED CSS === */
+        .loading #main-content, .loading .control-panel, .loading footer { opacity: 0.5; pointer-events: none; }
+        .error-message { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 2rem; border-radius: var(--radius-main); margin: 2rem auto; text-align:center; grid-column: 1 / -1; font-size: 1.2rem; width: fit-content; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; align-items: stretch; width: 100%; max-width: 1800px; padding: 0; }
+        .left-column, .right-column { display: flex; flex-direction: column; gap: 1.5rem; }
+        .control-section { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 1.5rem; box-shadow: var(--card-shadow); display: flex; flex-direction: column; }
+        .right-column .control-section { flex-grow: 1; }
+        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin: 0 0 1.2rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
+        .section-title .fas, .section-title .fa-solid, .section-title .fa-brands { color: var(--accent-color); font-size: 1.1em; opacity: 0.9; }
+        .control-section > *:not(.section-title) { margin: 0; }
+        .control-section > *:not(.section-title) + *:not(.section-title) { margin-top: 1.2rem; }
+        .refresh-action-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; }
+        .switch-label { cursor: pointer; display: flex; align-items: center; gap: 0.8rem; }
+        .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
+        .switch-input { opacity: 0; width: 0; height: 0; }
+        .switch-slider { position: relative; width: 44px; height: 24px; background-color: var(--control-border); border-radius: 12px; transition: background-color 0.3s ease; }
+        .switch-slider::before { content: ''; position: absolute; top: 2px; left: 3px; width: 18px; height: 18px; background-color: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
+        input:checked + .switch-slider { background-color: var(--status-green); }
+        input:checked + .switch-slider:before { transform: translateX(19px); }
+        #refresh-now-btn { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        #refresh-now-btn:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); }
+        .rule-actions-group { display: flex; flex-direction: column; gap: 0.8rem; }
+        .button-group-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        .button-group-inline button, .rule-actions-group > button { padding: 0.8rem; font-size: 0.95rem; font-weight: 500; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .button-group-inline button { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); }
+        .button-group-inline button:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); }
+        button.danger { background-color: var(--danger-bg-color); border: 1px solid var(--danger-border-color); color: var(--danger-text-color); }
+        button.danger:hover { background-color: var(--danger-hover-bg-color); color: var(--danger-hover-text-color); border-color: var(--danger-hover-bg-color); }
+        .data-view-group { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+        .data-view-group button { background-color: var(--control-bg); color: var(--control-text); border: none; padding: 0.4rem 1rem; font-size: 0.9rem; border-radius: 20px; cursor: pointer; transition: all 0.2s ease; }
+        .data-view-group button:hover { background-color: var(--control-hover-bg); color: var(--accent-color); }
+        .info-panel-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 1.2rem; flex-shrink: 0; }
+        .tab-button { background: none; border: none; padding: 0.8rem 1rem; cursor: pointer; color: var(--label-color); font-weight: 500; font-size: 1rem; position: relative; transition: color 0.2s ease; }
+        .tab-button.active { color: var(--accent-color); }
+        .tab-button::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 3px; background-color: var(--accent-color); opacity: 0; transform: scaleX(0.5); transition: all 0.3s ease; }
+        .tab-button.active::after { opacity: 1; transform: scaleX(1); }
+        .tab-content { display: none; flex-direction: column; gap: 1rem; }
+        .tab-content.active { display: flex; }
+        .subsection-title { font-size: 0.9rem; font-weight: 500; color: var(--label-color); margin-bottom: 0.5rem; display: block; }
+        .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem 1.2rem; align-items: center; }
+        .metric-label { display: flex; align-items: center; gap: 0.7rem; font-weight: 500; color: var(--label-color); font-size: 0.95rem; }
+        .metric-label .fas { color: var(--accent-color); width: 1.2em; text-align: center; }
+        .metric-value { color: var(--value-color); font-weight: 600; text-align: right; font-size: 0.95rem; }
+        .metric-value.accent { color: var(--accent-color); font-weight: 700; }
+        #last_updated { font-size: 0.9rem; color: var(--label-color); margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); width: 100%; display: flex; align-items: center; gap: 0.5rem; text-align: left; }
+        .theme-selector, .card-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        .control-base-label { background-color: var(--control-bg); border: 1px solid var(--control-border); padding: 0.6rem 0.9rem; color: var(--control-text); font-size: 0.95rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-control); transition: all 0.2s ease; display: flex; align-items: center; justify-content: flex-start; gap: 0.8rem; }
+        .control-base-label:hover { border-color: var(--accent-color); }
+        .theme-selector .control-base-label { justify-content: center; }
+        .control-base-label.active { background-color: var(--control-active-bg); color: var(--control-active-text); border-color: var(--accent-color); box-shadow: 0 3px 8px -2px var(--accent-color); font-weight: 600; }
+        .card-toggle-group input[type="checkbox"] { appearance: none; width: 18px; height: 18px; border: 2px solid var(--control-border); border-radius: 4px; background-color: var(--card-bg); position: relative; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; margin: 0; }
+        .card-toggle-group input[type="checkbox"]:checked { background-color: var(--accent-color); border-color: var(--accent-color); }
+        .card-toggle-group input[type="checkbox"]:checked::after { content: '\2713'; display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: white; }
+        footer { width: 100%; max-width: 1200px; text-align: center; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--label-color); transition: all 0.4s ease; }
+        footer .footer-content { display: flex; justify-content: center; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+        footer .footer-item { display: flex; align-items: center; gap: 0.6rem; }
+        footer .footer-icon { color: var(--accent-color); opacity: 0.8; font-size: 1.1em; }
+        footer .footer-separator { width: 1px; height: 16px; background-color: var(--border-color); }
+        .blur-control { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
+        .blur-control input[type="range"] { flex-grow: 1; width: 100%; }
+        @media (max-width: 768px) { footer .footer-separator { display: none; } footer .footer-content { flex-direction: column; gap: 0.8rem; } }
+        @media (max-width: 1200px) { .control-panel { grid-template-columns: 1fr; } }
+        @media (max-width: 992px) { .main-container, .control-panel { grid-template-columns: 1fr; } body { padding: 1.5rem; } .card, .control-section { padding: 1.5rem; } }
+        @media (max-width: 768px) { html { font-size: 15px; } body { padding: 1rem; } .button-group-inline { grid-template-columns: 1fr; } .header h1 { font-size: 2rem; } .card, .control-section { padding: 1.2rem; } h2 { font-size: 1.4rem; } .chart-container { width: 110px; height: 110px; } }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>MosDNS 监控面板</h1>
-        <div class="header-gradient-bar"></div>
-    </div>
-
+    <div class="header"><h1>MosDNS 监控面板</h1><div class="header-gradient-bar"></div></div>
     <div id="loading-spinner"></div>
-
-    <div id="main-content" class="main-container">
-        <!-- Cache cards will be populated by JS -->
-    </div>
-
-    <div class="footer-panel">
-        <div class="system-info-container control-group">
-            <h3><i class="fas fa-server"></i> 系统信息</h3>
-            <div class="metrics-container" id="metrics-system"></div>
+    <div id="main-content" class="main-container"></div>
+    <div class="control-panel">
+        <div class="left-column">
+            <section class="control-section">
+                <h4 class="section-title"><i class="fas fa-cogs"></i> 控制中心</h4>
+                <div class="refresh-action-bar"><div class="auto-refresh-control"><label class="switch-label"><input type="checkbox" id="auto-refresh-toggle" class="switch-input"><span class="switch-slider"></span></label><span class="switch-label-text">自动刷新 (5s)</span></div><button id="refresh-now-btn" class="btn"><i class="fas fa-sync-alt"></i> 立即刷新</button></div>
+                <div class="rule-actions-group"><div class="button-group-inline"><button id="save-rules-btn" class="btn"><i class="fas fa-save"></i> 保存分流规则</button><button id="flush-cache-btn" class="btn"><i class="fas fa-broom"></i> 清空全部缓存</button></div><div class="button-group-inline" style="margin-top:0.8rem"><button id="flush-rules-btn" class="btn danger"><i class="fas fa-trash-alt"></i> 清空分流规则</button><button id="restart-mosdns-btn" class="btn danger"><i class="fas fa-redo"></i> 重启 MosDNS</button></div></div>
+            </section>
+            <section class="control-section">
+                <h4 class="section-title"><i class="fas fa-eye"></i> 数据查看</h4>
+                <div class="data-view-group" id="data-view-buttons"></div>
+            </section>
         </div>
-
-        <div class="card-toggle-container control-group">
-            <h3><i class="fas fa-eye"></i> 显示卡片</h3>
-            <div class="toggle-group" id="card-toggles">
-                <!-- Toggles will be populated by JS -->
-            </div>
-        </div>
-        
-        <div class="theme-control-group control-group">
-            <h3><i class="fas fa-palette"></i> 主题切换</h3>
-            <div class="theme-selector" id="theme-selector">
-                <!-- Theme buttons are generated by JS -->
-            </div>
-        </div>
-
-        <div class="refresh-cache-control-group control-group">
-            <h3><i class="fas fa-tools"></i> 操作与刷新</h3>
-            <div class="auto-refresh-toggle-container">
-                <label for="auto-refresh-toggle" class="control-base-label">
-                    <input type="checkbox" id="auto-refresh-toggle"> 
-                    <span class="toggle-label-text">启用自动刷新 (5s)</span>
-                </label>
-            </div>
-            <div class="action-buttons">
-                <button id="refresh-now-btn" class="primary"><i class="fas fa-sync-alt"></i> 立即刷新</button>
-                <button id="flush-cache-btn"><i class="fas fa-broom"></i> 清空 FakeIP 缓存</button>
-                <button id="save-rules-btn"><i class="fas fa-save"></i> 保存分流规则</button>
-                <button id="flush-rules-btn"><i class="fas fa-trash-alt"></i> 清空分流规则</button>
-                <button id="show-rules-btn1"><i class="fas fa-eye"></i> 显示fakeip域名</button>
-                <button id="show-rules-btn2"><i class="fas fa-eye"></i> 显示realip域名</button>
-                <button id="show-rules-btn3"><i class="fas fa-eye"></i> 显示无V4域名</button>
-                <button id="show-rules-btn4"><i class="fas fa-eye"></i> 显示无V6域名</button>
-                <button id="show-cache-btn1"><i class="fas fa-eye"></i> 显示总缓存</button>
-                <button id="show-cache-btn2"><i class="fas fa-eye"></i> 显示CN缓存</button>
-                <button id="show-cache-btn3"><i class="fas fa-eye"></i> 显示!CN缓存</button>
-                <button id="show-cache-btn4"><i class="fas fa-eye"></i> 显示节点缓存</button>
-                <button id="restart-mosdns-btn"><i class="fas fa-redo"></i> 重启 mosdns</button>
-                <span id="last_updated"><i class="fas fa-clock"></i> </span>
-            </div>
+        <div class="right-column">
+            <section class="control-section">
+                <div class="info-panel-tabs"><button class="tab-button active" data-tab="system-info"><i class="fas fa-server"></i> 系统信息</button><button class="tab-button" data-tab="appearance"><i class="fas fa-palette"></i> 外观设置</button></div>
+                <div id="tab-system-info" class="tab-content active"><div class="metrics-container" id="metrics-system"></div><p id="last_updated"><i class="fas fa-clock"></i> </p></div>
+                <div id="tab-appearance" class="tab-content">
+                    <h5 class="subsection-title">主题切换</h5>
+                    <div class="theme-selector" id="theme-selector"></div>
+                    <h5 class="subsection-title" style="margin-top: 1.2rem;">自定义背景</h5>
+                    <div class="button-group-inline">
+                        <button id="set-bg-btn" class="btn"><i class="fas fa-image"></i> 设置背景 URL</button>
+                        <button id="remove-bg-btn" class="btn danger"><i class="fas fa-trash"></i> 移除背景</button>
+                    </div>
+                    <h5 class="subsection-title" style="margin-top: 1.2rem;">毛玻璃强度</h5>
+                    <div class="blur-control">
+                         <label class="switch-label"><input type="checkbox" id="blur-toggle" class="switch-input"><span class="switch-slider"></span></label>
+                        <input type="range" id="blur-slider" min="0" max="30" value="12" step="1">
+                    </div>
+                    <h5 class="subsection-title" style="margin-top: 1.2rem;">显示缓存卡片</h5>
+                    <div class="card-toggle-group" id="card-toggles"></div>
+                </div>
+            </section>
         </div>
     </div>
-
+    <footer>
+        <div class="footer-content">
+            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v1.1.0</span></div>
+            <div class="footer-separator"></div>
+            <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: Phil Horse & Jimmy DADA</span></div>
+        </div>
+    </footer>
     <script>
         const REFRESH_INTERVAL = 5000;
-        let chartInstances = {};
-        let autoRefreshTimer;
-        let isRefreshing = false;
-
-        Chart.register(ChartDataLabels);
-
-        // Helper function for creating DOM elements
-        function createElement(tag, className, innerText = '') {
-            const el = document.createElement(tag);
-            if (className) el.className = className;
-            if (innerText) el.innerText = innerText;
-            return el;
-        }
-
-        // Helper function for number formatting
-        function formatNumber(num) {
-            if (typeof num !== 'number') {
-                num = parseFloat(num);
-                if (isNaN(num)) return num;
-            }
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num.toLocaleString();
-        }
-
-        // Consolidated theme data with all CSS variables and Chart.js colors
-        const themeMap = {
-            'light': {
-                name: '默认亮色', icon: 'fa-sun',
-                cssVars: {
-                    '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff',
-                    '--card-shadow': '0 8px 20px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec',
-                    '--accent-color': '#4a90e2', '--error-color': '#e74c3c', '--label-color': '#7f8c8d',
-                    '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2',
-                    '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3',
-                    '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff',
-                    '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2',
-                },
-                chartColors: {
-                    hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)',
-                    hitBorder: '#4a90e2', missBorder: '#bdc3c7', text: '#2c3e50'
-                }
-            },
-            'dark': {
-                name: '默认暗色', icon: 'fa-moon',
-                cssVars: {
-                    '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828',
-                    '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a',
-                    '--accent-color': '#5096ff', '--error-color': '#e74c3c', '--label-color': '#bbbbbb',
-                    '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a',
-                    '--control-text': '#e0e0e0', '--control-hover-bg': '#404040',
-                    '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff',
-                    '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff',
-                },
-                chartColors: {
-                    hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)',
-                    hitBorder: '#5096ff', missBorder: '#707070', text: '#e0e0e0'
-                }
-            },
-            'cyberpunk': {
-                name: '赛博朋克', icon: 'fa-robot',
-                cssVars: {
-                    '--bg-color': '#0c0221', '--text-color': '#e0e1dd', '--card-bg': '#1a0f3d',
-                    '--card-shadow': '0 10px 30px rgba(42,7,102,.6)', '--border-color': '#3b2a60',
-                    '--accent-color': '#00f6ff', '--error-color': '#ff005c', '--label-color': '#a9a2c1',
-                    '--value-color': '#f0f0f0', '--control-bg': '#1e114d', '--control-border': '#4a3a79',
-                    '--control-text': '#a0a0e0', '--control-hover-bg': '#2e1e5d',
-                    '--control-active-bg': '#00f6ff', '--control-active-text': '#0c0221',
-                    '--gradient-start': '#00f6ff', '--gradient-mid': '#ff005c', '--gradient-end': '#00f6ff',
-                },
-                chartColors: {
-                    hit: 'rgba(0,246,255,.7)', miss: 'rgba(255,0,92,.3)',
-                    hitBorder: '#00f6ff', missBorder: '#ff005c', text: '#e0e1dd'
-                }
-            },
-            'forest': {
-                name: '静谧森林', icon: 'fa-tree',
-                cssVars: {
-                    '--bg-color': '#e8f5e9', '--text-color': '#2e3d32', '--card-bg': '#fff',
-                    '--card-shadow': '0 6px 18px rgba(0,0,0,.06)', '--border-color': '#d0e0d0',
-                    '--accent-color': '#4a7c59', '--error-color': '#c0392b', '--label-color': '#607b6c',
-                    '--value-color': '#2e3d32', '--control-bg': '#e1f0e2', '--control-border': '#c8d8c8',
-                    '--control-text': '#506f5c', '--control-hover-bg': '#d6e8d7',
-                    '--control-active-bg': '#4a7c59', '--control-active-text': '#fff',
-                    '--gradient-start': '#4a7c59', '--gradient-mid': '#3a6246', '--gradient-end': '#4a7c59',
-                },
-                chartColors: {
-                    hit: 'rgba(74,124,89,.7)', miss: 'rgba(160,180,165,.3)',
-                    hitBorder: '#4a7c59', missBorder: '#a0a0a0', text: '#2e3d32'
-                }
-            },
-            'sunset': {
-                name: '日落余晖', icon: 'fa-cloud-sun-rain',
-                cssVars: {
-                    '--bg-color': '#2c203a', '--text-color': '#fde8d7', '--card-bg': '#3a2a4e',
-                    '--card-shadow': '0 10px 30px rgba(44,32,58,.6)', '--border-color': '#553e70',
-                    '--accent-color': '#ff8c42', '--error-color': '#e74c3c', '--label-color': '#d3b7e8',
-                    '--value-color': '#fde8d7', '--control-bg': '#4a3360', '--control-border': '#5c4278',
-                    '--control-text': '#e0c8f5', '--control-hover-bg': '#5a4370',
-                    '--control-active-bg': '#ff8c42', '--control-active-text': '#2c203a',
-                    '--gradient-start': '#ff8c42', '--gradient-mid': '#ff4d6d', '--gradient-end': '#ff8c42',
-                },
-                chartColors: {
-                    hit: 'rgba(255,140,66,.7)', miss: 'rgba(255,77,109,.3)',
-                    hitBorder: '#ff8c42', missBorder: '#ff4d6d', text: '#fde8d7'
-                }
-            },
-            'monochrome': {
-                name: '高级灰', icon: 'fa-grip-lines',
-                cssVars: {
-                    '--bg-color': '#eef1f4', '--text-color': '#2b2e31', '--card-bg': '#fff',
-                    '--card-shadow': '0 6px 18px rgba(0,0,0,.07)', '--border-color': '#d8dee3',
-                    '--accent-color': '#4a4a4a', '--error-color': '#b00020', '--label-color': '#7f8c8d',
-                    '--value-color': '#1a1a1a', '--control-bg': '#e1e4e7', '--control-border': '#c9ccd0',
-                    '--control-text': '#5e6872', '--control-hover-bg': '#d6dbdf',
-                    '--control-active-bg': '#4a4a4a', '--control-active-text': '#fff',
-                    '--gradient-start': '#666', '--gradient-mid': '#333', '--gradient-end': '#666',
-                },
-                chartColors: {
-                    hit: 'rgba(74,74,74,.7)', miss: 'rgba(160,160,160,.3)',
-                    hitBorder: '#4a4a4a', missBorder: '#a0a0a0', text: '#2b2e31'
-                }
-            },
-            'google': {
-                name: 'Google 风格', icon: 'fa-brands fa-google',
-                cssVars: {
-                    '--bg-color': '#f8f9fa', '--text-color': '#212529', '--card-bg': '#ffffff',
-                    '--card-shadow': '0 1px 4px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.05)',
-                    '--border-color': '#e8e8e8', '--accent-color': '#34A853', '--error-color': '#EA4335',
-                    '--label-color': '#707070', '--value-color': '#3C4043',
-                    '--control-bg': '#e6f4ea', '--control-border': '#b1e0b9', '--control-text': '#34A853',
-                    '--control-hover-bg': '#d9f3de', '--control-active-bg': '#34A853', '--control-active-text': '#ffffff',
-                    '--gradient-start': '#4285F4', '--gradient-mid': '#FBBC05', '--gradient-end': '#EA4335',
-                },
-                chartColors: {
-                    hit: 'rgba(52, 168, 83, 0.7)', miss: 'rgba(234, 67, 53, 0.3)',
-                    hitBorder: '#4285F4', missBorder: '#FBBC05', text: '#3C4043'
-                }
-            },
-            'mac': {
-                name: 'Mac 风格', icon: 'fa-brands fa-apple',
-                cssVars: {
-                    '--bg-color': '#F0F0F5', '--text-color': '#1c1c1e', '--card-bg': '#ffffff',
-                    '--card-shadow': '0 0.5px 2px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.04)',
-                    '--border-color': '#E5E5EA', '--accent-color': '#007AFF', '--error-color': '#FF3B30',
-                    '--label-color': '#666666', '--value-color': '#1c1c1e',
-                    '--control-bg': '#EFEFF4', '--control-border': '#D1D1D6', '--control-text': '#1c1c1e',
-                    '--control-hover-bg': '#DCDCE0', '--control-active-bg': '#007AFF', '--control-active-text': '#ffffff',
-                    '--gradient-start': '#007AFF', '--gradient-mid': '#34A8FF', '--gradient-end': '#007AFF',
-                },
-                chartColors: {
-                    hit: 'rgba(0, 122, 255, 0.7)', miss: 'rgba(180, 180, 185, 0.2)',
-                    hitBorder: '#007aff', missBorder: '#d1d1d6', text: '#1c1c1e'
-                }
-            }
-        };
-        const body = document.body;
-        const themeSelector = document.getElementById('theme-selector');
-        let currentChartColors = {};
-
-        // Function to update theme buttons with active state
-        function updateThemeButtons(activeMode) {
-            themeSelector.innerHTML = '';
-            for (const mode in themeMap) {
-                const themeData = themeMap[mode];
-                const button = createElement('button', 'control-base-label');
-                button.dataset.theme = mode;
-                button.innerHTML = `<i class="${themeData.icon}"></i> ${themeData.name}`;
-                if (mode === activeMode) {
-                    button.classList.add('active');
-                }
-                button.addEventListener('click', () => setTheme(mode));
-                themeSelector.appendChild(button);
-            }
-        }
-
-        // Function to set the theme
-        function setTheme(mode) {
-            body.className = '';
-            if (mode !== 'light') {
-                body.classList.add(`theme-${mode}`);
-            }
-
-            const root = document.documentElement;
-            const themeVars = themeMap[mode].cssVars;
-            for (const prop in themeVars) {
-                root.style.setProperty(prop, themeVars[prop]);
-            }
-
-            localStorage.setItem('theme', mode);
-            updateThemeButtons(mode);
-
-            currentChartColors = themeMap[mode].chartColors;
-
-            // Recreate charts with new colors
-            setTimeout(() => {
-                Object.values(chartInstances).forEach(chart => chart.destroy());
-                chartInstances = {};
-                refreshData(true, true);
-            }, 50);
-        }
-
-        // Initialize theme on page load
-        const initialTheme = localStorage.getItem('theme') || 'light';
-        setTheme(initialTheme);
-
-        const iconMap = {
-            '请求总数': 'fa-globe',
-            '缓存命中': 'fa-check-circle',
-            '过期缓存命中': 'fa-history',
-            '缓存命中率': 'fa-bullseye',
-            '过期缓存命中率': 'fa-bullseye',
-            '缓存条目数': 'fa-database',
-            '启动时间': 'fa-power-off',
-            'CPU 时间': 'fa-microchip',
-            '常驻内存 (RSS)': 'fa-memory',
-            '待用堆内存 (Idle)': 'fa-box-open',
-            'Go 版本': 'fa-code-branch',
-            '线程数': 'fa-sitemap',
-            '打开文件描述符': 'fa-folder-open',
-        };
-
-        function updateMetrics(containerId, metricsData) {
-            const container = document.getElementById(containerId);
-            if (!container) return;
-            container.innerHTML = '';
-            metricsData.forEach(metric => {
-                const p = createElement('p');
-                const iconClass = iconMap[metric.label] || 'fa-question-circle';
-                const icon = createElement('i', `fas ${iconClass}`);
-                const labelSpan = createElement('span', 'label', metric.label + ':');
-                const valueSpan = createElement('span', 'value');
-
-                if (metric.numericValue !== undefined) {
-                    valueSpan.innerText = formatNumber(metric.numericValue);
-                } else {
-                    valueSpan.innerText = metric.value;
-                }
-
-                if (metric.accent) valueSpan.classList.add('accent');
-                
-                p.append(icon, labelSpan, valueSpan);
-                container.appendChild(p);
-            });
-        }
+        let chartInstances = {}; let autoRefreshTimer = null; let isRefreshing = false; let currentTheme = 'light';
+        Chart.register(ChartDataLabels); Chart.defaults.plugins.legend.display = false; Chart.defaults.plugins.datalabels.font = { weight: 'bold', size: 11 }; Chart.defaults.cutout = '70%'; Chart.defaults.responsive = true; Chart.defaults.maintainAspectRatio = false;
+        Chart.defaults.plugins.datalabels.formatter = (v, c) => { const s = c.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; };
         
-        const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node'];
-        const cacheTitles = {
-            'cache_all': '全部缓存', 'cache_cn': '国内缓存', 'cache_google': '国外缓存', 'cache_node': '节点缓存'
+        const D = document; const getById = (id) => D.getElementById(id);
+        
+        function createElement(tag, className, innerText = '', id = '') { const el = D.createElement(tag); if (className) el.className = className; if (innerText) el.innerText = innerText; if (id) el.id = id; return el; }
+        function formatNumber(num) { if (typeof num !== 'number' && isNaN(num = parseFloat(num))) { return num; } return num.toLocaleString('en-US'); }
+        
+        const themeMap = {
+            'light': { name: '默认亮色', icon: 'fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--error-color': '#e74c3c', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2' }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', hitBorder: '#4a90e2', missBorder: '#bdc3c7', text: '#2c3e50' } },
+            'dark': { name: '默认暗色', icon: 'fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff' }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', hitBorder: '#5096ff', missBorder: '#707070', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-solid, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
+            'glass': { name: '高光琉璃', icon: 'fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff' }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', hitBorder: '#82aaff', missBorder: '#cccccc', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-solid, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } }
         };
+
+        const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node']; 
+        const cacheTitles = { 'cache_all': '全部缓存', 'cache_cn': '国内缓存', 'cache_google': '国外缓存', 'cache_node': '节点缓存' };
         let visibleCards = JSON.parse(localStorage.getItem('visibleMosdnsCards')) || cacheOrder;
 
-        function setupCardToggles() {
-            const toggleContainer = document.getElementById('card-toggles');
-            toggleContainer.innerHTML = '';
-            cacheOrder.forEach(tag => {
-                const label = createElement('label', 'control-base-label');
-                const checkbox = createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.dataset.tag = tag;
-                checkbox.checked = visibleCards.includes(tag);
-                checkbox.addEventListener('change', handleToggleChange);
-                
-                const labelTextSpan = createElement('span', 'toggle-label-text', cacheTitles[tag]);
-                label.append(checkbox, labelTextSpan); 
-
-                toggleContainer.appendChild(label);
-            });
+        function setTheme(mode) {
+            currentTheme = mode; const theme = themeMap[mode] || themeMap.light;
+            Object.entries(theme.cssVars).forEach(([key, value]) => D.documentElement.style.setProperty(key, value));
+            getById('theme-extra-styles')?.remove();
+            if (theme.extraStyles) { const style = createElement('style', '', '', 'theme-extra-styles'); style.textContent = Object.entries(theme.extraStyles).map(([sel, rule]) => `${sel} { ${rule} }`).join('\n'); D.head.appendChild(style); }
+            localStorage.setItem('theme', mode);
+            updateThemeButtons(mode);
+            setTimeout(() => { Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {}; refreshData(true, true); }, 50);
         }
-        function handleToggleChange(event) {
-            const tag = event.target.dataset.tag;
-            if (event.target.checked) {
-                if (!visibleCards.includes(tag)) visibleCards.push(tag);
-            } else {
-                visibleCards = visibleCards.filter(t => t !== tag);
-            }
-            localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards));
-            refreshData(true, true);
+        function setBackgroundImage(url) {
+            D.body.style.backgroundImage = url ? `url('${url.replace(/'/g, "\\'")}')` : '';
+            D.body.classList.toggle('custom-background', !!url);
+            if (url) { localStorage.setItem('customBackgroundUrl', url); } 
+            else { localStorage.removeItem('customBackgroundUrl'); }
         }
-
-        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
-        let autoRefreshEnabled = false;
-
-        autoRefreshToggle.addEventListener('change', (e) => {
-          autoRefreshEnabled = e.target.checked;
-          localStorage.setItem('autoRefresh', autoRefreshEnabled);
-          if (autoRefreshEnabled) startAutoRefresh();
-          else stopAutoRefresh();
-        });
-
+        
+        // [FINAL FIX] Reverted parsing logic to the user's original, proven-to-work `startsWith` method.
+        // This is much more robust against formatting variations than the regex approach.
         function parseMetrics(metricsText, cacheTag) {
             const lines = metricsText.split('\n');
-            let metrics = { lazyHitTotal: 0, hitTotal: 0, queryTotal: 0, sizeCurrent: 0, startTime: 0 };
-            lines.forEach(line => {
-                if (line.startsWith(`mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`)) metrics.lazyHitTotal = parseFloat(line.split(' ')[1]) || 0;
-                if (line.startsWith(`mosdns_cache_hit_total{tag="${cacheTag}"}`)) metrics.hitTotal = parseFloat(line.split(' ')[1]) || 0;
-                if (line.startsWith(`mosdns_cache_query_total{tag="${cacheTag}"}`)) metrics.queryTotal = parseFloat(line.split(' ')[1]) || 0;
-                if (line.startsWith(`mosdns_cache_size_current{tag="${cacheTag}"}`)) metrics.sizeCurrent = parseFloat(line.split(' ')[1]) || 0;
-            });
+            const metrics = { query_total: 0, hit_total: 0, lazy_hit_total: 0, size_current: 0 };
+            
+            const query_str = `mosdns_cache_query_total{tag="${cacheTag}"}`;
+            const hit_str = `mosdns_cache_hit_total{tag="${cacheTag}"}`;
+            const lazy_str = `mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`;
+            const size_str = `mosdns_cache_size_current{tag="${cacheTag}"}`;
 
-            const startTimeLine = lines.reverse().find(line => line.startsWith('process_start_time_seconds'));
-            if (startTimeLine) {
-                metrics.startTime = parseFloat(startTimeLine.split(' ')[1]) || 0;
-            }
+            lines.forEach(line => {
+                if (line.startsWith(query_str)) {
+                    metrics.query_total = parseFloat(line.split(' ')[1]) || 0;
+                } else if (line.startsWith(hit_str)) {
+                    metrics.hit_total = parseFloat(line.split(' ')[1]) || 0;
+                } else if (line.startsWith(lazy_str)) {
+                    metrics.lazy_hit_total = parseFloat(line.split(' ')[1]) || 0;
+                } else if (line.startsWith(size_str)) {
+                    metrics.size_current = parseFloat(line.split(' ')[1]) || 0;
+                }
+            });
             return metrics;
         }
 
+        // [FINAL FIX] Reverted this function to use the simple and reliable `startsWith` and `split` logic.
+        // This correctly parses the system metrics and resolves the "missing data" issue.
         function parseSystemMetrics(metricsText) {
             const lines = metricsText.split('\n');
-            let systemMetrics = {
-                startTime: 0,
-                cpuTime: 0,
-                residentMemory: 0,
-                heapIdleMemory: 0,
-                threads: 0,
-                openFds: 0,
-                goVersion: "Unknown"
+            const systemMetrics = {
+                startTime: 0, cpuTime: 0, residentMemory: 0, heapIdleMemory: 0,
+                threads: 0, openFds: 0, goVersion: "N/A"
             };
 
             lines.forEach(line => {
                 if (line.startsWith('process_start_time_seconds')) {
                     systemMetrics.startTime = parseFloat(line.split(' ')[1]) || 0;
-                }
-                if (line.startsWith('process_cpu_seconds_total')) {
+                } else if (line.startsWith('process_cpu_seconds_total')) {
                     systemMetrics.cpuTime = parseFloat(line.split(' ')[1]) || 0;
-                }
-                if (line.startsWith('process_resident_memory_bytes')) {
-                    systemMetrics.residentMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)) || 0;
-                }
-                if (line.startsWith('go_memstats_heap_idle_bytes')) {
-                    systemMetrics.heapIdleMemory = (parseFloat(line.split(' ')[1]) / (1024 * 1024)) || 0;
-                }
-                if (line.startsWith('go_threads')) {
+                } else if (line.startsWith('process_resident_memory_bytes')) {
+                    systemMetrics.residentMemory = parseFloat(line.split(' ')[1]) || 0;
+                } else if (line.startsWith('go_memstats_heap_idle_bytes')) {
+                    systemMetrics.heapIdleMemory = parseFloat(line.split(' ')[1]) || 0;
+                } else if (line.startsWith('go_threads')) {
                     systemMetrics.threads = parseInt(line.split(' ')[1]) || 0;
-                }
-                if (line.startsWith('process_open_fds')) {
+                } else if (line.startsWith('process_open_fds')) {
                     systemMetrics.openFds = parseInt(line.split(' ')[1]) || 0;
-                }
-                if (line.startsWith('go_info{version="')) {
-                    const match = line.match(/go_info\{version="([^"]+)"\}/);
+                } else if (line.startsWith('go_info{version="')) {
+                    const match = line.match(/go_info{version="([^"]+)"}/);
                     if (match && match[1]) {
                         systemMetrics.goVersion = match[1];
                     }
                 }
             });
-
             return systemMetrics;
         }
-
-        function formatStartTime(seconds) {
-            const date = new Date(seconds * 1000);
-            return date.toLocaleString();
-        }
-
+        
         async function fetchData() {
             if (isRefreshing) return null;
             isRefreshing = true;
-            document.body.classList.add('loading');
+            D.body.classList.add('loading');
             try {
                 const response = await fetch('/metrics');
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`网络响应错误: ${response.statusText} (${response.status})`);
                 const text = await response.text();
-
                 const data = { caches: {}, system: {} };
+                
                 const systemMetrics = parseSystemMetrics(text);
-
-                // 全部缓存
-                const allMetrics = parseMetrics(text, 'cache_all');
-                const hitRateAll = allMetrics.queryTotal > 0 ? ((allMetrics.hitTotal / allMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                const lazyRateAll = allMetrics.queryTotal > 0 ? ((allMetrics.lazyHitTotal / allMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                data.caches['cache_all'] = {
-                    query_total: allMetrics.queryTotal,
-                    hit_total: allMetrics.hitTotal,
-                    lazy_hit_total: allMetrics.lazyHitTotal,
-                    size_current: allMetrics.sizeCurrent,
-                    hit_rate: hitRateAll,
-                    lazy_hit_rate: lazyRateAll
+                
+                cacheOrder.forEach(tag => {
+                    const metrics = parseMetrics(text, tag);
+                    data.caches[tag] = {
+                        ...metrics,
+                        hit_rate: metrics.query_total > 0 ? ((metrics.hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%',
+                        lazy_hit_rate: metrics.query_total > 0 ? ((metrics.lazy_hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%'
+                    };
+                });
+                
+                data.system = {
+                    start_time: systemMetrics.startTime ? new Date(systemMetrics.startTime * 1000).toLocaleString() : 'N/A',
+                    cpu_time: `${systemMetrics.cpuTime.toFixed(2)} 秒`,
+                    resident_memory: `${(systemMetrics.residentMemory / 1024 / 1024).toFixed(2)} MB`,
+                    heap_idle_memory: `${(systemMetrics.heapIdleMemory / 1024 / 1024).toFixed(2)} MB`,
+                    go_version: systemMetrics.goVersion,
+                    threads: systemMetrics.threads,
+                    open_fds: systemMetrics.openFds
                 };
-                // 国内缓存
-                const domesticMetrics = parseMetrics(text, 'cache_cn');
-                const hitRateDomestic = domesticMetrics.queryTotal > 0 ? ((domesticMetrics.hitTotal / domesticMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                const lazyRateDomestic = domesticMetrics.queryTotal > 0 ? ((domesticMetrics.lazyHitTotal / domesticMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                data.caches['cache_cn'] = {
-                    query_total: domesticMetrics.queryTotal,
-                    hit_total: domesticMetrics.hitTotal,
-                    lazy_hit_total: domesticMetrics.lazyHitTotal,
-                    size_current: domesticMetrics.sizeCurrent,
-                    hit_rate: hitRateDomestic,
-                    lazy_hit_rate: lazyRateDomestic
-                };
-                // 国外缓存
-                const foreignMetrics = parseMetrics(text, 'cache_google');
-                const hitRateForeign = foreignMetrics.queryTotal > 0 ? ((foreignMetrics.hitTotal / foreignMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                const lazyRateForeign = foreignMetrics.queryTotal > 0 ? ((foreignMetrics.lazyHitTotal / foreignMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                data.caches['cache_google'] = {
-                    query_total: foreignMetrics.queryTotal,
-                    hit_total: foreignMetrics.hitTotal,
-                    lazy_hit_total: foreignMetrics.lazyHitTotal,
-                    size_current: foreignMetrics.sizeCurrent,
-                    hit_rate: hitRateForeign,
-                    lazy_hit_rate: lazyRateForeign
-                };
-                // 节点缓存
-                const nodeMetrics = parseMetrics(text, 'cache_node');
-                const hitRateNode = nodeMetrics.queryTotal > 0 ? ((nodeMetrics.hitTotal / nodeMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                const lazyRateNode = nodeMetrics.queryTotal > 0 ? ((nodeMetrics.lazyHitTotal / nodeMetrics.queryTotal) * 100).toFixed(2) + '%' : '0.00%';
-                data.caches['cache_node'] = {
-                    query_total: nodeMetrics.queryTotal,
-                    hit_total: nodeMetrics.hitTotal,
-                    lazy_hit_total: nodeMetrics.lazyHitTotal,
-                    size_current: nodeMetrics.sizeCurrent,
-                    hit_rate: hitRateNode,
-                    lazy_hit_rate: lazyRateNode
-                };
-
-                data.system.start_time = formatStartTime(systemMetrics.startTime);
-                data.system.cpu_time = systemMetrics.cpuTime.toFixed(2) + ' 秒';
-                data.system.resident_memory = systemMetrics.residentMemory.toFixed(2) + ' MB';
-                data.system.heap_idle_memory = systemMetrics.heapIdleMemory.toFixed(2) + ' MB';
-                data.system.go_version = systemMetrics.goVersion;
-                data.system.threads = systemMetrics.threads;
-                data.system.open_fds = systemMetrics.openFds;
-
                 return data;
             } catch (error) {
-                console.error('Error fetching data:', error);
-                const mainContent = document.getElementById('main-content');
-                if (mainContent) {
-                    mainContent.innerHTML = `<p class="error" style="text-align:center; grid-column: 1 / -1; font-size: 1.2rem; padding: 2rem;">
-                        <i class="fas fa-exclamation-triangle"></i> 无法连接到 MosDNS 的 /metrics 接口。<br>
-                        请确保 MosDNS 正在运行，并且此页面能够正确访问 /metrics 接口。<br><small>${error.message}</small>
-                    </p>`;
-                }
-                return null;
+                console.error('获取 /metrics 失败:', error);
+                return { error: error.message };
             } finally {
                 isRefreshing = false;
-                document.body.classList.remove('loading');
+                D.body.classList.remove('loading');
             }
         }
 
-        function createCacheCard(tag, title) {
-            const card = createElement('div', 'card');
-            card.dataset.tag = tag;
-            const h2 = createElement('h2');
-            const titleText = createElement('span', 'title-text', title);
-            const statusDot = createElement('span', 'status-dot');
-            statusDot.id = `status-dot-${tag}`;
-            h2.append(createElement('i', 'fas fa-server'), titleText, statusDot);
-            const gradientBar = createElement('div', 'card-title-gradient-bar');
-
-            const cardContent = createElement('div', 'card-content');
-            const metricsContainer = createElement('div', 'metrics-container');
-            metricsContainer.id = `metrics-${tag}`;
-            const chartsContainer = createElement('div', 'charts');
-            const totalHitChartContainer = createElement('div', 'chart-container');
-            const lazyHitChartContainer = createElement('div', 'chart-container');
-            const totalHitCanvas = createElement('canvas');
-            const lazyHitCanvas = createElement('canvas');
-            totalHitCanvas.id = `chart-hit-${tag}`;
-            lazyHitCanvas.id = `chart-lazy-${tag}`;
-            totalHitChartContainer.appendChild(totalHitCanvas);
-            lazyHitChartContainer.appendChild(lazyHitCanvas);
-            chartsContainer.append(totalHitChartContainer, lazyHitChartContainer);
-            cardContent.append(metricsContainer, chartsContainer);
-            card.append(h2, gradientBar, cardContent);
-            return card;
-        }
-
-        function createOrUpdatePieChart(id, title, hit, total) {
-            const ctx = document.getElementById(id);
-            if (!ctx) {
-                console.warn(`Canvas element with id '${id}' not found. Skipping chart creation.`);
-                return;
-            }
-            const miss = Math.max(0, total - hit);
-
-            const hitColor = currentChartColors.hit;
-            const missColor = currentChartColors.miss;
-            const hitBorder = currentChartColors.hitBorder;
-            const missBorder = currentChartColors.missBorder;
-            const textColor = currentChartColors.text;
-            
-            const data = {
-                labels: ['命中', '未命中'],
-                datasets: [{
-                    data: [hit, miss],
-                    backgroundColor: [hitColor, missColor],
-                    borderColor: [hitBorder, missBorder],
-                    borderWidth: 1.5
-                }]
-            };
-            const options = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: { display: true, text: title, color: textColor, font: { size: 12, weight: 'bold' } },
-                    legend: { display: false },
-                    datalabels: {
-                        formatter: (value, context) => {
-                            const sum = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            if (sum === 0) return '';
-                            const percentage = (value / sum);
-                            return percentage > 0.05 ? `${(percentage * 100).toFixed(percentage < 0.1 ? 1 : 0)}%` : '';
-                        },
-                        color: textColor, 
-                        font: { weight: 'bold', size: 11 }
-                    }
-                },
-                cutout: '70%',
-            };
-
-            if (chartInstances[id]) {
-                chartInstances[id].data = data;
-                chartInstances[id].options = options;
-                chartInstances[id].update('none');
-            } else {
-                chartInstances[id] = new Chart(ctx, { type: 'doughnut', data, options, plugins: [ChartDataLabels] });
-            }
-        }
-
+        function createCacheCard(tag, title) { const c = createElement('div', 'card'); c.dataset.tag = tag; c.innerHTML = `<h2><i class="fas fa-server"></i><span class="title-text">${title}</span><span class="status-dot" id="status-dot-${tag}"></span></h2><div class="card-title-gradient-bar"></div><div class="metrics-container" id="metrics-${tag}"></div><div class="charts" id="charts-${tag}"><div class="chart-container"><canvas id="chart-hit-${tag}"></canvas></div><div class="chart-container"><canvas id="chart-lazy-${tag}"></canvas></div></div>`; return c; }
+        function createOrUpdatePieChart(id, title, hit, total) { const ctx = getById(id); if (!ctx) return; const c = themeMap[currentTheme]?.chartColors || themeMap.light.chartColors; const d = { labels: ['命中', '未命中'], datasets: [{ data: [hit, Math.max(0, total - hit)], backgroundColor: [c.hit, c.miss], borderWidth: 0 }] }; const o = { plugins: { title: { display: true, text: title, color: c.text, font: { size: 12, weight: '500' } }, datalabels: { color: c.text, formatter: (v, ctx) => { const s = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; } } } }; if (chartInstances[id]) { chartInstances[id].data = d; chartInstances[id].options = o; chartInstances[id].update('none'); } else { chartInstances[id] = new Chart(ctx, { type: 'doughnut', data: d, options: o }); } }
+        function updateMetrics(containerId, metricsData) { const c = getById(containerId); if (!c) return; const iconMap = { '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', '启动时间': 'fa-power-off', 'CPU 时间': 'fa-microchip', '常驻内存 (RSS)': 'fa-memory', '待用堆内存 (Idle)': 'fa-box-open', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap', '打开文件描述符': 'fa-folder-open' }; c.innerHTML = ''; metricsData.forEach(m => { const p = createElement('div', 'metric-label'); p.innerHTML = `<i class="fas ${iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}:</span>`; const v = createElement('div', `metric-value${m.accent ? ' accent' : ''}`); v.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value; c.append(p, v); }); }
+        
         async function refreshData(forceRebuild = false, updateCharts = false) {
             const data = await fetchData();
-            if (!data) {
-                stopAutoRefresh();
-                autoRefreshToggle.checked = false;
-                autoRefreshEnabled = false;
-                localStorage.setItem('autoRefresh', false);
-                return;
-            } else if (autoRefreshEnabled && !autoRefreshTimer) {
-                startAutoRefresh();
-            }
-
-            const mainContent = document.getElementById('main-content');
-
-            if (forceRebuild) {
-                mainContent.innerHTML = '';
-                Object.values(chartInstances).forEach(chart => chart.destroy());
-                chartInstances = {};
-
-                cacheOrder.forEach(tag => {
-                    if (data.caches[tag] && visibleCards.includes(tag)) {
-                        mainContent.appendChild(createCacheCard(tag, cacheTitles[tag]));
-                    }
-                });
-            }
+            if (data.error) { getById('main-content').innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>无法连接到 MosDNS API。</p><small>${data.error}</small></div>`; if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; getById('auto-refresh-toggle').checked = false; localStorage.setItem('autoRefresh', 'false'); } return; }
+            if (forceRebuild) { getById('main-content').innerHTML = ''; Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {}; }
             
             cacheOrder.forEach(tag => {
-                const card = mainContent.querySelector(`.card[data-tag="${tag}"]`);
-                if (card) {
-                    card.classList.toggle('visible', visibleCards.includes(tag));
-                    if (visibleCards.includes(tag)) {
-                        const cardData = data.caches[tag];
-                        updateMetrics(`metrics-${tag}`, [
-                            { label: '请求总数', numericValue: cardData.query_total },
-                            { label: '缓存命中', numericValue: cardData.hit_total },
-                            { label: '过期缓存命中', numericValue: cardData.lazy_hit_total },
-                            { label: '缓存命中率', value: cardData.hit_rate, accent: true },
-                            { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true },
-                            { label: '缓存条目数', numericValue: cardData.size_current },
-                        ]);
-                        const statusDot = document.getElementById(`status-dot-${tag}`);
-                        if (statusDot) {
-                            statusDot.classList.remove('status-green', 'status-yellow');
-                            statusDot.classList.add(cardData.query_total > 0 ? 'status-green' : 'status-yellow');
-                        }
-                        const chartsContainer = card.querySelector('.charts');
-                        if (chartsContainer) {
-                            chartsContainer.style.display = cardData.query_total > 0 ? 'flex' : 'none';
-                        }
-                        if(updateCharts && cardData.query_total > 0) {
-                            createOrUpdatePieChart(`chart-hit-${tag}`, '命中', cardData.hit_total, cardData.query_total);
-                            createOrUpdatePieChart(`chart-lazy-${tag}`, '过期命中', cardData.lazy_hit_total, cardData.query_total);
-                        }
-                    }
+                let card = D.querySelector(`.card[data-tag="${tag}"]`);
+                const shouldBeVisible = visibleCards.includes(tag);
+                if (shouldBeVisible && !card) { card = createCacheCard(tag, cacheTitles[tag]); getById('main-content').appendChild(card); } 
+                else if (card && !shouldBeVisible) { card.remove(); return; }
+                
+                const cardData = data.caches[tag];
+                if (card && cardData && shouldBeVisible) {
+                    card.classList.add('visible');
+                    updateMetrics(`metrics-${tag}`, [{ label: '请求总数', numericValue: cardData.query_total }, { label: '缓存命中', numericValue: cardData.hit_total }, { label: '过期缓存命中', numericValue: cardData.lazy_hit_total }, { label: '缓存命中率', value: cardData.hit_rate, accent: true }, { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true }, { label: '缓存条目数', numericValue: cardData.size_current }, ]);
+                    getById(`status-dot-${tag}`).classList.toggle('status-green', cardData.query_total > 0);
+                    getById(`status-dot-${tag}`).classList.toggle('status-yellow', cardData.query_total === 0);
+                    getById(`charts-${tag}`).style.display = cardData.query_total > 0 ? 'flex' : 'none';
+                    if ((forceRebuild || updateCharts) && cardData.query_total > 0) { createOrUpdatePieChart(`chart-hit-${tag}`, '命中', cardData.hit_total, cardData.query_total); createOrUpdatePieChart(`chart-lazy-${tag}`, '过期命中', cardData.lazy_hit_total, cardData.query_total); }
                 }
             });
-
-            updateMetrics('metrics-system', [
-                { label: '启动时间', value: data.system.start_time },
-                { label: 'CPU 时间', value: data.system.cpu_time },
-                { label: '常驻内存 (RSS)', value: data.system.resident_memory },
-                { label: '待用堆内存 (Idle)', value: data.system.heap_idle_memory },
-                { label: 'Go 版本', value: data.system.go_version, accent: true },
-                { label: '线程数', numericValue: data.system.threads },
-                { label: '打开文件描述符', numericValue: data.system.open_fds },
-            ]);
-
-            document.getElementById('last_updated').innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
+            updateMetrics('metrics-system', [{ label: '启动时间', value: data.system.start_time }, { label: 'CPU 时间', value: data.system.cpu_time }, { label: '常驻内存 (RSS)', value: data.system.resident_memory }, { label: '待用堆内存 (Idle)', value: data.system.heap_idle_memory }, { label: 'Go 版本', value: data.system.go_version, accent: true }, { label: '线程数', numericValue: data.system.threads }, { label: '打开文件描述符', numericValue: data.system.open_fds }, ]);
+            getById('last_updated').innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
         }
-
-        function startAutoRefresh() {
-            if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-            autoRefreshTimer = setInterval(() => {
-                refreshData(false, true); 
-            }, REFRESH_INTERVAL);
-            console.log('Auto-refresh started.');
-        }
-
-        function stopAutoRefresh() {
-            if (autoRefreshTimer) {
-                clearInterval(autoRefreshTimer);
-                autoRefreshTimer = null;
-                console.log('Auto-refresh stopped.');
-            }
-        }
-
-        document.getElementById('refresh-now-btn').addEventListener('click', () => {
-            refreshData(false, true);
-        });
-
-        document.getElementById('flush-cache-btn').addEventListener('click', async () => {
-            if (window.confirm("确定要清空 FakeIP 缓存吗？")) {
-                try {
-                    const response = await fetch('/plugins/cache_all/flush', { method: 'GET' });
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        alert(`清空失败: ${response.statusText}`);
-                    }
-                } catch (error) {
-                    console.error('清空缓存请求出错:', error);
-                    alert(`请求出错: ${error.message}`);
-                }
-            }
-        });
         
-        // 1. “保存分流规则”
-        document.getElementById('save-rules-btn').addEventListener('click', () => {
-            const endpoints = [
-                '/plugins/my_fakeiplist/save',
-                '/plugins/my_nodenov4list/save',
-                '/plugins/my_nodenov6list/save',
-                '/plugins/my_notinlist/save',
-                '/plugins/my_nov4list/save',
-                '/plugins/my_nov6list/save',
-                '/plugins/my_realiplist/save'
-            ];
-            endpoints.forEach((url, idx) => {
-                setTimeout(() => {
-                    fetch(url, { method: 'GET' })
-                      .catch(err => console.error(`保存规则失败 ${url}:`, err));
-                }, idx * 100);
-            });
+        function setupCardToggles() { const c = getById('card-toggles'); c.innerHTML = ''; cacheOrder.forEach(t => { const l = createElement('label', 'control-base-label'); const i = createElement('input'); i.type = 'checkbox'; i.dataset.tag = t; i.checked = visibleCards.includes(t); i.onchange = (e) => { const tag = e.target.dataset.tag; if (e.target.checked) { if (!visibleCards.includes(tag)) visibleCards.push(tag); } else { visibleCards = visibleCards.filter(t => t !== tag); } localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards)); refreshData(true, true); }; l.append(i, createElement('span', 'toggle-label-text', cacheTitles[t])); c.appendChild(l); }); }
+        function updateThemeButtons(activeMode) { const ts = getById('theme-selector'); ts.innerHTML = ''; ['light', 'dark', 'glass'].forEach(mode => { if (!themeMap[mode]) return; const t = themeMap[mode]; const btn = createElement('button', 'control-base-label'); btn.dataset.theme = mode; btn.innerHTML = `<i class="fas ${t.icon}"></i> ${t.name}`; if (mode === activeMode) btn.classList.add('active'); btn.onclick = () => setTheme(mode); ts.appendChild(btn); }); }
+        function throttle(func, limit) { let inThrottle; return function() { const args = arguments; const context = this; if (!inThrottle) { func.apply(context, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } } }
+
+        function setupEventListeners() {
+            getById('refresh-now-btn').onclick = () => refreshData(false, true);
+            const autoRefreshToggle = getById('auto-refresh-toggle');
+            autoRefreshToggle.onchange = (e) => { const isEnabled = e.target.checked; localStorage.setItem('autoRefresh', isEnabled); if (isEnabled) { if (!autoRefreshTimer) autoRefreshTimer = setInterval(() => refreshData(false, true), REFRESH_INTERVAL); } else if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; } };
             
-            alert('✅ 分流规则已保存');
-        });
-        
-        // 2. “清空分流规则”
-        document.getElementById('flush-rules-btn').addEventListener('click', () => {
-            if (!window.confirm('确定要清空所有分流规则吗？')) return;
-            const endpoints = [
-                '/plugins/my_fakeiplist/flush',
-                '/plugins/my_nodenov4list/flush',
-                '/plugins/my_nodenov6list/flush',
-                '/plugins/my_notinlist/flush',
-                '/plugins/my_nov4list/flush',
-                '/plugins/my_nov6list/flush',
-                '/plugins/my_realiplist/flush'
-            ];
-            endpoints.forEach((url, idx) => {
-                setTimeout(() => {
-                    fetch(url, { method: 'GET' })
-                      .catch(err => console.error(`清空规则失败 ${url}:`, err));
-                }, idx * 100);
-            });
-        });
-        
-         // 显示分流规则：结果拉回到当前页面
-         document.getElementById('show-rules-btn1').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/my_fakeiplist/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
+            const createApiAction = (btnId, paths, msg, successMsg, errorMsg) => {
+                getById(btnId).addEventListener('click', async () => {
+                    if (confirm(msg)) {
+                        try {
+                            const requests = paths.map(p => fetch(`/plugins/${p}`));
+                            await Promise.all(requests);
+                            alert(successMsg);
+                        } catch (e) {
+                            alert(`${errorMsg}: ${e.message}`);
+                        }
+                    }
+                });
+            };
 
-         document.getElementById('show-rules-btn2').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/my_realiplist/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
-         
-         document.getElementById('show-rules-btn3').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/my_nov4list/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
-         
-         document.getElementById('show-rules-btn4').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/my_nov6list/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
+            createApiAction('save-rules-btn', ['my_fakeiplist/save', 'my_nodenov4list/save', 'my_nodenov6list/save', 'my_notinlist/save', 'my_nov4list/save', 'my_nov6list/save', 'my_realiplist/save'], '确定保存所有分流规则吗?', '✅ 操作完成: 分流规则已保存。', '❌ 保存失败');
+            createApiAction('flush-rules-btn', ['my_fakeiplist/flush', 'my_nodenov4list/flush', 'my_nodenov6list/flush', 'my_notinlist/flush', 'my_nov4list/flush', 'my_nov6list/flush', 'my_realiplist/flush'], '【危险操作】确定清空所有分流规则吗?', '✅ 操作完成: 分流规则已清空。', '❌ 清空失败');
+            createApiAction('flush-cache-btn', ['cache_all/flush'], '确定清空全部缓存吗?', '✅ 操作完成: 全部缓存已清空。', '❌ 清空失败');
 
-         // 显示缓存条目：结果拉回到当前页面
-         document.getElementById('show-cache-btn1').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/cache_all/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
+            getById('restart-mosdns-btn').onclick = () => {
+                if (confirm('【危险操作】确定重启 MosDNS 吗?')) {
+                    fetch('/plugins/my_fakeiplist/restartall')
+                        .then(() => { alert('🚀 MosDNS 正在重启，页面将在 1 秒后刷新。'); setTimeout(() => location.reload(), 1000); })
+                        .catch(e => alert(`❌ 重启失败: ${e.message}`));
+                }
+            };
 
-         document.getElementById('show-cache-btn2').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/cache_cn/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
-         
-         document.getElementById('show-cache-btn3').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/cache_google/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
-         
-         document.getElementById('show-cache-btn4').addEventListener('click', () => {
-             const endpoints = [
-                 '/plugins/cache_node/show'
-             ];
-             endpoints.forEach(url => {
-                 window.open(url, '_blank');
-             });
-         });
-         
-        // 4. “重启 mosdns”
-        document.getElementById('restart-mosdns-btn').addEventListener('click', () => {
-            if (!window.confirm('确定要重启 mosdns 吗？')) return;
-            fetch('/plugins/my_fakeiplist/restartall', { method: 'GET' })
-              .then(resp => {
-                if (!resp.ok) throw new Error(resp.statusText);
-                setTimeout(() => location.reload(), 1000);
-              })
-              .catch(err => {
-                console.error('重启 mosdns 失败:', err);
-                alert(`重启失败: ${err.message}`);
-              });
-        });
-
-        setupCardToggles(); // Initial setup of card toggles
-
-        const savedAutoRefresh = localStorage.getItem('autoRefresh');
-        autoRefreshEnabled = (savedAutoRefresh === null) ? true : (savedAutoRefresh === 'true');
-        autoRefreshToggle.checked = autoRefreshEnabled;
-
-        refreshData(true, true); // Initial data fetch and render (force rebuild)
-
-        if (autoRefreshEnabled) {
-            startAutoRefresh();
-        } else {
-            stopAutoRefresh();
+            const showEndpoints = { 'fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '总缓存': 'cache_all', 'CN 缓存': 'cache_cn', '!CN 缓存': 'cache_google', '节点缓存': 'cache_node' };
+            const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; Object.entries(showEndpoints).forEach(([name, path]) => { const btn = createElement('button', 'btn'); btn.textContent = name; btn.onclick = () => window.open(`/plugins/${path}/show`, '_blank'); dvContainer.appendChild(btn); });
+            const tabButtons = D.querySelectorAll('.tab-button'); const tabContents = D.querySelectorAll('.tab-content');
+            tabButtons.forEach(button => { button.addEventListener('click', () => { tabButtons.forEach(btn => btn.classList.remove('active')); button.classList.add('active'); tabContents.forEach(content => content.classList.toggle('active', content.id === `tab-${button.dataset.tab}`)); }); });
+            
+            getById('set-bg-btn').onclick = () => { const url = prompt('请输入背景图片的 URL 或本地绝对路径:', localStorage.getItem('customBackgroundUrl') || ''); if(url !== null) setBackgroundImage(url); };
+            getById('remove-bg-btn').onclick = () => { if(confirm('确定移除自定义背景吗?')) setBackgroundImage(''); };
+            
+            const blurToggle = getById('blur-toggle'); const blurSlider = getById('blur-slider');
+            const setBlur = (value) => D.documentElement.style.setProperty('--glass-blur-strength', `${value}px`);
+            blurToggle.onchange = () => { const isEnabled = blurToggle.checked; blurSlider.disabled = !isEnabled; const value = isEnabled ? blurSlider.value : 0; setBlur(value); localStorage.setItem('blurEnabled', isEnabled); };
+            blurSlider.addEventListener('input', throttle(() => setBlur(blurSlider.value), 50));
+            blurSlider.onchange = () => localStorage.setItem('blurStrength', blurSlider.value);
         }
-        // === END OF REFACTORED JAVASCRIPT ===
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners(); setupCardToggles();
+            const savedBg = localStorage.getItem('customBackgroundUrl'); if (savedBg) setBackgroundImage(savedBg);
+            const blurEnabled = localStorage.getItem('blurEnabled') !== 'false';
+            const blurStrength = localStorage.getItem('blurStrength') || 12;
+            const blurToggle = getById('blur-toggle'); const blurSlider = getById('blur-slider');
+            blurToggle.checked = blurEnabled; blurSlider.value = blurStrength; blurSlider.disabled = !blurEnabled;
+            D.documentElement.style.setProperty('--glass-blur-strength', `${blurEnabled ? blurStrength : 0}px`);
+            setTheme(localStorage.getItem('theme') || 'light');
+            const autoRefresh = localStorage.getItem('autoRefresh') === 'true';
+            getById('auto-refresh-toggle').checked = autoRefresh;
+            if (autoRefresh) getById('auto-refresh-toggle').dispatchEvent(new Event('change'));
+            refreshData(true, true);
+        });
     </script>
 </body>
 </html>
