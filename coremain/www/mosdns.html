@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MosDNS 监控面板</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Quicksand:wght@500;600&family=Roboto:wght@400;500;700&family=Product+Sans:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
@@ -21,14 +24,15 @@
             --danger-bg-color: rgba(231, 76, 60, 0.1); --danger-border-color: rgba(231, 76, 60, 0.3);
             --danger-text-color: #e74c3c; --danger-hover-bg-color: #e74c3c; --danger-hover-text-color: #ffffff;
             --glass-blur-strength: 12px;
+            --font-family-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
         }
         html { font-size: 16px; scroll-behavior: smooth; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out; min-height: 100vh; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
+        body { font-family: var(--font-family-main); margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out, font-family 0.4s ease; min-height: 100vh; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; }
         body.custom-background { background-size: cover; background-position: center; background-attachment: fixed; }
         .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; }
         .header h1 { font-size: 2.2rem; color: var(--text-color); margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: -0.03em; }
         .header .header-gradient-bar { width: 80px; height: 4px; margin: 0 auto 1.5rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
-        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: background-image 0.4s ease; }
+        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; }
         @keyframes gradient-scroll { 100% { background-position: 100% 0%; } }
         .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; align-items: start; }
         .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; box-sizing: border-box; transition: all 0.3s ease; border: 1px solid var(--border-color); }
@@ -55,14 +59,13 @@
         .control-section > *:not(.section-title) { margin: 0; }
         .control-section > *:not(.section-title) + *:not(.section-title) { margin-top: 1.2rem; }
         .refresh-action-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-        .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; }
-        .switch-label { cursor: pointer; display: flex; align-items: center; gap: 0.8rem; }
-        .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
-        .switch-input { opacity: 0; width: 0; height: 0; }
-        .switch-slider { position: relative; width: 44px; height: 24px; background-color: var(--control-border); border-radius: 12px; transition: background-color 0.3s ease; }
-        .switch-slider::before { content: ''; position: absolute; top: 2px; left: 3px; width: 18px; height: 18px; background-color: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
-        input:checked + .switch-slider { background-color: var(--status-green); }
-        input:checked + .switch-slider:before { transform: translateX(19px); }
+        .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
+        .auto-refresh-control .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
+        .generic-switch-input { display: none; }
+        .generic-switch-slider { position: relative; width: 44px; height: 24px; background-color: var(--control-border); border-radius: 12px; transition: background-color 0.3s ease; }
+        .generic-switch-slider::before { content: ''; position: absolute; top: 2px; left: 3px; width: 18px; height: 18px; background-color: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
+        .generic-switch-input:checked + .generic-switch-slider { background-color: var(--status-green); }
+        .generic-switch-input:checked + .generic-switch-slider:before { transform: translateX(19px); }
         #refresh-now-btn { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         #refresh-now-btn:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); }
         .rule-actions-group { display: flex; flex-direction: column; gap: 0.8rem; }
@@ -82,17 +85,19 @@
         .tab-button.active::after { opacity: 1; transform: scaleX(1); }
         .tab-content { display: none; flex-direction: column; gap: 1rem; }
         .tab-content.active { display: flex; }
-        .subsection-title { font-size: 0.9rem; font-weight: 500; color: var(--label-color); margin-bottom: 0.5rem; display: block; }
+        .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 0.5rem;}
+        .subsection-title:first-child { margin-top: 0; }
         .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem 1.2rem; align-items: center; }
         .metric-label { display: flex; align-items: center; gap: 0.7rem; font-weight: 500; color: var(--label-color); font-size: 0.95rem; }
-        .metric-label .fas { color: var(--accent-color); width: 1.2em; text-align: center; }
+        .metric-label .fas, .metric-label .fa-brands { color: var(--accent-color); width: 1.2em; text-align: center; }
         .metric-value { color: var(--value-color); font-weight: 600; text-align: right; font-size: 0.95rem; }
         .metric-value.accent { color: var(--accent-color); font-weight: 700; }
         #last_updated { font-size: 0.9rem; color: var(--label-color); margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); width: 100%; display: flex; align-items: center; gap: 0.5rem; text-align: left; }
-        .theme-selector, .card-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+        .theme-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.8rem; }
+        .card-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
         .control-base-label { background-color: var(--control-bg); border: 1px solid var(--control-border); padding: 0.6rem 0.9rem; color: var(--control-text); font-size: 0.95rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-control); transition: all 0.2s ease; display: flex; align-items: center; justify-content: flex-start; gap: 0.8rem; }
         .control-base-label:hover { border-color: var(--accent-color); }
-        .theme-selector .control-base-label { justify-content: center; }
+        .theme-selector .control-base-label { justify-content: center; font-size: 0.9rem; }
         .control-base-label.active { background-color: var(--control-active-bg); color: var(--control-active-text); border-color: var(--accent-color); box-shadow: 0 3px 8px -2px var(--accent-color); font-weight: 600; }
         .card-toggle-group input[type="checkbox"] { appearance: none; width: 18px; height: 18px; border: 2px solid var(--control-border); border-radius: 4px; background-color: var(--card-bg); position: relative; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; margin: 0; }
         .card-toggle-group input[type="checkbox"]:checked { background-color: var(--accent-color); border-color: var(--accent-color); }
@@ -103,11 +108,49 @@
         footer .footer-icon { color: var(--accent-color); opacity: 0.8; font-size: 1.1em; }
         footer .footer-separator { width: 1px; height: 16px; background-color: var(--border-color); }
         .blur-control { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
+        .blur-control .switch-label { display: flex; align-items: center; }
         .blur-control input[type="range"] { flex-grow: 1; width: 100%; }
+        /* --- [NEW/REFINED] Styles for Switch Management Tab --- */
+        #tab-config-mgmt-container { background-color: color-mix(in srgb, var(--control-border) 20%, var(--card-bg)); padding: 1.5rem; border-radius: var(--radius-main); display: flex; flex-direction: column; gap: 1.5rem; border: 1px solid var(--control-border);}
+        .master-switch-card { text-align: center; }
+        .master-switch-card h5 { margin: 0 0 1rem 0; font-size: 1rem; color: var(--label-color); font-weight: 600; }
+        .segmented-control { position: relative; display: flex; background-color: var(--control-bg); border-radius: var(--radius-control); padding: 0.3rem; border: 1px solid var(--control-border); }
+        .segmented-control .glider { position: absolute; top: 0.3rem; bottom: 0.3rem; width: 50%; background-color: var(--card-bg); border-radius: calc(var(--radius-control) - 0.2rem); box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .segmented-control button { flex: 1; padding: 0.7rem; border: none; background-color: transparent; color: var(--control-text); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.6rem; z-index: 1; }
+        .segmented-control button.active { color: var(--accent-color); }
+        .segmented-control.loading { pointer-events: none; opacity: 0.6; }
+        .secondary-switches-list { display: flex; flex-direction: column; gap: 1rem; }
+        .switch-card { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2rem; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 1.2rem 1.5rem; }
+        .switch-card .icon-area { font-size: 1.2rem; color: var(--label-color); width: 1.5em; text-align: center; }
+        .switch-card .switch-content h4 { margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; }
+        .switch-card .switch-content p { margin: 0; color: var(--label-color); font-size: 0.9rem; }
+        .switch-card .switch-control { position: relative; }
+        .switch-card .apple-switch-input { display: none; }
+        .switch-card .apple-switch-slider { position: relative; display: inline-block; width: 51px; height: 31px; background-color: #ccc; transition: .4s; border-radius: 31px; background-color: var(--control-border); cursor: pointer; }
+        .switch-card .apple-switch-slider:before { position: absolute; content: ""; height: 23px; width: 23px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .switch-card .apple-switch-input:checked + .apple-switch-slider { background-color: var(--status-green); }
+        .switch-card .apple-switch-input:focus + .apple-switch-slider { box-shadow: 0 0 1px var(--status-green); }
+        .switch-card .apple-switch-input:checked + .apple-switch-slider:before { transform: translateX(20px); }
+        .switch-card.loading .apple-switch-slider { opacity: 0.5; }
+        .switch-card .mini-loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .switch-card.loading .mini-loader { display: block; }
+        .switch-card.loading .apple-switch-slider:before { display: none; }
+        /* --- [NEW] Styles for Error Modal --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+        .modal-content { background-color: var(--card-bg); color: var(--text-color); border-radius: var(--radius-main); box-shadow: 0 10px 30px rgba(0,0,0,0.2); padding: 2rem; width: 90%; max-width: 500px; transform: scale(0.95); transition: transform 0.3s ease; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+        .modal-header { display: flex; align-items: center; gap: 1rem; color: var(--error-color); border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem; }
+        .modal-header i { font-size: 1.5rem; }
+        .modal-header h3 { margin: 0; font-size: 1.2rem; }
+        .modal-body { font-size: 0.95rem; line-height: 1.7; word-break: break-all; }
+        .modal-footer { text-align: right; margin-top: 1.5rem; }
+        .modal-close-btn { background-color: var(--accent-color); color: var(--control-active-text); border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-control); cursor: pointer; }
+
         @media (max-width: 768px) { footer .footer-separator { display: none; } footer .footer-content { flex-direction: column; gap: 0.8rem; } }
         @media (max-width: 1200px) { .control-panel { grid-template-columns: 1fr; } }
         @media (max-width: 992px) { .main-container, .control-panel { grid-template-columns: 1fr; } body { padding: 1.5rem; } .card, .control-section { padding: 1.5rem; } }
-        @media (max-width: 768px) { html { font-size: 15px; } body { padding: 1rem; } .button-group-inline { grid-template-columns: 1fr; } .header h1 { font-size: 2rem; } .card, .control-section { padding: 1.2rem; } h2 { font-size: 1.4rem; } .chart-container { width: 110px; height: 110px; } }
+        @media (max-width: 768px) { html { font-size: 15px; } body { padding: 1rem; } .button-group-inline { grid-template-columns: 1fr; } .header h1 { font-size: 2rem; } .card, .control-section { padding: 1.2rem; } h2 { font-size: 1.4rem; } .chart-container { width: 110px; height: 110px; } .theme-selector { grid-template-columns: 1fr 1fr; } .switch-card { grid-template-columns: auto 1fr; } .switch-card .switch-control { grid-column: 2; justify-self: end; margin-top: 0.5rem;} }
     </style>
 </head>
 <body>
@@ -118,7 +161,14 @@
         <div class="left-column">
             <section class="control-section">
                 <h4 class="section-title"><i class="fas fa-cogs"></i> 控制中心</h4>
-                <div class="refresh-action-bar"><div class="auto-refresh-control"><label class="switch-label"><input type="checkbox" id="auto-refresh-toggle" class="switch-input"><span class="switch-slider"></span></label><span class="switch-label-text">自动刷新 (5s)</span></div><button id="refresh-now-btn" class="btn"><i class="fas fa-sync-alt"></i> 立即刷新</button></div>
+                <div class="refresh-action-bar">
+                    <label for="auto-refresh-toggle" class="auto-refresh-control">
+                        <span class="switch-label-text">自动刷新 (5s)</span>
+                        <input type="checkbox" id="auto-refresh-toggle" class="generic-switch-input">
+                        <span class="generic-switch-slider"></span>
+                    </label>
+                    <button id="refresh-now-btn" class="btn"><i class="fas fa-sync-alt"></i> 立即刷新</button>
+                </div>
                 <div class="rule-actions-group"><div class="button-group-inline"><button id="save-rules-btn" class="btn"><i class="fas fa-save"></i> 保存分流规则</button><button id="flush-cache-btn" class="btn"><i class="fas fa-broom"></i> 清空全部缓存</button></div><div class="button-group-inline" style="margin-top:0.8rem"><button id="flush-rules-btn" class="btn danger"><i class="fas fa-trash-alt"></i> 清空分流规则</button><button id="restart-mosdns-btn" class="btn danger"><i class="fas fa-redo"></i> 重启 MosDNS</button></div></div>
             </section>
             <section class="control-section">
@@ -128,37 +178,75 @@
         </div>
         <div class="right-column">
             <section class="control-section">
-                <div class="info-panel-tabs"><button class="tab-button active" data-tab="system-info"><i class="fas fa-server"></i> 系统信息</button><button class="tab-button" data-tab="appearance"><i class="fas fa-palette"></i> 外观设置</button></div>
+                <div class="info-panel-tabs">
+                    <button class="tab-button active" data-tab="system-info"><i class="fas fa-server"></i> 系统信息</button>
+                    <button class="tab-button" data-tab="appearance"><i class="fas fa-palette"></i> 外观设置</button>
+                    <button class="tab-button" data-tab="config-mgmt"><i class="fas fa-toggle-on"></i> 功能开关</button>
+                </div>
                 <div id="tab-system-info" class="tab-content active"><div class="metrics-container" id="metrics-system"></div><p id="last_updated"><i class="fas fa-clock"></i> </p></div>
                 <div id="tab-appearance" class="tab-content">
                     <h5 class="subsection-title">主题切换</h5>
                     <div class="theme-selector" id="theme-selector"></div>
-                    <h5 class="subsection-title" style="margin-top: 1.2rem;">自定义背景</h5>
+                    <h5 class="subsection-title">自定义背景</h5>
                     <div class="button-group-inline">
                         <button id="set-bg-btn" class="btn"><i class="fas fa-image"></i> 设置背景 URL</button>
                         <button id="remove-bg-btn" class="btn danger"><i class="fas fa-trash"></i> 移除背景</button>
                     </div>
-                    <h5 class="subsection-title" style="margin-top: 1.2rem;">毛玻璃强度</h5>
+                    <h5 class="subsection-title">毛玻璃强度</h5>
                     <div class="blur-control">
-                         <label class="switch-label"><input type="checkbox" id="blur-toggle" class="switch-input"><span class="switch-slider"></span></label>
+                         <label for="blur-toggle" class="switch-label">
+                             <input type="checkbox" id="blur-toggle" class="generic-switch-input">
+                             <span class="generic-switch-slider"></span>
+                         </label>
                         <input type="range" id="blur-slider" min="0" max="30" value="12" step="1">
                     </div>
-                    <h5 class="subsection-title" style="margin-top: 1.2rem;">显示缓存卡片</h5>
+                    <h5 class="subsection-title">显示缓存卡片</h5>
                     <div class="card-toggle-group" id="card-toggles"></div>
+                </div>
+                <div id="tab-config-mgmt" class="tab-content">
+                    <div id="tab-config-mgmt-container">
+                        <!-- This content will be dynamically generated by JavaScript -->
+                    </div>
                 </div>
             </section>
         </div>
     </div>
     <footer>
         <div class="footer-content">
-            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v1.1.0</span></div>
+            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.3.0</span></div>
             <div class="footer-separator"></div>
             <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: Phil Horse & Jimmy DADA</span></div>
         </div>
     </footer>
+
+    <div id="error-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>操作失败</h3>
+            </div>
+            <div class="modal-body">
+                <p id="error-modal-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="error-modal-close" class="modal-close-btn">关闭</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         const REFRESH_INTERVAL = 5000;
         let chartInstances = {}; let autoRefreshTimer = null; let isRefreshing = false; let currentTheme = 'light';
+        
+        const switchProfiles = [
+            { tag: 'switch1', name: '核心运行模式', modes: { 
+                'B': { name: '安全模式', icon: 'fa-shield-alt' }, 
+                'A': { name: '兼容模式', icon: 'fa-globe-americas' }
+            }},
+            { tag: 'switch2', name: '指定 Client 开关', desc: '启用或禁用对特定客户端的策略', icon: 'fa-user-secret', valueForOn: 'A' },
+            { tag: 'switch3', name: '请求屏蔽开关', desc: '启用或禁用对无解析结果请求的屏蔽', icon: 'fa-ban', valueForOn: 'A' },
+        ];
+        
         Chart.register(ChartDataLabels); Chart.defaults.plugins.legend.display = false; Chart.defaults.plugins.datalabels.font = { weight: 'bold', size: 11 }; Chart.defaults.cutout = '70%'; Chart.defaults.responsive = true; Chart.defaults.maintainAspectRatio = false;
         Chart.defaults.plugins.datalabels.formatter = (v, c) => { const s = c.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; };
         
@@ -168,24 +256,40 @@
         function formatNumber(num) { if (typeof num !== 'number' && isNaN(num = parseFloat(num))) { return num; } return num.toLocaleString('en-US'); }
         
         const themeMap = {
-            'light': { name: '默认亮色', icon: 'fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--error-color': '#e74c3c', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2' }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', hitBorder: '#4a90e2', missBorder: '#bdc3c7', text: '#2c3e50' } },
-            'dark': { name: '默认暗色', icon: 'fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff' }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', hitBorder: '#5096ff', missBorder: '#707070', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-solid, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
-            'glass': { name: '高光琉璃', icon: 'fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff' }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', hitBorder: '#82aaff', missBorder: '#cccccc', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-solid, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } }
+            'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
+            'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
+            'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
+            'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
+            'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
+            'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
+            'kawaii': { name: '粉彩可爱', icon: 'fas fa-cat', cssVars: { '--bg-color': '#fcefee', '--text-color': '#5e4856', '--card-bg': 'rgba(255, 255, 255, 0.7)', '--card-shadow': '0 6px 20px rgba(234, 182, 182, 0.4)', '--border-color': 'rgba(234, 182, 182, 0.5)', '--accent-color': '#ff8a8a', '--label-color': '#a08a9a', '--value-color': '#5e4856', '--control-bg': '#f9e0e0', '--control-border': '#f5c6c6', '--control-text': '#8c6d7d', '--control-hover-bg': '#f5c6c6', '--control-active-bg': '#ff8a8a', '--control-active-text': '#ffffff', '--status-green': '#ffc0cb', '--gradient-start': '#ff8a8a', '--gradient-mid': '#ffd3b6', '--gradient-end': '#ff8a8a', '--font-family-main': "'Quicksand', sans-serif", '--radius-main': '1.2rem', '--radius-control': '2rem' }, chartColors: { hit: 'rgba(255, 138, 138, 0.8)', miss: 'rgba(204, 184, 212, 0.8)', text: '#5e4856' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23eadada\' fill-opacity=\'0.4\' fill-rule=\'evenodd\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E");', 'h1,h2,h4': 'font-weight: 600;' } },
+            'miku': { name: '初音未来', icon: 'fas fa-music', cssVars: { '--bg-color': '#1c2833', '--text-color': '#fdfefe', '--card-bg': 'rgba(35, 55, 75, 0.85)', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3498db', '--accent-color': '#39c5bb', '--label-color': '#aed6f1', '--value-color': '#ffffff', '--control-bg': 'rgba(46, 64, 83, 0.9)', '--control-border': '#5dade2', '--control-text': '#eaf2f8', '--control-hover-bg': 'rgba(93, 173, 226, 0.5)', '--control-active-bg': '#39c5bb', '--control-active-text': '#17202a', '--status-green': '#39c5bb', '--gradient-start': '#39c5bb', '--gradient-mid': '#ff4571', '--gradient-end': '#39c5bb', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(57, 197, 187, 0.8)', miss: 'rgba(255, 69, 113, 0.5)', text: '#fdfefe' }, extraStyles: {'body': 'background-color: #1c2833; background-image: linear-gradient(160deg, #1c2833 0%, #2e4053 100%);'} },
+            'eva': { name: '初号机', icon: 'fas fa-robot', cssVars: { '--bg-color': '#1e1a2f', '--text-color': '#f0f0f0', '--card-bg': 'rgba(40, 35, 60, 0.8)', '--card-shadow': '0 8px 30px rgba(125, 233, 56, 0.2)', '--border-color': '#5a5278', '--accent-color': '#7de938', '--label-color': '#b0a8d1', '--value-color': '#ffffff', '--control-bg': '#28233c', '--control-border': '#5a5278', '--control-text': '#e0e0e0', '--control-hover-bg': 'rgba(90, 82, 120, 0.7)', '--control-active-bg': '#7de938', '--control-active-text': '#1e1a2f', '--status-green': '#7de938', '--gradient-start': '#7de938', '--gradient-mid': '#8a3ffc', '--gradient-end': '#7de938', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(125, 233, 56, 0.8)', miss: 'rgba(138, 63, 252, 0.5)', text: '#f0f0f0' }, extraStyles: {'body': 'background-color: #1e1a2f; background-image: radial-gradient(circle, #2e284d 0%, #1e1a2f 70%);'} },
+            'monokai': { name: 'Monokai Pro', icon: 'fas fa-code', cssVars: { '--bg-color': '#222324', '--text-color': '#fcfcfa', '--card-bg': 'rgba(45, 46, 47, 0.85)', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#414344', '--accent-color': '#ff6188', '--label-color': '#8f908a', '--value-color': '#fcfcfa', '--control-bg': '#3a3b3c', '--control-border': '#515252', '--control-text': '#d5d6d2', '--control-hover-bg': '#4a4b4d', '--control-active-bg': '#ff6188', '--control-active-text': '#222324', '--status-green': '#a9dc76', '--gradient-start': '#ff6188', '--gradient-mid': '#a9dc76', '--gradient-end': '#78dce8', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(255, 97, 136, 0.8)', miss: 'rgba(169, 220, 118, 0.6)', text: '#fcfcfa' } },
+            'solarized_dark': { name: 'Solarized Dark', icon: 'fas fa-adjust', cssVars: { '--bg-color': '#002b36', '--text-color': '#93a1a1', '--card-bg': 'rgba(7, 54, 66, 0.8)', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.4)', '--border-color': '#073642', '--accent-color': '#2aa198', '--label-color': '#657b83', '--value-color': '#eee8d5', '--control-bg': '#073642', '--control-border': '#586e75', '--control-text': '#93a1a1', '--control-hover-bg': 'rgba(88, 110, 117, 0.5)', '--control-active-bg': '#2aa198', '--control-active-text': '#002b36', '--status-green': '#859900', '--gradient-start': '#268bd2', '--gradient-mid': '#2aa198', '--gradient-end': '#b58900', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(42, 161, 152, 0.8)', miss: 'rgba(181, 137, 0, 0.6)', text: '#93a1a1' } },
         };
-
+        
         const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node']; 
         const cacheTitles = { 'cache_all': '全部缓存', 'cache_cn': '国内缓存', 'cache_google': '国外缓存', 'cache_node': '节点缓存' };
         let visibleCards = JSON.parse(localStorage.getItem('visibleMosdnsCards')) || cacheOrder;
 
         function setTheme(mode) {
             currentTheme = mode; const theme = themeMap[mode] || themeMap.light;
+            D.body.style.backgroundImage = '';
+
             Object.entries(theme.cssVars).forEach(([key, value]) => D.documentElement.style.setProperty(key, value));
             getById('theme-extra-styles')?.remove();
             if (theme.extraStyles) { const style = createElement('style', '', '', 'theme-extra-styles'); style.textContent = Object.entries(theme.extraStyles).map(([sel, rule]) => `${sel} { ${rule} }`).join('\n'); D.head.appendChild(style); }
+            
+            const savedBg = localStorage.getItem('customBackgroundUrl');
+            if (savedBg) { setBackgroundImage(savedBg); }
+
             localStorage.setItem('theme', mode);
             updateThemeButtons(mode);
             setTimeout(() => { Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {}; refreshData(true, true); }, 50);
         }
+
         function setBackgroundImage(url) {
             D.body.style.backgroundImage = url ? `url('${url.replace(/'/g, "\\'")}')` : '';
             D.body.classList.toggle('custom-background', !!url);
@@ -193,59 +297,31 @@
             else { localStorage.removeItem('customBackgroundUrl'); }
         }
         
-        // [FINAL FIX] Reverted parsing logic to the user's original, proven-to-work `startsWith` method.
-        // This is much more robust against formatting variations than the regex approach.
         function parseMetrics(metricsText, cacheTag) {
             const lines = metricsText.split('\n');
             const metrics = { query_total: 0, hit_total: 0, lazy_hit_total: 0, size_current: 0 };
-            
-            const query_str = `mosdns_cache_query_total{tag="${cacheTag}"}`;
-            const hit_str = `mosdns_cache_hit_total{tag="${cacheTag}"}`;
-            const lazy_str = `mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`;
-            const size_str = `mosdns_cache_size_current{tag="${cacheTag}"}`;
-
+            const query_str = `mosdns_cache_query_total{tag="${cacheTag}"}`; const hit_str = `mosdns_cache_hit_total{tag="${cacheTag}"}`;
+            const lazy_str = `mosdns_cache_lazy_hit_total{tag="${cacheTag}"}`; const size_str = `mosdns_cache_size_current{tag="${cacheTag}"}`;
             lines.forEach(line => {
-                if (line.startsWith(query_str)) {
-                    metrics.query_total = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith(hit_str)) {
-                    metrics.hit_total = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith(lazy_str)) {
-                    metrics.lazy_hit_total = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith(size_str)) {
-                    metrics.size_current = parseFloat(line.split(' ')[1]) || 0;
-                }
+                if (line.startsWith(query_str)) { metrics.query_total = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith(hit_str)) { metrics.hit_total = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith(lazy_str)) { metrics.lazy_hit_total = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith(size_str)) { metrics.size_current = parseFloat(line.split(' ')[1]) || 0; }
             });
             return metrics;
         }
 
-        // [FINAL FIX] Reverted this function to use the simple and reliable `startsWith` and `split` logic.
-        // This correctly parses the system metrics and resolves the "missing data" issue.
         function parseSystemMetrics(metricsText) {
             const lines = metricsText.split('\n');
-            const systemMetrics = {
-                startTime: 0, cpuTime: 0, residentMemory: 0, heapIdleMemory: 0,
-                threads: 0, openFds: 0, goVersion: "N/A"
-            };
-
+            const systemMetrics = { startTime: 0, cpuTime: 0, residentMemory: 0, heapIdleMemory: 0, threads: 0, openFds: 0, goVersion: "N/A" };
             lines.forEach(line => {
-                if (line.startsWith('process_start_time_seconds')) {
-                    systemMetrics.startTime = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith('process_cpu_seconds_total')) {
-                    systemMetrics.cpuTime = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith('process_resident_memory_bytes')) {
-                    systemMetrics.residentMemory = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith('go_memstats_heap_idle_bytes')) {
-                    systemMetrics.heapIdleMemory = parseFloat(line.split(' ')[1]) || 0;
-                } else if (line.startsWith('go_threads')) {
-                    systemMetrics.threads = parseInt(line.split(' ')[1]) || 0;
-                } else if (line.startsWith('process_open_fds')) {
-                    systemMetrics.openFds = parseInt(line.split(' ')[1]) || 0;
-                } else if (line.startsWith('go_info{version="')) {
-                    const match = line.match(/go_info{version="([^"]+)"}/);
-                    if (match && match[1]) {
-                        systemMetrics.goVersion = match[1];
-                    }
-                }
+                if (line.startsWith('process_start_time_seconds')) { systemMetrics.startTime = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith('process_cpu_seconds_total')) { systemMetrics.cpuTime = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith('process_resident_memory_bytes')) { systemMetrics.residentMemory = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith('go_memstats_heap_idle_bytes')) { systemMetrics.heapIdleMemory = parseFloat(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith('go_threads')) { systemMetrics.threads = parseInt(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith('process_open_fds')) { systemMetrics.openFds = parseInt(line.split(' ')[1]) || 0; } 
+                else if (line.startsWith('go_info{version="')) { const match = line.match(/go_info{version="([^"]+)"}/); if (match && match[1]) { systemMetrics.goVersion = match[1]; } }
             });
             return systemMetrics;
         }
@@ -259,27 +335,12 @@
                 if (!response.ok) throw new Error(`网络响应错误: ${response.statusText} (${response.status})`);
                 const text = await response.text();
                 const data = { caches: {}, system: {} };
-                
                 const systemMetrics = parseSystemMetrics(text);
-                
                 cacheOrder.forEach(tag => {
                     const metrics = parseMetrics(text, tag);
-                    data.caches[tag] = {
-                        ...metrics,
-                        hit_rate: metrics.query_total > 0 ? ((metrics.hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%',
-                        lazy_hit_rate: metrics.query_total > 0 ? ((metrics.lazy_hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%'
-                    };
+                    data.caches[tag] = { ...metrics, hit_rate: metrics.query_total > 0 ? ((metrics.hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%', lazy_hit_rate: metrics.query_total > 0 ? ((metrics.lazy_hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%' };
                 });
-                
-                data.system = {
-                    start_time: systemMetrics.startTime ? new Date(systemMetrics.startTime * 1000).toLocaleString() : 'N/A',
-                    cpu_time: `${systemMetrics.cpuTime.toFixed(2)} 秒`,
-                    resident_memory: `${(systemMetrics.residentMemory / 1024 / 1024).toFixed(2)} MB`,
-                    heap_idle_memory: `${(systemMetrics.heapIdleMemory / 1024 / 1024).toFixed(2)} MB`,
-                    go_version: systemMetrics.goVersion,
-                    threads: systemMetrics.threads,
-                    open_fds: systemMetrics.openFds
-                };
+                data.system = { start_time: systemMetrics.startTime ? new Date(systemMetrics.startTime * 1000).toLocaleString() : 'N/A', cpu_time: `${systemMetrics.cpuTime.toFixed(2)} 秒`, resident_memory: `${(systemMetrics.residentMemory / 1024 / 1024).toFixed(2)} MB`, heap_idle_memory: `${(systemMetrics.heapIdleMemory / 1024 / 1024).toFixed(2)} MB`, go_version: systemMetrics.goVersion, threads: systemMetrics.threads, open_fds: systemMetrics.openFds };
                 return data;
             } catch (error) {
                 console.error('获取 /metrics 失败:', error);
@@ -296,7 +357,8 @@
         
         async function refreshData(forceRebuild = false, updateCharts = false) {
             const data = await fetchData();
-            if (data.error) { getById('main-content').innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>无法连接到 MosDNS API。</p><small>${data.error}</small></div>`; if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; getById('auto-refresh-toggle').checked = false; localStorage.setItem('autoRefresh', 'false'); } return; }
+            if (data && data.error) { getById('main-content').innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><p>无法连接到 MosDNS API。</p><small>${data.error}</small></div>`; if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; getById('auto-refresh-toggle').checked = false; localStorage.setItem('autoRefresh', 'false'); } return; }
+            if (!data) return;
             if (forceRebuild) { getById('main-content').innerHTML = ''; Object.values(chartInstances).forEach(c => c.destroy()); chartInstances = {}; }
             
             cacheOrder.forEach(tag => {
@@ -309,8 +371,7 @@
                 if (card && cardData && shouldBeVisible) {
                     card.classList.add('visible');
                     updateMetrics(`metrics-${tag}`, [{ label: '请求总数', numericValue: cardData.query_total }, { label: '缓存命中', numericValue: cardData.hit_total }, { label: '过期缓存命中', numericValue: cardData.lazy_hit_total }, { label: '缓存命中率', value: cardData.hit_rate, accent: true }, { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true }, { label: '缓存条目数', numericValue: cardData.size_current }, ]);
-                    getById(`status-dot-${tag}`).classList.toggle('status-green', cardData.query_total > 0);
-                    getById(`status-dot-${tag}`).classList.toggle('status-yellow', cardData.query_total === 0);
+                    getById(`status-dot-${tag}`).classList.toggle('status-green', cardData.query_total > 0); getById(`status-dot-${tag}`).classList.toggle('status-yellow', cardData.query_total === 0);
                     getById(`charts-${tag}`).style.display = cardData.query_total > 0 ? 'flex' : 'none';
                     if ((forceRebuild || updateCharts) && cardData.query_total > 0) { createOrUpdatePieChart(`chart-hit-${tag}`, '命中', cardData.hit_total, cardData.query_total); createOrUpdatePieChart(`chart-lazy-${tag}`, '过期命中', cardData.lazy_hit_total, cardData.query_total); }
                 }
@@ -320,9 +381,179 @@
         }
         
         function setupCardToggles() { const c = getById('card-toggles'); c.innerHTML = ''; cacheOrder.forEach(t => { const l = createElement('label', 'control-base-label'); const i = createElement('input'); i.type = 'checkbox'; i.dataset.tag = t; i.checked = visibleCards.includes(t); i.onchange = (e) => { const tag = e.target.dataset.tag; if (e.target.checked) { if (!visibleCards.includes(tag)) visibleCards.push(tag); } else { visibleCards = visibleCards.filter(t => t !== tag); } localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards)); refreshData(true, true); }; l.append(i, createElement('span', 'toggle-label-text', cacheTitles[t])); c.appendChild(l); }); }
-        function updateThemeButtons(activeMode) { const ts = getById('theme-selector'); ts.innerHTML = ''; ['light', 'dark', 'glass'].forEach(mode => { if (!themeMap[mode]) return; const t = themeMap[mode]; const btn = createElement('button', 'control-base-label'); btn.dataset.theme = mode; btn.innerHTML = `<i class="fas ${t.icon}"></i> ${t.name}`; if (mode === activeMode) btn.classList.add('active'); btn.onclick = () => setTheme(mode); ts.appendChild(btn); }); }
+        
+        function updateThemeButtons(activeMode) {
+            const ts = getById('theme-selector'); ts.innerHTML = '';
+            Object.keys(themeMap).forEach(mode => {
+                const t = themeMap[mode]; const btn = createElement('button', 'control-base-label');
+                btn.dataset.theme = mode; btn.innerHTML = `<i class="${t.icon}"></i> ${t.name}`;
+                if (mode === activeMode) btn.classList.add('active');
+                btn.onclick = () => setTheme(mode); ts.appendChild(btn);
+            });
+        }
+        
         function throttle(func, limit) { let inThrottle; return function() { const args = arguments; const context = this; if (!inThrottle) { func.apply(context, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } } }
 
+        // --- [NEW/REFINED] Functions for Switch Management ---
+        
+        function showErrorModal(message) {
+            getById('error-modal-message').textContent = message || '发生未知错误。';
+            getById('error-modal').classList.add('visible');
+        }
+
+        function hideErrorModal() {
+            getById('error-modal').classList.remove('visible');
+        }
+
+        function renderSwitchUI(statuses) {
+            const container = getById('tab-config-mgmt-container');
+            container.innerHTML = ''; 
+
+            const masterProfile = switchProfiles.find(p => p.tag === 'switch1');
+            if (masterProfile) {
+                const masterCard = createElement('div', 'master-switch-card');
+                const currentState = statuses[masterProfile.tag];
+                let contentHTML = `<h5><i class="fas fa-satellite-dish"></i> ${masterProfile.name}</h5>`;
+
+                if (currentState === 'error') {
+                    contentHTML += `<p class="error-message" style="padding: 0; background: none; border: none; text-align: center;">获取状态失败</p>`;
+                } else {
+                    const buttons = Object.entries(masterProfile.modes).map(([value, { name, icon }]) => 
+                        `<button class="${currentState === value ? 'active' : ''}" data-value="${value}" data-switch-tag="switch1">
+                            <i class="fas ${icon}"></i> ${name}
+                         </button>`
+                    ).join('');
+                    const glider = `<div class="glider" style="transform: translateX(${currentState === 'A' ? '100%' : '0%'});"></div>`;
+                    contentHTML += `<div class="segmented-control">${glider}${buttons}</div>`;
+                }
+                masterCard.innerHTML = contentHTML;
+                masterCard.querySelectorAll('.segmented-control button').forEach(btn => {
+                    btn.onclick = () => handleMasterSwitch(btn);
+                });
+                container.appendChild(masterCard);
+            }
+
+            const secondaryContainer = createElement('div', 'secondary-switches-list');
+            const secondaryTitle = createElement('h5', 'subsection-title');
+            secondaryTitle.innerHTML = `<i class="fas fa-puzzle-piece"></i> 附加功能模块`;
+            let hasSecondarySwitches = false;
+
+            switchProfiles.filter(p => p.tag !== 'switch1').forEach(profile => {
+                hasSecondarySwitches = true;
+                const card = createElement('div', 'switch-card');
+                card.id = `switch-card-${profile.tag}`;
+                const currentState = statuses[profile.tag];
+
+                if (currentState === 'error') {
+                    card.innerHTML = `<i class="icon-area fas ${profile.icon}"></i><div class="switch-content"><h4>${profile.name}</h4><p class="error-message" style="padding: 0; margin-top: 0.2rem; font-size: 0.9rem; background: none; border: none; text-align: left;">获取状态失败</p></div>`;
+                    secondaryContainer.appendChild(card);
+                    return;
+                }
+
+                const isChecked = currentState === profile.valueForOn;
+                const switchId = `switch-input-${profile.tag}`;
+                card.innerHTML = `
+                    <i class="icon-area fas ${profile.icon}"></i>
+                    <div class="switch-content">
+                        <h4>${profile.name}</h4>
+                        <p>${profile.desc}</p>
+                    </div>
+                    <div class="switch-control">
+                        <input type="checkbox" id="${switchId}" class="apple-switch-input" data-switch-tag="${profile.tag}" ${isChecked ? 'checked' : ''}>
+                        <label for="${switchId}" class="apple-switch-slider"></label>
+                        <div class="mini-loader"></div>
+                    </div>`;
+                
+                card.querySelector('input[type="checkbox"]').addEventListener('change', (e) => handleSecondarySwitch(e.target));
+                secondaryContainer.appendChild(card);
+            });
+
+            if (hasSecondarySwitches) {
+                container.append(secondaryTitle, secondaryContainer);
+            }
+        }
+
+        async function postSwitch(tag, valueToPost) {
+            const response = await fetch(`/plugins/${tag}/post`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: valueToPost })
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || `请求失败，状态码: ${response.status}`);
+            }
+        }
+        
+        async function handleMasterSwitch(button) {
+            if (button.classList.contains('active')) return;
+
+            const tag = button.dataset.switchTag;
+            const valueToPost = button.dataset.value;
+            const control = button.parentElement;
+            
+            control.classList.add('loading');
+
+            try {
+                await postSwitch(tag, valueToPost);
+                await initializeSwitchManagementTab(); 
+                await refreshData(true, true);
+            } catch (error) {
+                showErrorModal(`切换核心模式失败: \n${error.message}`);
+                await initializeSwitchManagementTab();
+            } finally {
+                const currentControl = getById('tab-config-mgmt-container').querySelector('.segmented-control');
+                if(currentControl) currentControl.classList.remove('loading');
+            }
+        }
+
+        async function handleSecondarySwitch(checkbox) {
+            const tag = checkbox.dataset.switchTag;
+            const card = getById(`switch-card-${tag}`);
+            card.classList.add('loading');
+            checkbox.disabled = true;
+
+            const profile = switchProfiles.find(p => p.tag === tag);
+            const valueToPost = checkbox.checked ? profile.valueForOn : (profile.valueForOn === 'A' ? 'B' : 'A');
+            
+            try {
+                await postSwitch(tag, valueToPost);
+                await initializeSwitchManagementTab();
+                await refreshData(true, true);
+            } catch (error) {
+                showErrorModal(`切换 "${profile.name}" 失败: \n${error.message}`);
+                await initializeSwitchManagementTab();
+            }
+        }
+
+        async function initializeSwitchManagementTab() {
+            const container = getById('tab-config-mgmt-container');
+            container.innerHTML = '<div id="loading-spinner" style="display: block; margin: 2rem auto;"></div>';
+
+            try {
+                const fetchPromises = switchProfiles.map(p => fetch(`/plugins/${p.tag}/show`));
+                const results = await Promise.allSettled(fetchPromises);
+                
+                const statuses = {};
+                for (let i = 0; i < results.length; i++) {
+                    const result = results[i];
+                    const profile = switchProfiles[i];
+                    if (result.status === 'fulfilled' && result.value.ok) {
+                        const text = await result.value.text();
+                        statuses[profile.tag] = text.trim();
+                    } else {
+                        console.error(`获取 ${profile.tag} 状态失败:`, result.reason || (result.value ? result.value.statusText : 'Unknown Error'));
+                        statuses[profile.tag] = 'error';
+                    }
+                }
+                
+                renderSwitchUI(statuses);
+
+            } catch (error) {
+                container.innerHTML = `<div class="error-message" style="margin: 0;"><p>加载开关状态时发生意外错误</p><small>${error.message}</small></div>`;
+            }
+        }
+        
         function setupEventListeners() {
             getById('refresh-now-btn').onclick = () => refreshData(false, true);
             const autoRefreshToggle = getById('auto-refresh-toggle');
@@ -332,12 +563,10 @@
                 getById(btnId).addEventListener('click', async () => {
                     if (confirm(msg)) {
                         try {
-                            const requests = paths.map(p => fetch(`/plugins/${p}`));
-                            await Promise.all(requests);
+                            const requests = paths.map(p => fetch(`/plugins/${p}`)); const responses = await Promise.all(requests);
+                            responses.forEach(res => { if (!res.ok) throw new Error(`请求 ${res.url} 失败: ${res.statusText}`); });
                             alert(successMsg);
-                        } catch (e) {
-                            alert(`${errorMsg}: ${e.message}`);
-                        }
+                        } catch (e) { showErrorModal(e.message); }
                     }
                 });
             };
@@ -346,13 +575,7 @@
             createApiAction('flush-rules-btn', ['my_fakeiplist/flush', 'my_nodenov4list/flush', 'my_nodenov6list/flush', 'my_notinlist/flush', 'my_nov4list/flush', 'my_nov6list/flush', 'my_realiplist/flush'], '【危险操作】确定清空所有分流规则吗?', '✅ 操作完成: 分流规则已清空。', '❌ 清空失败');
             createApiAction('flush-cache-btn', ['cache_all/flush'], '确定清空全部缓存吗?', '✅ 操作完成: 全部缓存已清空。', '❌ 清空失败');
 
-            getById('restart-mosdns-btn').onclick = () => {
-                if (confirm('【危险操作】确定重启 MosDNS 吗?')) {
-                    fetch('/plugins/my_fakeiplist/restartall')
-                        .then(() => { alert('🚀 MosDNS 正在重启，页面将在 1 秒后刷新。'); setTimeout(() => location.reload(), 1000); })
-                        .catch(e => alert(`❌ 重启失败: ${e.message}`));
-                }
-            };
+            getById('restart-mosdns-btn').onclick = () => { if (confirm('【危险操作】确定重启 MosDNS 吗?')) { fetch('/plugins/my_fakeiplist/restartall').then(() => { alert('🚀 MosDNS 正在重启，页面将在 1 秒后刷新。'); setTimeout(() => location.reload(), 1000); }).catch(e => showErrorModal(`❌ 重启失败: ${e.message}`)); } };
 
             const showEndpoints = { 'fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '总缓存': 'cache_all', 'CN 缓存': 'cache_cn', '!CN 缓存': 'cache_google', '节点缓存': 'cache_node' };
             const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; Object.entries(showEndpoints).forEach(([name, path]) => { const btn = createElement('button', 'btn'); btn.textContent = name; btn.onclick = () => window.open(`/plugins/${path}/show`, '_blank'); dvContainer.appendChild(btn); });
@@ -367,20 +590,30 @@
             blurToggle.onchange = () => { const isEnabled = blurToggle.checked; blurSlider.disabled = !isEnabled; const value = isEnabled ? blurSlider.value : 0; setBlur(value); localStorage.setItem('blurEnabled', isEnabled); };
             blurSlider.addEventListener('input', throttle(() => setBlur(blurSlider.value), 50));
             blurSlider.onchange = () => localStorage.setItem('blurStrength', blurSlider.value);
+            
+            getById('error-modal-close').onclick = hideErrorModal;
+            getById('error-modal').onclick = (e) => { if(e.target === getById('error-modal')) hideErrorModal(); };
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            setupEventListeners(); setupCardToggles();
-            const savedBg = localStorage.getItem('customBackgroundUrl'); if (savedBg) setBackgroundImage(savedBg);
+            setupEventListeners();
+            setupCardToggles();
+            initializeSwitchManagementTab(); 
+
+            const savedTheme = localStorage.getItem('theme') || 'light';
             const blurEnabled = localStorage.getItem('blurEnabled') !== 'false';
             const blurStrength = localStorage.getItem('blurStrength') || 12;
             const blurToggle = getById('blur-toggle'); const blurSlider = getById('blur-slider');
+            
             blurToggle.checked = blurEnabled; blurSlider.value = blurStrength; blurSlider.disabled = !blurEnabled;
             D.documentElement.style.setProperty('--glass-blur-strength', `${blurEnabled ? blurStrength : 0}px`);
-            setTheme(localStorage.getItem('theme') || 'light');
+            
+            setTheme(savedTheme);
+            
             const autoRefresh = localStorage.getItem('autoRefresh') === 'true';
             getById('auto-refresh-toggle').checked = autoRefresh;
             if (autoRefresh) getById('auto-refresh-toggle').dispatchEvent(new Event('change'));
+            
             refreshData(true, true);
         });
     </script>
