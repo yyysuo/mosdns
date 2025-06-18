@@ -206,7 +206,8 @@ func (m *Mosdns) initHttpMux() {
     m.httpMux.Method(http.MethodGet, "/metrics", wrappedMetricsHandler)
 
     // graphic 路由
-    m.httpMux.Get("/graphic", func(w http.ResponseWriter, r *http.Request) {
+    // 定义公共 handler
+    handler := func(w http.ResponseWriter, r *http.Request) {
         data, err := content.ReadFile("www/mosdns.html")
         if err != nil {
             m.logger.Error("Error reading embedded file", zap.Error(err))
@@ -217,7 +218,11 @@ func (m *Mosdns) initHttpMux() {
         if _, err := w.Write(data); err != nil {
             m.logger.Error("Error writing response", zap.Error(err))
         }
-    })
+    }
+    
+    // 注册两个路由
+    m.httpMux.Get("/", handler)
+    m.httpMux.Get("/graphic", handler)
 
     // Register pprof.
     m.httpMux.Route("/debug/pprof", func(r chi.Router) {
