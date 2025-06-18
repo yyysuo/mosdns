@@ -26,7 +26,7 @@ import (
 )
 
 // List is a list of netip.Prefix. It stores all netip.Prefix in one single slice
-// and use binary search.
+// and uses binary search.
 // It is suitable for large static cidr search.
 type List struct {
 	// stores valid and masked netip.Prefix(s)
@@ -34,7 +34,7 @@ type List struct {
 	sorted bool
 }
 
-// NewList returns a *List.
+// NewList returns an empty *List.
 func NewList() *List {
 	return &List{
 		e: make([]netip.Prefix, 0),
@@ -49,8 +49,8 @@ func mustValid(l []netip.Prefix) {
 	}
 }
 
-// Append appends new netip.Prefix(s) to the list.
-// This modified the list. Caller must call List.Sort() before calling List.Contains()
+// Append appends new netip.Prefix(es) to the list.
+// Caller must call Sort() before calling Contains() or ForEach().
 func (list *List) Append(newNet ...netip.Prefix) {
 	for i, n := range newNet {
 		addr := to6(n.Addr())
@@ -65,15 +65,13 @@ func (list *List) Append(newNet ...netip.Prefix) {
 	list.sorted = false
 }
 
-// Sort sorts the list, this must be called after
-// list being modified and before calling List.Contains().
+// Sort sorts the list and deduplicates contained prefixes.
 func (list *List) Sort() {
 	if list.sorted {
 		return
 	}
-
 	sort.Sort(list)
-	out := make([]netip.Prefix, 0)
+	out := make([]netip.Prefix, 0, len(list.e))
 	for i, n := range list.e {
 		if i == 0 {
 			out = append(out, n)
@@ -88,33 +86,33 @@ func (list *List) Sort() {
 				out = append(out, n)
 			}
 		}
-
 	}
-
 	list.e = out
 	list.sorted = true
 }
 
-// Len implements sort Interface.
+// Len implements sort.Interface.
 func (list *List) Len() int {
 	return len(list.e)
 }
 
-// Less implements sort Interface.
+// Less implements sort.Interface.
 func (list *List) Less(i, j int) bool {
 	return list.e[i].Addr().Less(list.e[j].Addr())
 }
 
-// Swap implements sort Interface.
+// Swap implements sort.Interface.
 func (list *List) Swap(i, j int) {
 	list.e[i], list.e[j] = list.e[j], list.e[i]
 }
 
+// Match reports whether addr is contained in any prefix.
 func (list *List) Match(addr netip.Addr) bool {
 	return list.Contains(addr)
 }
 
 // Contains reports whether the list includes the given netip.Addr.
+// Must call Sort() first.
 func (list *List) Contains(addr netip.Addr) bool {
 	if !list.sorted {
 		panic("list is not sorted")
@@ -122,24 +120,29 @@ func (list *List) Contains(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
 	}
-
 	addr = to6(addr)
-
 	i, j := 0, len(list.e)
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := int(uint(i+j) >> 1)
 		if list.e[h].Addr().Compare(addr) <= 0 {
 			i = h + 1
 		} else {
 			j = h
 		}
 	}
-
 	if i == 0 {
 		return false
 	}
-
 	return list.e[i-1].Contains(addr)
+}
+
+func (list *List) ForEach(fn func(netip.Prefix)) {
+	if !list.sorted {
+		panic("netlist.List: must call Sort() before ForEach()")
+	}
+	for _, p := range list.e {
+		fn(p)
+	}
 }
 
 func to6(addr netip.Addr) netip.Addr {
