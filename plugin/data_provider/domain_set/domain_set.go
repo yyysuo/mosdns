@@ -5,17 +5,21 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/matcher/domain"
 	"github.com/IrineSistiana/mosdns/v5/plugin/data_provider"
-
 	scdomain "github.com/sagernet/sing/common/domain"
 	"github.com/sagernet/sing/common/varbin"
+	"github.com/go-chi/chi/v5"
 )
 
 const PluginType = "domain_set"
@@ -30,37 +34,165 @@ type Args struct {
 	Files []string `yaml:"files"`
 }
 
+type domainPayload struct {
+	Values []string `json:"values"`
+}
+
 var _ data_provider.DomainMatcherProvider = (*DomainSet)(nil)
 
 type DomainSet struct {
-	mg []domain.Matcher[struct{}]
+	mu       sync.RWMutex
+	mixM     *domain.MixMatcher[struct{}]
+	mg       []domain.Matcher[struct{}]
+	ruleFile string
+	rules    []string
+}
+
+func Init(bp *coremain.BP, args any) (any, error) {
+	cfg := args.(*Args)
+	ds := &DomainSet{
+		mixM: domain.NewDomainMixMatcher(),
+	}
+	if len(cfg.Files) > 0 {
+		ds.ruleFile = cfg.Files[0]
+	}
+	if err := LoadExpsAndFiles(cfg.Exps, cfg.Files, ds.mixM); err != nil {
+		return nil, err
+	}
+	ds.rules = append(ds.rules, cfg.Exps...)
+	for _, f := range cfg.Files {
+		if strings.EqualFold(filepath.Ext(f), ".srs") {
+			continue
+		}
+		file, err := os.Open(f)
+		if err != nil {
+			continue
+		}
+		sc := bufio.NewScanner(file)
+		for sc.Scan() {
+			line := strings.TrimSpace(sc.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			ds.rules = append(ds.rules, line)
+		}
+		file.Close()
+	}
+	if ds.mixM.Len() > 0 {
+		ds.mg = append(ds.mg, ds.mixM)
+	}
+	for _, tag := range cfg.Sets {
+		provider, _ := bp.M().GetPlugin(tag).(data_provider.DomainMatcherProvider)
+		if provider == nil {
+			return nil, fmt.Errorf("%s is not a DomainMatcherProvider", tag)
+		}
+		ds.mg = append(ds.mg, provider.GetDomainMatcher())
+	}
+	bp.RegAPI(ds.api())
+	return ds, nil
 }
 
 func (d *DomainSet) GetDomainMatcher() domain.Matcher[struct{}] {
 	return MatcherGroup(d.mg)
 }
 
-func Init(bp *coremain.BP, args any) (any, error) {
-	return NewDomainSet(bp, args.(*Args))
+func (d *DomainSet) api() *chi.Mux {
+	r := chi.NewRouter()
+	r.Get("/show", func(w http.ResponseWriter, r *http.Request) {
+	    d.mu.RLock()
+	    defer d.mu.RUnlock()
+	    w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	    for _, rule := range d.rules {
+	        fmt.Fprintln(w, rule)
+	    }
+	})
+	r.Get("/save", func(w http.ResponseWriter, r *http.Request) {
+		d.mu.RLock()
+		defer d.mu.RUnlock()
+		if d.ruleFile == "" {
+			http.Error(w, "no file configured", http.StatusInternalServerError)
+			return
+		}
+		if err := writeRulesToFile(d.ruleFile, d.rules); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	r.Post("/add", func(w http.ResponseWriter, r *http.Request) {
+		var p domainPayload
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		for _, pat := range p.Values {
+			found := false
+			for _, ex := range d.rules {
+				if ex == pat {
+					found = true
+					break
+				}
+			}
+			if !found {
+				d.mixM.Add(pat, struct{}{})
+				d.rules = append(d.rules, pat)
+			}
+		}
+		if d.ruleFile != "" {
+			writeRulesToFile(d.ruleFile, d.rules)
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	r.Post("/del", func(w http.ResponseWriter, r *http.Request) {
+		var p domainPayload
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		newRules := make([]string, 0, len(d.rules))
+		for _, ex := range d.rules {
+			keep := true
+			for _, bad := range p.Values {
+				if ex == bad {
+					keep = false
+					break
+				}
+			}
+			if keep {
+				newRules = append(newRules, ex)
+			}
+		}
+		d.rules = newRules
+		newMix := domain.NewDomainMixMatcher()
+		for _, pat := range d.rules {
+			newMix.Add(pat, struct{}{})
+		}
+		d.mixM = newMix
+		d.mg[0] = d.mixM
+		if d.ruleFile != "" {
+			writeRulesToFile(d.ruleFile, d.rules)
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	return r
 }
 
-func NewDomainSet(bp *coremain.BP, args *Args) (*DomainSet, error) {
-	d := &DomainSet{}
-	m := domain.NewDomainMixMatcher()
-	if err := LoadExpsAndFiles(args.Exps, args.Files, m); err != nil {
-		return nil, err
+func writeRulesToFile(path string, rules []string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
 	}
-	if m.Len() > 0 {
-		d.mg = append(d.mg, m)
-	}
-	for _, tag := range args.Sets {
-		provider, _ := bp.M().GetPlugin(tag).(data_provider.DomainMatcherProvider)
-		if provider == nil {
-			return nil, fmt.Errorf("%s is not a DomainMatcherProvider", tag)
+	defer f.Close()
+	for _, r := range rules {
+		if _, err := f.WriteString(r + "\n"); err != nil {
+			return err
 		}
-		d.mg = append(d.mg, provider.GetDomainMatcher())
 	}
-	return d, nil
+	return nil
 }
 
 func LoadExpsAndFiles(exps, fs []string, m *domain.MixMatcher[struct{}]) error {
@@ -102,18 +234,15 @@ func LoadFile(f string, m *domain.MixMatcher[struct{}]) error {
 		return nil
 	}
 	before := m.Len()
-
-	scanner := bufio.NewScanner(bytes.NewReader(b))
 	var lastTxt string
+	scanner := bufio.NewScanner(bytes.NewReader(b))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line != "" && !strings.HasPrefix(line, "#") {
-			lastTxt = line
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
 		}
-	}
-
-	if err := domain.LoadFromTextReader[struct{}](m, bytes.NewReader(b), nil); err != nil {
-		return err
+		lastTxt = line
+		m.Add(line, struct{}{})
 	}
 	after := m.Len()
 	fmt.Printf("[domain_set] last txt rule: %s\n", lastTxt)
@@ -169,12 +298,12 @@ func readRuleCompat(r *bufio.Reader, m *domain.MixMatcher[struct{}], last *strin
 	case 0:
 		ct += readDefaultRuleCompat(r, m, last)
 	case 1:
-		_, _ = r.ReadByte()
+		r.ReadByte()
 		n, _ := binary.ReadUvarint(r)
 		for i := uint64(0); i < n; i++ {
 			ct += readRuleCompat(r, m, last)
 		}
-		_, _ = r.ReadByte()
+		r.ReadByte()
 	}
 	return ct
 }
@@ -195,31 +324,27 @@ func readDefaultRuleCompat(r *bufio.Reader, m *domain.MixMatcher[struct{}], last
 			doms, suffix := matcher.Dump()
 			for _, d := range doms {
 				*last = "full:" + d
-				if m.Add("full:"+d, struct{}{}) == nil {
-					count++
-				}
+				m.Add(*last, struct{}{})
+				count++
 			}
 			for _, d := range suffix {
 				*last = "domain:" + d
-				if m.Add("domain:"+d, struct{}{}) == nil {
-					count++
-				}
+				m.Add(*last, struct{}{})
+				count++
 			}
 		case ruleItemDomainKeyword:
 			sl, _ := varbin.ReadValue[[]string](r, binary.BigEndian)
 			for _, d := range sl {
 				*last = "keyword:" + d
-				if m.Add("keyword:"+d, struct{}{}) == nil {
-					count++
-				}
+				m.Add(*last, struct{}{})
+				count++
 			}
 		case ruleItemDomainRegex:
 			sl, _ := varbin.ReadValue[[]string](r, binary.BigEndian)
 			for _, d := range sl {
 				*last = "regexp:" + d
-				if m.Add("regexp:"+d, struct{}{}) == nil {
-					count++
-				}
+				m.Add(*last, struct{}{})
+				count++
 			}
 		case ruleItemFinal:
 			return count
