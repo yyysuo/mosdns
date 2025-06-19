@@ -178,6 +178,44 @@ func (d *DomainSet) api() *chi.Mux {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
+
+	r.Post("/post", func(w http.ResponseWriter, r *http.Request) {
+	    var p domainPayload
+	    if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+	        http.Error(w, "invalid JSON", http.StatusBadRequest)
+	        return
+	    }
+
+	    if d.ruleFile == "" || !strings.EqualFold(filepath.Ext(d.ruleFile), ".txt") {
+	        http.Error(w, "no txt file configured, cannot post", http.StatusBadRequest)
+	        return
+	    }
+
+	    tmpMix := domain.NewDomainMixMatcher()
+	    tmpRules := make([]string, 0, len(p.Values))
+	    for _, pat := range p.Values {
+	        tmpMix.Add(pat, struct{}{})
+	        tmpRules = append(tmpRules, pat)
+	    }
+
+	    d.mu.Lock()
+	    d.mixM = tmpMix
+	    if len(d.mg) > 0 {
+	        d.mg[0] = d.mixM
+	    } else {
+	        d.mg = []domain.Matcher[struct{}]{d.mixM}
+	    }
+	    d.rules = tmpRules
+	    d.mu.Unlock()
+
+	    if err := writeRulesToFile(d.ruleFile, d.rules); err != nil {
+	        http.Error(w, err.Error(), http.StatusInternalServerError)
+	        return
+	    }
+	    w.WriteHeader(http.StatusOK)
+	    fmt.Fprintf(w, "domain_set replaced with %d entries", len(d.rules))
+	})
+
 	return r
 }
 
