@@ -162,12 +162,7 @@ func (d *IPSet) api() *chi.Mux {
 	        }
 	    }
 	    tmpList.Sort()
-
-	    if tmpList.Len() == 0 {
-	        http.Error(w, "empty IP set, no changes made", http.StatusBadRequest)
-	        return
-	    }
-
+		
 	    d.mutex.Lock()
 	    d.list = tmpList
 	    d.mg = []netlist.Matcher{d.list}
