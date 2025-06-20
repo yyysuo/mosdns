@@ -26,16 +26,32 @@
             --glass-blur-strength: 12px;
             --font-family-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
         }
-        html { font-size: 16px; scroll-behavior: smooth; }
-        body { font-family: var(--font-family-main); margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out, font-family 0.4s ease; min-height: 100vh; display: flex; flex-direction: column; align-items: center; box-sizing: border-box; overflow-x: hidden; }
+        
+        /* [FINAL FIX V4] 核心修复：全局 box-sizing 和 overflow 控制，杜绝溢出 */
+        html { 
+            font-size: 16px;
+            scroll-behavior: smooth;
+            box-sizing: border-box;
+        }
+        *, *::before, *::after {
+            box-sizing: inherit;
+        }
+
+        body { 
+            font-family: var(--font-family-main); margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; 
+            transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out, font-family 0.4s ease; 
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; 
+            overflow-x: hidden; /* 强制禁止水平滚动 */
+        }
         body.custom-background { background-size: cover; background-position: center; background-attachment: fixed; }
         .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; }
         .header h1 { font-size: 2.2rem; color: var(--text-color); margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: -0.03em; }
         .header .header-gradient-bar { width: 80px; height: 4px; margin: 0 auto 1.5rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
         .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; }
         @keyframes gradient-scroll { 100% { background-position: 100% 0%; } }
-        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; align-items: start; }
-        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; box-sizing: border-box; transition: all 0.3s ease; border: 1px solid var(--border-color); }
+        /* [FINAL FIX V4] 缓存视图居中 */
+        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; }
+        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; transition: all 0.3s ease; border: 1px solid var(--border-color); }
         .card.visible { display: flex; }
         .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12); }
         h2 { font-size: 1.5rem; color: var(--text-color); margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.7rem; }
@@ -50,7 +66,7 @@
         .loading #loading-spinner { display: block; }
         .loading #main-content, .loading .control-panel, .loading footer { opacity: 0.5; pointer-events: none; }
         .error-message { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 2rem; border-radius: var(--radius-main); margin: 2rem auto; text-align:center; grid-column: 1 / -1; font-size: 1.2rem; width: fit-content; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; align-items: stretch; width: 100%; max-width: 1800px; padding: 0; }
+        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; align-items: stretch; width: 100%; max-width: 1800px; }
         .left-column, .right-column { display: flex; flex-direction: column; gap: 1.5rem; }
         .control-section { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); box-shadow: var(--card-shadow); display: flex; flex-direction: column; overflow: hidden; }
         .right-column .control-section { flex-grow: 1; padding: 0; }
@@ -91,9 +107,10 @@
         .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 0.5rem;}
         .subsection-title:first-child { margin-top: 0; }
         .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem 1.2rem; align-items: center; }
+        .metric-item { display: contents; } 
         .metric-label { display: flex; align-items: center; gap: 0.7rem; font-weight: 500; color: var(--label-color); font-size: 0.95rem; }
         .metric-label .fas, .metric-label .fa-brands { color: var(--accent-color); width: 1.2em; text-align: center; }
-        .metric-value { color: var(--value-color); font-weight: 600; text-align: right; font-size: 0.95rem; }
+        .metric-value { color: var(--value-color); font-weight: 600; text-align: right; font-size: 0.95rem; word-break: break-all; }
         .metric-value.accent { color: var(--accent-color); font-weight: 700; }
         #last_updated { font-size: 0.9rem; color: var(--label-color); margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); width: 100%; display: flex; align-items: center; gap: 0.5rem; text-align: left; flex-shrink: 0;}
         .theme-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.8rem; }
@@ -106,10 +123,10 @@
         .card-toggle-group input[type="checkbox"]:checked { background-color: var(--accent-color); border-color: var(--accent-color); }
         .card-toggle-group input[type="checkbox"]:checked::after { content: '\2713'; display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: white; }
         footer { width: 100%; max-width: 1200px; text-align: center; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--label-color); transition: all 0.4s ease; }
-        footer .footer-content { display: flex; justify-content: center; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
-        footer .footer-item { display: flex; align-items: center; gap: 0.6rem; }
-        footer .footer-icon { color: var(--accent-color); opacity: 0.8; font-size: 1.1em; }
-        footer .footer-separator { width: 1px; height: 16px; background-color: var(--border-color); }
+        .footer-content { display: flex; justify-content: center; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+        .footer-item { display: flex; align-items: center; gap: 0.6rem; }
+        .footer-icon { color: var(--accent-color); opacity: 0.8; font-size: 1.1em; }
+        .footer-separator { width: 1px; height: 16px; background-color: var(--border-color); }
         .blur-control { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
         .blur-control .switch-label { display: flex; align-items: center; }
         .blur-control input[type="range"] { flex-grow: 1; width: 100%; }
@@ -146,7 +163,7 @@
         .list-mgmt-card { grid-template-columns: 1fr; gap: 1rem; display: none; flex-direction: column; flex-grow: 1; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 1.2rem 1.5rem; }
         .list-mgmt-card.active { display: grid; }
         .list-mgmt-card h4 { display: flex; align-items: center; gap: 0.8rem; margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; }
-        .list-mgmt-card textarea { width: 100%; min-height: 200px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9rem; padding: 0.8rem; border-radius: var(--radius-control); border: 1px solid var(--control-border); background-color: var(--control-bg); color: var(--text-color); resize: vertical; flex-grow: 1; overflow-wrap: break-word; } /* Added overflow-wrap */
+        .list-mgmt-card textarea { width: 100%; min-height: 200px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9rem; padding: 0.8rem; border-radius: var(--radius-control); border: 1px solid var(--control-border); background-color: var(--control-bg); color: var(--text-color); resize: vertical; flex-grow: 1; overflow-wrap: break-word; }
         .list-mgmt-card .action-area { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
         .list-mgmt-card button { background-color: var(--control-hover-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1rem; font-weight: 500; font-size: 0.9rem; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; }
         .list-mgmt-card button:disabled { opacity: 0.7; cursor: not-allowed; }
@@ -166,103 +183,83 @@
         .modal-close-btn { background-color: var(--accent-color); color: var(--control-active-text); border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-control); cursor: pointer; }
 
         @media (max-width: 1200px) { .control-panel { grid-template-columns: 1fr; } }
+        
         @media (max-width: 768px) { 
+            html { font-size: 14.5px; } /* Stable font size for mobile */
             body { padding: 1rem; }
-            .control-panel { grid-template-columns: 1fr; }
-            .header h1 { font-size: 2rem; }
+            .header h1 { font-size: 1.8rem; }
             .card { padding: 1.2rem; }
-            .left-column .control-section { padding: 1.2rem; }
-            .control-section-header { padding: 1.2rem; }
-            .control-section-body { padding: 0 1.2rem 1.2rem; }
-            h2 { font-size: 1.4rem; }
-            .chart-container { width: 110px; height: 110px; }
-            .theme-selector { grid-template-columns: 1fr 1fr; }
-            .switch-card { grid-template-columns: auto 1fr; }
-            .switch-card .switch-control { grid-column: 2; justify-self: end; margin-top: 0.5rem;}
-            
-            /* [FINAL FIX] Main tabs: allow wrapping, styling as buttons */
+            h2 { font-size: 1.3rem; }
+            .chart-container { width: 100px; height: 100px; }
+            .control-panel { gap: 1.5rem; }
+            .left-column { gap: 1.5rem; }
+
             .info-panel-tabs {
-                flex-wrap: wrap; /* Allow wrapping */
-                overflow-x: hidden; /* Hide horizontal scroll */
-                border-bottom: none; /* Remove bottom border from container */
-                margin-left: -1.2rem;
-                margin-right: -1.2rem;
-                padding: 0.8rem 1.2rem; /* Padding for the container itself */
-                gap: 0.5rem; /* Gap between buttons */
+                flex-wrap: wrap; overflow-x: auto; border-bottom: none;
+                margin: 0; padding-bottom: 0.5rem; gap: 0.5rem;
+                scrollbar-width: none; /* Firefox */
             }
-            .info-panel-tabs::-webkit-scrollbar { display: none; }
+            .info-panel-tabs::-webkit-scrollbar { display: none; /* Chrome, Safari */ }
             .tab-button {
-                flex: 1 1 auto; /* Allow buttons to grow/shrink based on content, but can wrap */
-                min-width: 100px; /* Prevent them from becoming too small */
-                background-color: var(--control-bg); /* Button background */
-                border: 1px solid var(--control-border); /* Button border */
-                color: var(--control-text); /* Button text color */
-                border-radius: var(--radius-control); /* Rounded corners */
-                text-align: center; /* Center text */
-                justify-content: center; /* Center icon/text */
-                padding: 0.6rem 0.8rem; /* Adjusted padding for buttons */
-                position: relative; /* For ::after */
-                box-sizing: border-box; /* Include padding/border in width calculation */
-                white-space: nowrap; /* Keep text on one line */
-                overflow: hidden; /* Hide overflowing text */
-                text-overflow: ellipsis; /* Add ellipsis */
+                flex: 1 1 auto; min-width: 90px; background-color: var(--control-bg);
+                border: 1px solid var(--control-border); color: var(--control-text);
+                border-radius: var(--radius-control); text-align: center; justify-content: center;
+                padding: 0.6rem 0.5rem; font-size: 0.9rem;
             }
             .tab-button.active {
-                background-color: var(--accent-color);
-                color: var(--control-active-text);
-                border-color: var(--accent-color);
-                font-weight: 600;
+                background-color: var(--accent-color); color: var(--control-active-text);
+                border-color: var(--accent-color); font-weight: 600;
             }
-            .tab-button::after {
-                display: none; /* Remove underline for wrapped buttons */
+            .tab-button::after { display: none; }
+            
+            /* [FINAL FIX V4] 系统信息: 表格布局回归，并通过 word-break 实现响应式 */
+            #metrics-system {
+                grid-template-columns: auto 1fr; /* Keep 2 columns */
+                gap: 0.8rem 1rem;
+            }
+            #metrics-system .metric-label, #metrics-system .metric-value {
+                font-size: 0.95rem;
+                padding: 0.5rem 0;
+            }
+            #metrics-system .metric-value {
+                text-align: right;
+                word-break: break-all; /* Key fix for long values */
+            }
+             #tab-system-info #last_updated { font-size: 0.85rem; }
+            
+            /* [FINAL FIX V4] 外观设置: 智能双列网格 */
+            #appearance-container { display: flex; flex-direction: column; gap: 1.5rem; }
+            #appearance-container .subsection-title { margin-bottom: 0.5rem; }
+            #appearance-container .theme-selector,
+            #appearance-container .card-toggle-group {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 0.8rem;
             }
             
-            /* [FINAL FIX] System Info: wrapper allows internal scrolling if content overflows */
-            #metrics-system-wrapper { overflow-x: auto; }
-            #metrics-system-wrapper .metrics-container { min-width: 340px; } /* Ensure enough width for two columns */
-            #metrics-system-wrapper::-webkit-scrollbar { height: 4px; background: transparent; }
-            #metrics-system-wrapper::-webkit-scrollbar-thumb { background: var(--control-border); border-radius: 2px; }
-
-            /* [FINAL FIX] List Management: Allow submenu to wrap on mobile */
-            #tab-list-mgmt .mgmt-container { padding: 1.2rem; } /* Restore container padding */
+            /* Unchanged, stable mobile styles */
+            .switch-card { grid-template-columns: auto 1fr; gap: 0.8rem 1.2rem; }
+            .switch-card .switch-control { grid-column: 2; justify-self: end; margin-top: 0.5rem; }
             .list-mgmt-layout { flex-direction: column; } 
             .list-submenu {
-                flex-direction: row; /* Keep as row for flex-wrap */
-                flex-wrap: wrap; /* Allow items to wrap to the next line */
-                justify-content: flex-start; /* Align items to start for cleaner wrapping */
-                gap: 0.5rem; /* Add some space between items */
-                border-right: none; /* Remove desktop specific border */
-                border-bottom: 1px solid var(--border-color); /* Add bottom border for separation */
-                margin: 0 -1.2rem 1.2rem; /* Matches card padding to extend visually */
-                padding: 0.8rem 1.2rem; /* Internal padding for the wrapping menu, align with card content */
-                overflow-x: hidden; /* Crucial: hide horizontal scroll on the menu itself */
-                overflow-y: visible; /* Ensure vertical content is visible */
+                flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 0.5rem;
+                border-right: none; border-bottom: 1px solid var(--border-color);
+                margin: 0; padding: 0.8rem 0;
             } 
-            .list-submenu::-webkit-scrollbar { display: none; } /* Hide scrollbar if any residual */
             .list-submenu-item {
-                flex: 1 1 calc(50% - 0.25rem); /* Allow two items per row, considering half of gap on each side */
-                max-width: calc(50% - 0.25rem); /* Max width for two columns */
-                text-align: center; /* Center text within item */
-                justify-content: center; /* Center content horizontally within flex item */
-                border-left: none; /* Remove desktop specific border */
-                border-bottom: 3px solid transparent; /* Keep active indicator */
-                padding: 0.6rem 0.8rem; /* Adjust padding for wrapped items */
-                border-radius: var(--radius-control); /* Apply control radius */
-                white-space: nowrap; /* Keep text on single line */
-                overflow: hidden; /* Hide overflowing text */
-                text-overflow: ellipsis; /* Add ellipsis for overflowing text */
-                box-sizing: border-box; /* Include padding/border in width calculation */
+                flex: 1 1 calc(50% - 0.25rem); max-width: calc(50% - 0.25rem);
+                text-align: center; justify-content: center;
+                border-left: none; border-bottom: 3px solid transparent;
+                padding: 0.6rem 0.8rem; border-radius: var(--radius-control);
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             } 
             .list-submenu-item.active {
-                background-color: var(--control-hover-bg); /* Match hover for active state */
-                border-bottom-color: var(--accent-color); /* Active indicator at bottom */
-                color: var(--accent-color); /* Active text color */
-                font-weight: 600;
+                background-color: var(--control-hover-bg); border-bottom-color: var(--accent-color);
+                color: var(--accent-color); font-weight: 600;
             } 
-            .list-content-area { padding: 0; } /* Remove padding, handled by card inner padding */
-            
-            footer .footer-separator { display: none; } 
+            .list-content-area { padding: 0; }
             footer .footer-content { flex-direction: column; gap: 0.8rem; }
+            footer .footer-separator { display: none; }
         }
     </style>
 </head>
@@ -273,10 +270,8 @@
     <div class="control-panel">
         <div class="left-column">
             <section class="control-section">
-                <div class="control-section-header">
-                    <h4 class="section-title"><i class="fas fa-cogs"></i> 控制中心</h4>
-                </div>
                 <div class="control-section-body">
+                    <h4 class="section-title"><i class="fas fa-cogs"></i> 控制中心</h4>
                     <div class="refresh-action-bar">
                         <label for="auto-refresh-toggle" class="auto-refresh-control">
                             <span class="switch-label-text">自动刷新 (5s)</span>
@@ -285,20 +280,21 @@
                         </label>
                         <button id="refresh-now-btn" class="btn"><i class="fas fa-sync-alt"></i> 立即刷新</button>
                     </div>
-                    <div class="rule-actions-group"><div class="button-group-inline"><button id="save-rules-btn" class="btn"><i class="fas fa-save"></i> 保存分流规则</button><button id="flush-cache-btn" class="btn"><i class="fas fa-broom"></i> 清空全部缓存</button></div><div class="button-group-inline" style="margin-top:0.8rem"><button id="flush-rules-btn" class="btn danger"><i class="fas fa-trash-alt"></i> 清空分流规则</button><button id="restart-mosdns-btn" class="btn danger"><i class="fas fa-redo"></i> 重启 MosDNS</button></div></div>
+                    <div class="rule-actions-group">
+                        <div class="button-group-inline"><button id="save-rules-btn" class="btn"><i class="fas fa-save"></i> 保存分流规则</button><button id="flush-cache-btn" class="btn"><i class="fas fa-broom"></i> 清空全部缓存</button></div>
+                        <div class="button-group-inline" style="margin-top:0.8rem"><button id="flush-rules-btn" class="btn danger"><i class="fas fa-trash-alt"></i> 清空分流规则</button><button id="restart-mosdns-btn" class="btn danger"><i class="fas fa-redo"></i> 重启 MosDNS</button></div>
+                    </div>
                 </div>
             </section>
             <section class="control-section">
-                <div class="control-section-header">
+                 <div class="control-section-body">
                     <h4 class="section-title"><i class="fas fa-eye"></i> 数据查看</h4>
-                </div>
-                <div class="control-section-body">
                     <div class="data-view-group" id="data-view-buttons"></div>
                 </div>
             </section>
         </div>
         <div class="right-column">
-            <section class="control-section">
+             <section class="control-section">
                 <div class="control-section-header">
                     <div class="info-panel-tabs">
                         <button class="tab-button active" data-tab="system-info"><i class="fas fa-server"></i> 系统信息</button>
@@ -308,44 +304,36 @@
                     </div>
                 </div>
                 <div class="control-section-body">
-                    <div class="control-panel-content">
-                        <div id="tab-system-info" class="tab-content active">
-                            <div id="metrics-system-wrapper">
-                                <div class="metrics-container" id="metrics-system"></div>
+                    <div id="tab-system-info" class="tab-content active">
+                        <div class="metrics-container" id="metrics-system"></div>
+                        <p id="last_updated"><i class="fas fa-clock"></i> </p>
+                    </div>
+                    <div id="tab-appearance" class="tab-content">
+                        <div id="appearance-container">
+                            <h5 class="subsection-title">主题切换</h5>
+                            <div class="theme-selector" id="theme-selector"></div>
+                            <h5 class="subsection-title">自定义背景</h5>
+                            <div class="button-group-inline">
+                                <button id="set-bg-btn" class="btn"><i class="fas fa-image"></i> 设置背景 URL</button>
+                                <button id="remove-bg-btn" class="btn danger"><i class="fas fa-trash"></i> 移除背景</button>
                             </div>
-                            <p id="last_updated"><i class="fas fa-clock"></i> </p>
-                        </div>
-                        <div id="tab-appearance" class="tab-content">
-                            <div class="mgmt-container">
-                                <h5 class="subsection-title">主题切换</h5>
-                                <div class="theme-selector" id="theme-selector"></div>
-                                <h5 class="subsection-title">自定义背景</h5>
-                                <div class="button-group-inline">
-                                    <button id="set-bg-btn" class="btn"><i class="fas fa-image"></i> 设置背景 URL</button>
-                                    <button id="remove-bg-btn" class="btn danger"><i class="fas fa-trash"></i> 移除背景</button>
-                                </div>
-                                <h5 class="subsection-title">毛玻璃强度</h5>
-                                <div class="blur-control">
-                                    <label for="blur-toggle" class="switch-label">
-                                        <input type="checkbox" id="blur-toggle" class="generic-switch-input">
-                                        <span class="generic-switch-slider"></span>
-                                    </label>
-                                    <input type="range" id="blur-slider" min="0" max="30" value="12" step="1">
-                                </div>
-                                <h5 class="subsection-title">显示缓存卡片</h5>
-                                <div class="card-toggle-group" id="card-toggles"></div>
+                            <h5 class="subsection-title">毛玻璃强度</h5>
+                            <div class="blur-control">
+                                <label for="blur-toggle" class="switch-label">
+                                    <input type="checkbox" id="blur-toggle" class="generic-switch-input">
+                                    <span class="generic-switch-slider"></span>
+                                </label>
+                                <input type="range" id="blur-slider" min="0" max="30" value="12" step="1">
                             </div>
+                            <h5 class="subsection-title">显示缓存卡片</h5>
+                            <div class="card-toggle-group" id="card-toggles"></div>
                         </div>
-                        <div id="tab-config-mgmt" class="tab-content">
-                            <div id="config-mgmt-container" class="mgmt-container">
-                                <!-- Switch management content will be dynamically generated -->
-                            </div>
-                        </div>
-                        <div id="tab-list-mgmt" class="tab-content">
-                            <div id="list-mgmt-container" class="mgmt-container">
-                                <!-- List management content will be dynamically generated -->
-                            </div>
-                        </div>
+                    </div>
+                    <div id="tab-config-mgmt" class="tab-content">
+                        <div id="config-mgmt-container" class="mgmt-container"></div>
+                    </div>
+                    <div id="tab-list-mgmt" class="tab-content">
+                        <div id="list-mgmt-container" class="mgmt-container"></div>
                     </div>
                 </div>
             </section>
@@ -353,7 +341,7 @@
     </div>
     <footer>
         <div class="footer-content">
-            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v6.0 FINAL</span></div>
+            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.0 FINAL</span></div>
             <div class="footer-separator"></div>
             <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: Phil Horse & Jimmy DADA</span></div>
         </div>
@@ -384,6 +372,7 @@
         const switchProfiles = [
             { tag: 'switch3', name: '核心运行模式', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
             { tag: 'switch1', name: '请求屏蔽开关', desc: '启用或禁用对无解析结果请求的屏蔽', icon: 'fa-ban', valueForOn: 'A' },
+            { tag: 'switch5', name: '类型屏蔽开关', desc: '启用或禁用SOA PTR HTTPS请求的屏蔽', icon: 'fa-ban', valueForOn: 'A' },
             { tag: 'switch2', name: '指定 Client 开关', desc: '启用或禁用对特定客户端的策略', icon: 'fa-user-secret', valueForOn: 'A' },
             { tag: 'switch4', name: '过期缓存开关', desc: '启用或禁用过期缓存 (Stale Cache)', icon: 'fa-history', valueForOn: 'A' },
         ];
@@ -411,7 +400,7 @@
             'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
             'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
             'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
-            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
             'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
             'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
             'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
@@ -514,7 +503,22 @@
 
         function createCacheCard(tag, title) { const c = createElement('div', 'card'); c.dataset.tag = tag; c.innerHTML = `<h2><i class="fas fa-server"></i><span class="title-text">${title}</span><span class="status-dot" id="status-dot-${tag}"></span></h2><div class="card-title-gradient-bar"></div><div class="metrics-container" id="metrics-${tag}"></div><div class="charts" id="charts-${tag}"><div class="chart-container"><canvas id="chart-hit-${tag}"></canvas></div><div class="chart-container"><canvas id="chart-lazy-${tag}"></canvas></div></div>`; return c; }
         function createOrUpdatePieChart(id, title, hit, total) { const ctx = getById(id); if (!ctx) return; const c = themeMap[currentTheme]?.chartColors || themeMap.light.chartColors; const d = { labels: ['命中', '未命中'], datasets: [{ data: [hit, Math.max(0, total - hit)], backgroundColor: [c.hit, c.miss], borderWidth: 0 }] }; const o = { plugins: { title: { display: true, text: title, color: c.text, font: { size: 12, weight: '500' } }, datalabels: { color: c.text, formatter: (v, ctx) => { const s = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; } } } }; if (chartInstances[id]) { chartInstances[id].data = d; chartInstances[id].options = o; chartInstances[id].update('none'); } else { chartInstances[id] = new Chart(ctx, { type: 'doughnut', data: d, options: o }); } }
-        function updateMetrics(containerId, metricsData) { const c = getById(containerId); if (!c) return; const iconMap = { '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', '启动时间': 'fa-power-off', 'CPU 时间': 'fa-microchip', '常驻内存 (RSS)': 'fa-memory', '待用堆内存 (Idle)': 'fa-box-open', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap', '打开文件描述符': 'fa-folder-open' }; c.innerHTML = ''; metricsData.forEach(m => { const p = createElement('div', 'metric-label'); p.innerHTML = `<i class="fas ${iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}:</span>`; const v = createElement('div', `metric-value${m.accent ? ' accent' : ''}`); v.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value; c.append(p, v); }); }
+        
+        function updateMetrics(containerId, metricsData) {
+            const container = getById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            metricsData.forEach(m => {
+                const itemWrapper = createElement('div', 'metric-item');
+                const labelEl = createElement('div', 'metric-label');
+                labelEl.innerHTML = `<i class="fas ${updateMetrics.iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}</span>`;
+                const valueEl = createElement('div', `metric-value${m.accent ? ' accent' : ''}`);
+                valueEl.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value;
+
+                itemWrapper.append(labelEl, valueEl);
+                container.appendChild(itemWrapper);
+            });
+        }
         
         async function refreshData(forceRebuild = false, updateCharts = false) {
             await updateCoreModeStatus();
@@ -536,14 +540,24 @@
                 const cardData = data.caches[key];
                 if (card && cardData && shouldBeVisible) {
                     card.classList.add('visible');
-                    updateMetrics(`metrics-${key}`, [{ label: '请求总数', numericValue: cardData.query_total }, { label: '缓存命中', numericValue: cardData.hit_total }, { label: '过期缓存命中', numericValue: cardData.lazy_hit_total }, { label: '缓存命中率', value: cardData.hit_rate, accent: true }, { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true }, { label: '缓存条目数', numericValue: cardData.size_current }, ]);
+                    const metricsContainer = getById(`metrics-${key}`);
+                    metricsContainer.innerHTML = ''; 
+                    [{ label: '请求总数', numericValue: cardData.query_total }, { label: '缓存命中', numericValue: cardData.hit_total }, { label: '过期缓存命中', numericValue: cardData.lazy_hit_total }, { label: '缓存命中率', value: cardData.hit_rate, accent: true }, { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true }, { label: '缓存条目数', numericValue: cardData.size_current }, ].forEach(m => {
+                        const p = createElement('div', 'metric-label');
+                        p.innerHTML = `<i class="fas ${updateMetrics.iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}:</span>`;
+                        const v = createElement('div', `metric-value${m.accent ? ' accent' : ''}`);
+                        v.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value;
+                        metricsContainer.append(p, v);
+                    });
+                    
                     getById(`status-dot-${key}`).classList.toggle('status-green', cardData.query_total > 0); getById(`status-dot-${key}`).classList.toggle('status-yellow', cardData.query_total === 0);
                     getById(`charts-${key}`).style.display = cardData.query_total > 0 ? 'flex' : 'none';
                     if ((forceRebuild || updateCharts) && cardData.query_total > 0) { createOrUpdatePieChart(`chart-hit-${key}`, '命中', cardData.hit_total, cardData.query_total); createOrUpdatePieChart(`chart-lazy-${key}`, '过期命中', cardData.lazy_hit_total, cardData.query_total); }
                 }
             });
             updateMetrics('metrics-system', [{ label: '启动时间', value: data.system.start_time }, { label: 'CPU 时间', value: data.system.cpu_time }, { label: '常驻内存 (RSS)', value: data.system.resident_memory }, { label: '待用堆内存 (Idle)', value: data.system.heap_idle_memory }, { label: 'Go 版本', value: data.system.go_version, accent: true }, { label: '线程数', numericValue: data.system.threads }, { label: '打开文件描述符', numericValue: data.system.open_fds }, ]);
-            getById('last_updated').innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
+            const lastUpdatedEl = getById('last_updated');
+            if(lastUpdatedEl) lastUpdatedEl.innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
         }
         
         function setupCardToggles() { const c = getById('card-toggles'); c.innerHTML = ''; cacheOrder.forEach(t => { const l = createElement('label', 'control-base-label'); const i = createElement('input'); i.type = 'checkbox'; i.dataset.tag = t; i.checked = visibleCards.includes(t); i.onchange = (e) => { const tag = e.target.dataset.tag; if (e.target.checked) { if (!visibleCards.includes(tag)) visibleCards.push(tag); } else { visibleCards = visibleCards.filter(t => t !== tag); } localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards)); refreshData(true, true); }; l.append(i, createElement('span', 'toggle-label-text', cacheConfig[t].title)); c.appendChild(l); }); }
@@ -868,6 +882,8 @@
             
             setTheme(savedTheme);
             
+            updateMetrics.iconMap = { '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', '启动时间': 'fa-power-off', 'CPU 时间': 'fa-microchip', '常驻内存 (RSS)': 'fa-memory', '待用堆内存 (Idle)': 'fa-box-open', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap', '打开文件描述符': 'fa-folder-open' };
+
             const activeTabButton = D.querySelector('.tab-button.active');
             if (activeTabButton) {
                 const tabName = activeTabButton.dataset.tab;
