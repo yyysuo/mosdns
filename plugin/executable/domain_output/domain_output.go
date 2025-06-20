@@ -20,20 +20,22 @@
 package domain_output
 
 import (
+	"bytes"                          // 新增
 	"context"
+	"encoding/json"                  // 新增
 	"errors"
 	"fmt"
-        "io"
-        "net/http"
+	"io"
+	"net/http"
 	"os"
-        "syscall"
-	"sort"
+	"sort"                           // 新增
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
-               
-        "github.com/go-chi/chi/v5"
+
+	"github.com/go-chi/chi/v5"
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
@@ -54,6 +56,7 @@ type Args struct {
 	AppendedString string `yaml:"appended_string"` // 如果配置了此项，则在生成的文件第一行添加此字符串
 	MaxEntries     int    `yaml:"max_entries"`
 	DumpInterval   int    `yaml:"dump_interval"`
+	DomainSetURL   string `yaml:"domain_set_url"`  // 新增：可选，domain_set 插件 /post 接口 URL，用于热更新
 }
 
 type domainOutput struct {
@@ -69,6 +72,7 @@ type domainOutput struct {
 	totalCount     int
 	entryCounter   int // 用于判断写入的计数器
 	stopChan       chan struct{}
+	domainSetURL   string // 新增：热更新 endpoint
 }
 
 func Init(bp *coremain.BP, args any) (any, error) {
@@ -86,6 +90,7 @@ func Init(bp *coremain.BP, args any) (any, error) {
 		dumpInterval:   time.Duration(cfg.DumpInterval) * time.Second,
 		stats:          make(map[string]int),
 		stopChan:       make(chan struct{}),
+		domainSetURL:   cfg.DomainSetURL, // 保存新字段
 	}
 	d.loadFromFile()
 
@@ -99,8 +104,8 @@ func Init(bp *coremain.BP, args any) (any, error) {
 
 func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	params := strings.Split(s, ",")
-	if len(params) != 6 {
-		return nil, errors.New("invalid quick setup arguments")
+	if len(params) < 6 || len(params) > 7 {
+		return nil, errors.New("invalid quick setup arguments: need 6 or 7 fields")
 	}
 	fileStat := params[0]
 	fileRule := params[1]
@@ -116,14 +121,17 @@ func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	}
 	// QuickSetup 中未支持 appended_string，可按需要扩展（比如第7个参数）
 	d := &domainOutput{
-		fileStat:       fileStat,
-		fileRule:       fileRule,
-		genRule:        genRule,
-		pattern:        pattern,
-		maxEntries:     maxEntries,
-		dumpInterval:   time.Duration(dumpInterval) * time.Second,
-		stats:          make(map[string]int),
-		stopChan:       make(chan struct{}),
+		fileStat:     fileStat,
+		fileRule:     fileRule,
+		genRule:      genRule,
+		pattern:      pattern,
+		maxEntries:   maxEntries,
+		dumpInterval: time.Duration(dumpInterval) * time.Second,
+		stats:        make(map[string]int),
+		stopChan:     make(chan struct{}),
+	}
+	if len(params) == 7 {
+		d.domainSetURL = params[6] // 支持第7个可选参数
 	}
 	d.loadFromFile()
 
@@ -250,11 +258,49 @@ func (d *domainOutput) getSortedEntries() [][2]interface{} {
 	return entries
 }
 
-// writeAll 同时写入统计、规则和生成规则文件
+// writeAll 同时写入统计、规则和生成规则文件，并触发热更新
 func (d *domainOutput) writeAll() {
 	d.writeToFile()
 	d.writeRuleFile()
 	d.writeGenRuleFile()
+	d.pushToDomainSet() // 新增：全量 POST 到 domain_set
+}
+
+// pushToDomainSet 异步 POST 全量 "full:domain" 列表到 domain_set /post
+func (d *domainOutput) pushToDomainSet() {
+	if d.domainSetURL == "" {
+		return
+	}
+
+	vals := make([]string, 0, len(d.stats))
+	for domain := range d.stats {
+		vals = append(vals, fmt.Sprintf("full:%s", domain))
+	}
+	sort.Strings(vals)
+
+	payload := struct{ Values []string `json:"values"` }{Values: vals}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Printf("[domain_output] marshal payload error: %v\n", err)
+		return
+	}
+
+	go func() {
+		req, err := http.NewRequest("POST", d.domainSetURL, bytes.NewReader(body))
+		if err != nil {
+			fmt.Printf("[domain_output] create POST request error: %v\n", err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			fmt.Printf("[domain_output] POST to domain_set error: %v\n", err)
+			return
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		fmt.Printf("[domain_output] pushed %d rules to domain_set, status=%s\n", len(vals), resp.Status)
+	}()
 }
 
 func (d *domainOutput) startDumpTicker() {
@@ -278,27 +324,26 @@ func (d *domainOutput) Shutdown() {
 	d.writeAll() // 关闭时无条件写入所有数据
 }
 
-// restartSelf 用 syscall.Exec 重新启动当前二进制
+// restartSelf 用 syscall.Exec 重启当前二进制
 func restartSelf() {
-    // 微小延迟，确保 HTTP 响应已发送
-    time.Sleep(100 * time.Millisecond)
+	// 微小延迟，确保 HTTP 响应已发送
+	time.Sleep(100 * time.Millisecond)
 
-    bin, err := os.Executable()
-    if err != nil {
-        // 无法获取可执行文件路径时直接退出，
-        // 让外部如 systemd/容器重启它
-        os.Exit(0)
-    }
-    args := os.Args
-    env := os.Environ()
-    // 下面这一行正常情况下不会返回
-    syscall.Exec(bin, args, env)
+	bin, err := os.Executable()
+	if err != nil {
+		// 无法获取可执行文件路径时直接退出，
+		// 让外部如 systemd/容器重启它
+		os.Exit(0)
+	}
+	args := os.Args
+	env := os.Environ()
+	syscall.Exec(bin, args, env)
 }
 
 // Api 返回 domain_output 插件的路由，包含 /flush
 func (d *domainOutput) Api() *chi.Mux {
 	r := chi.NewRouter()
-	
+
 	// GET /plugins/{your_plugin_tag}/flush
 	r.Get("/flush", func(w http.ResponseWriter, req *http.Request) {
 		// 1. 清空内存统计
@@ -315,15 +360,15 @@ func (d *domainOutput) Api() *chi.Mux {
 		w.Write([]byte("domain_output flushed and files rewritten; restarting…"))
 	})
 
-              // save 路由：不清空，立即写文件
-              r.Get("/save", func(w http.ResponseWriter, req *http.Request) {
-                  d.mu.Lock()
-                  d.writeAll()
-                  d.mu.Unlock()
-           
-                  w.WriteHeader(http.StatusOK)
-                  w.Write([]byte("domain_output files saved; restarting…"))
-              })
+	// save 路由：不清空，立即写文件
+	r.Get("/save", func(w http.ResponseWriter, req *http.Request) {
+		d.mu.Lock()
+		d.writeAll()
+		d.mu.Unlock()
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("domain_output files saved; restarting…"))
+	})
 
 	// GET /plugins/{tag}/show
 	// 将 file_stat 文件内容以纯文本输出到浏览器
