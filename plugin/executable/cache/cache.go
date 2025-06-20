@@ -488,6 +488,7 @@ func (c *Cache) writeDump(w io.Writer) (int, error) {
 			Key:                 []byte(k),
 			CacheExpirationTime: cacheExpirationTime.Unix(),
 			MsgExpirationTime:   v.expirationTime.Unix(),
+			MsgStoredTime:       v.storedTime.Unix(),
 			Msg:                 msg,
 		}
 		block.Entries = append(block.Entries, e)
