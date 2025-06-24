@@ -394,11 +394,11 @@
         let isMgmtTabInitialized = { config: false, list: false };
 
         const switchProfiles = [
-            { tag: 'switch3', name: '核心运行模式', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
-            { tag: 'switch1', name: '请求屏蔽开关', desc: '启用或禁用对无解析结果请求的屏蔽', icon: 'fa-ban', valueForOn: 'A' },
-            { tag: 'switch5', name: '类型屏蔽开关', desc: '启用或禁用SOA PTR HTTPS请求的屏蔽', icon: 'fa-ban', valueForOn: 'A' },
-            { tag: 'switch2', name: '指定 Client 开关', desc: '启用或禁用对特定客户端的策略', icon: 'fa-user-secret', valueForOn: 'A' },
-            { tag: 'switch4', name: '过期缓存开关', desc: '启用或禁用过期缓存 (Stale Cache)', icon: 'fa-history', valueForOn: 'A' },
+            { tag: 'switch3', name: '核心运行模式（切换后应清空分流规则）', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
+            { tag: 'switch1', name: '请求屏蔽开关', desc: '启用或禁用对无解析结果请求的屏蔽（建议开启）', icon: 'fa-ban', valueForOn: 'A' },
+            { tag: 'switch5', name: '类型屏蔽开关', desc: '启用或禁用SOA PTR HTTPS请求的屏蔽（建议开启）', icon: 'fa-ban', valueForOn: 'A' },
+            { tag: 'switch2', name: '指定 Client 开关', desc: '启用或禁用对特定客户端的策略（按需开启，需监听53端口）', icon: 'fa-user-secret', valueForOn: 'A' },
+            { tag: 'switch4', name: '过期缓存开关', desc: '启用或禁用过期缓存 (Lazy Cache，建议开启)', icon: 'fa-history', valueForOn: 'A' },
         ];
         
         const ipSetProfiles = [ 
@@ -438,7 +438,7 @@
         const cacheConfig = {
             'cache_all': { default: 'cache_all', modeB: 'cache_all_noleak', title: '全部缓存', titleModeB: '全部缓存 (安全模式)' },
             'cache_cn': { default: 'cache_cn', modeB: 'cache_cn', title: '国内缓存' },
-            'cache_google': { default: 'cache_google', modeB: 'cache_google_node', title: '国外缓存', titleModeB: '国外缓存 (安全模式)' },
+            'cache_google': { default: 'cache_google', modeB: 'cache_google_node', title: '国外缓存（无数据正常）', titleModeB: '国外缓存 (安全模式)' },
             'cache_node': { default: 'cache_node', modeB: 'cache_node', title: '节点缓存' }
         };
         const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node']; 
@@ -855,7 +855,7 @@
 
             getById('restart-mosdns-btn').onclick = () => { if (confirm('【危险操作】确定重启 MosDNS 吗?')) { fetch('/plugins/my_fakeiplist/restartall').then(() => { alert('🚀 MosDNS 正在重启，页面将在 1 秒后刷新。'); setTimeout(() => location.reload(), 1000); }).catch(e => showErrorModal(`❌ 重启失败: ${e.message}`)); } };
 
-            const showEndpoints = { 'fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '总缓存': 'cache_all', 'CN 缓存': 'cache_cn', '!CN 缓存': 'cache_google', '节点缓存': 'cache_node' };
+            const showEndpoints = { 'fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '全部缓存（兼容）': 'cache_all', '全部缓存（安全）': 'cache_all_noleak','国内缓存': 'cache_cn', '国外缓存（兼容）': 'cache_google', '国外缓存（安全）': 'cache_google_node','节点缓存': 'cache_node' };
             const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; Object.entries(showEndpoints).forEach(([name, path]) => { const btn = createElement('button', 'btn'); btn.textContent = name; btn.onclick = () => window.open(`/plugins/${path}/show`, '_blank'); dvContainer.appendChild(btn); });
             
             const tabButtons = D.querySelectorAll('.tab-button');
