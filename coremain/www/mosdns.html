@@ -237,25 +237,49 @@
                 gap: 0.8rem;
             }
             
-            /* Unchanged, stable mobile styles */
-            .switch-card { grid-template-columns: auto 1fr; gap: 0.8rem 1.2rem; }
-            .switch-card .switch-control { grid-column: 2; justify-self: end; margin-top: 0.5rem; }
+            /* [优化] 功能开关移动端体验优化 */
+            .switch-card {
+                grid-template-columns: auto 1fr auto; /* 改为三列布局：图标 - 内容 - 开关 */
+                align-items: center; /* 垂直居中所有元素，使布局更整齐 */
+                gap: 0 1.2rem;       /* 仅保留列间距，移除行间距 */
+                padding: 1rem 1.2rem; /* 微调内边距，使其更紧凑 */
+            }
+            .switch-card .switch-control {
+                grid-column: auto;  /* 重置 grid-column，让其自然流入第三列 */
+                justify-self: auto; /* 重置 justify-self */
+                margin-top: 0;      /* 移除不必要的顶部边距 */
+            }
+
             .list-mgmt-layout { flex-direction: column; } 
             .list-submenu {
                 flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 0.5rem;
                 border-right: none; border-bottom: 1px solid var(--border-color);
                 margin: 0; padding: 0.8rem 0;
             } 
+            /* [优化] 名单管理子菜单 -> 智能流式“芯片”布局 */
             .list-submenu-item {
-                flex: 1 1 calc(50% - 0.25rem); max-width: calc(50% - 0.25rem);
-                text-align: center; justify-content: center;
-                border-left: none; border-bottom: 3px solid transparent;
-                padding: 0.6rem 0.8rem; border-radius: var(--radius-control);
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            } 
+                flex: 0 1 auto; /* 让项目根据内容自适应宽度，不拉伸 */
+                text-align: center;
+                justify-content: center;
+                border-left: none;
+                border-bottom: none; /* 移除旧的边框逻辑 */
+                padding: 0.5rem 1rem; /* 调整为更像芯片的内边距 */
+                border-radius: 20px; /* 使用更大的圆角，增强芯片感 */
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                border: 1px solid var(--control-border); /* 添加边框以获得更清晰的轮廓 */
+                background-color: var(--control-bg); /* 默认背景色 */
+            }
+            .list-submenu-item:hover {
+                border-color: var(--accent-color);
+                background-color: var(--control-hover-bg);
+            }
             .list-submenu-item.active {
-                background-color: var(--control-hover-bg); border-bottom-color: var(--accent-color);
-                color: var(--accent-color); font-weight: 600;
+                background-color: var(--accent-color);
+                color: var(--control-active-text);
+                border-color: var(--accent-color); /* 激活时边框颜色也统一 */
+                font-weight: 600;
             } 
             .list-content-area { padding: 0; }
             footer .footer-content { flex-direction: column; gap: 0.8rem; }
@@ -341,7 +365,7 @@
     </div>
     <footer>
         <div class="footer-content">
-            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.0 FINAL</span></div>
+            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.1 FINAL</span></div>
             <div class="footer-separator"></div>
             <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: Phil Horse & Jimmy DADA</span></div>
         </div>
