@@ -13,8 +13,10 @@
     <style>
         :root {
             --bg-color: #f7f9fd; --text-color: #2c3e50; --card-bg: #ffffff;
-            --card-shadow: 0 6px 18px rgba(0, 0, 0, 0.08); --border-color: #e0e6ec;
-            --accent-color: #4a90e2; --error-color: #e74c3c; --label-color: #7f8c8d;
+            --card-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            --card-shadow-hover: 0 10px 25px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06);
+            --border-color: #e0e6ec; --accent-color: #4a90e2;
+            --error-color: #e74c3c; --success-color: #2ecc71; --label-color: #7f8c8d;
             --value-color: #34495e; --control-bg: #f0f4f7; --control-border: #d5dce2;
             --control-text: #5e727e; --control-hover-bg: #e5edf3;
             --control-active-bg: var(--accent-color); --control-active-text: #ffffff;
@@ -25,16 +27,24 @@
             --danger-text-color: #e74c3c; --danger-hover-bg-color: #e74c3c; --danger-hover-text-color: #ffffff;
             --glass-blur-strength: 12px;
             --font-family-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            --focus-ring-color: rgba(74, 144, 226, 0.6);
         }
         
-        /* [FINAL FIX V4] 核心修复：全局 box-sizing 和 overflow 控制，杜绝溢出 */
+        /* [V4 FIX] 核心修复：全局 box-sizing 和 overflow 控制，杜绝溢出 */
         html { 
-            font-size: 16px;
-            scroll-behavior: smooth;
-            box-sizing: border-box;
+            font-size: 16px; scroll-behavior: smooth; box-sizing: border-box; 
         }
         *, *::before, *::after {
             box-sizing: inherit;
+        }
+        *:focus-visible {
+            outline: 2px solid var(--focus-ring-color);
+            outline-offset: 2px;
+            border-radius: var(--radius-control);
+        }
+        input:focus-visible, textarea:focus-visible {
+            border-color: var(--accent-color) !important;
+            box-shadow: 0 0 0 2px var(--focus-ring-color);
         }
 
         body { 
@@ -47,18 +57,20 @@
         .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; }
         .header h1 { font-size: 2.2rem; color: var(--text-color); margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: -0.03em; }
         .header .header-gradient-bar { width: 80px; height: 4px; margin: 0 auto 1.5rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
-        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; }
+        
+        /* [V4 OPTIMIZATION] 增加流光动画 */
+        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; max-width: 100%; margin: 0.5rem 0 1.2rem 0; }
         @keyframes gradient-scroll { 100% { background-position: 100% 0%; } }
-        /* [FINAL FIX V4] 缓存视图居中 */
+        
+        /* [V4 FIX] 缓存视图居中，防止单数卡片拉伸 */
         .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; }
-        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; transition: all 0.3s ease; border: 1px solid var(--border-color); }
+        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease; border: 1px solid var(--border-color); }
         .card.visible { display: flex; }
-        .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12); }
+        .card:hover { transform: translateY(-5px); box-shadow: var(--card-shadow-hover); }
         h2 { font-size: 1.5rem; color: var(--text-color); margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.7rem; }
-        h2 .title-text { flex-grow: 1; text-align: left; }
+        h2 .title-text { flex-grow: 1; text-align: left; display: flex; align-items: center; gap: 0.5rem;}
         h2 .status-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; transition: background-color 0.3s ease; flex-shrink: 0; }
         h2 .status-dot.status-green { background-color: var(--status-green); } h2 .status-dot.status-yellow { background-color: var(--status-yellow); }
-        .card-title-gradient-bar { max-width: 100%; margin: 0.5rem 0 1.2rem 0; }
         .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 1.2rem; margin-top: 1rem; border-top: 1px solid var(--border-color); }
         .chart-container { position: relative; width: 130px; height: 130px; }
         #loading-spinner { display: none; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 4rem auto; }
@@ -68,7 +80,8 @@
         .error-message { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 2rem; border-radius: var(--radius-main); margin: 2rem auto; text-align:center; grid-column: 1 / -1; font-size: 1.2rem; width: fit-content; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
         .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; align-items: stretch; width: 100%; max-width: 1800px; }
         .left-column, .right-column { display: flex; flex-direction: column; gap: 1.5rem; }
-        .control-section { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); box-shadow: var(--card-shadow); display: flex; flex-direction: column; overflow: hidden; }
+        .control-section { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); box-shadow: var(--card-shadow); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .control-section:hover { box-shadow: var(--card-shadow-hover); }
         .right-column .control-section { flex-grow: 1; padding: 0; }
         .control-section-header { padding: 1.5rem; flex-shrink: 0; }
         .control-section-body { flex-grow: 1; overflow-y: auto; padding: 0 1.5rem 1.5rem 1.5rem; min-height: 0; display: flex; flex-direction: column; }
@@ -85,17 +98,18 @@
         .generic-switch-slider::before { content: ''; position: absolute; top: 2px; left: 3px; width: 18px; height: 18px; background-color: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
         .generic-switch-input:checked + .generic-switch-slider { background-color: var(--status-green); }
         .generic-switch-input:checked + .generic-switch-slider:before { transform: translateX(19px); }
-        #refresh-now-btn { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-        #refresh-now-btn:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); }
+        .btn, button { transition: all 0.2s ease; }
+        #refresh-now-btn { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        #refresh-now-btn:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); transform: translateY(-2px); }
         .rule-actions-group { display: flex; flex-direction: column; gap: 0.8rem; }
         .button-group-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-        .button-group-inline button, .rule-actions-group > button { padding: 0.8rem; font-size: 0.95rem; font-weight: 500; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .button-group-inline button, .rule-actions-group > button { padding: 0.8rem; font-size: 0.95rem; font-weight: 500; border-radius: var(--radius-control); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         .button-group-inline button { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); }
-        .button-group-inline button:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); }
+        .button-group-inline button:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); transform: translateY(-2px); }
         button.danger { background-color: var(--danger-bg-color); border: 1px solid var(--danger-border-color); color: var(--danger-text-color); }
-        button.danger:hover { background-color: var(--danger-hover-bg-color); color: var(--danger-hover-text-color); border-color: var(--danger-hover-bg-color); }
+        button.danger:hover { background-color: var(--danger-hover-bg-color); color: var(--danger-hover-text-color); border-color: var(--danger-hover-bg-color); transform: translateY(-2px); }
         .data-view-group { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-        .data-view-group button { background-color: var(--control-bg); color: var(--control-text); border: none; padding: 0.4rem 1rem; font-size: 0.9rem; border-radius: 20px; cursor: pointer; transition: all 0.2s ease; }
+        .data-view-group button { background-color: var(--control-bg); color: var(--control-text); border: none; padding: 0.4rem 1rem; font-size: 0.9rem; border-radius: 20px; cursor: pointer; }
         .data-view-group button:hover { background-color: var(--control-hover-bg); color: var(--accent-color); }
         .info-panel-tabs { display: flex; border-bottom: 1px solid var(--border-color); }
         .tab-button { background: none; border: none; padding: 0.8rem 1rem; cursor: pointer; color: var(--label-color); font-weight: 500; font-size: 1rem; position: relative; transition: color 0.2s ease; flex-shrink: 0; white-space: nowrap; }
@@ -115,7 +129,7 @@
         #last_updated { font-size: 0.9rem; color: var(--label-color); margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); width: 100%; display: flex; align-items: center; gap: 0.5rem; text-align: left; flex-shrink: 0;}
         .theme-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.8rem; }
         .card-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-        .control-base-label { background-color: var(--control-bg); border: 1px solid var(--control-border); padding: 0.6rem 0.9rem; color: var(--control-text); font-size: 0.95rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-control); transition: all 0.2s ease; display: flex; align-items: center; justify-content: flex-start; gap: 0.8rem; }
+        .control-base-label { background-color: var(--control-bg); border: 1px solid var(--control-border); padding: 0.6rem 0.9rem; color: var(--control-text); font-size: 0.95rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-control); display: flex; align-items: center; justify-content: flex-start; gap: 0.8rem; }
         .control-base-label:hover { border-color: var(--accent-color); }
         .theme-selector .control-base-label { justify-content: center; font-size: 0.9rem; }
         .control-base-label.active { background-color: var(--control-active-bg); color: var(--control-active-text); border-color: var(--accent-color); box-shadow: 0 3px 8px -2px var(--accent-color); font-weight: 600; }
@@ -132,16 +146,16 @@
         .blur-control input[type="range"] { flex-grow: 1; width: 100%; }
         .mgmt-container { background-color: color-mix(in srgb, var(--control-border) 20%, var(--card-bg)); padding: 1.5rem; border-radius: var(--radius-main); display: flex; flex-direction: column; gap: 1.5rem; border: 1px solid var(--control-border); flex-grow: 1; }
         .master-switch-card { text-align: center; }
-        .master-switch-card h5 { margin: 0 0 1rem 0; font-size: 1rem; color: var(--label-color); font-weight: 600; }
+        .master-switch-card h5 { margin: 0 0 1rem 0; font-size: 1rem; color: var(--label-color); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         .segmented-control { position: relative; display: flex; background-color: var(--control-bg); border-radius: var(--radius-control); padding: 0.3rem; border: 1px solid var(--control-border); }
         .segmented-control .glider { position: absolute; top: 0.3rem; bottom: 0.3rem; width: 50%; background-color: var(--card-bg); border-radius: calc(var(--radius-control) - 0.2rem); box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-        .segmented-control button { flex: 1; padding: 0.7rem; border: none; background-color: transparent; color: var(--control-text); font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 0.6rem; z-index: 1; }
+        .segmented-control button { flex: 1; padding: 0.7rem; border: none; background-color: transparent; color: var(--control-text); font-weight: 600; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.6rem; z-index: 1; }
         .segmented-control button.active { color: var(--accent-color); }
         .segmented-control.loading { pointer-events: none; opacity: 0.6; }
         .secondary-switches-list { display: flex; flex-direction: column; gap: 1rem; }
         .switch-card { display: grid; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 1.2rem 1.5rem; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2rem; }
         .switch-card .icon-area { font-size: 1.2rem; color: var(--label-color); width: 1.5em; text-align: center; }
-        .switch-card .switch-content h4 { margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; }
+        .switch-card .switch-content h4 { margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; }
         .switch-card .switch-content p { margin: 0; color: var(--label-color); font-size: 0.9rem; }
         .switch-card .switch-control { position: relative; }
         .switch-card .apple-switch-input { display: none; }
@@ -165,9 +179,9 @@
         .list-mgmt-card h4 { display: flex; align-items: center; gap: 0.8rem; margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; }
         .list-mgmt-card textarea { width: 100%; min-height: 200px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9rem; padding: 0.8rem; border-radius: var(--radius-control); border: 1px solid var(--control-border); background-color: var(--control-bg); color: var(--text-color); resize: vertical; flex-grow: 1; overflow-wrap: break-word; }
         .list-mgmt-card .action-area { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
-        .list-mgmt-card button { background-color: var(--control-hover-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1rem; font-weight: 500; font-size: 0.9rem; border-radius: var(--radius-control); cursor: pointer; transition: all 0.2s ease; }
+        .list-mgmt-card button { background-color: var(--control-hover-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1rem; font-weight: 500; font-size: 0.9rem; border-radius: var(--radius-control); cursor: pointer; }
         .list-mgmt-card button:disabled { opacity: 0.7; cursor: not-allowed; }
-        .list-mgmt-card button:not(:disabled):hover { background-color: var(--accent-color); color: var(--control-active-text); border-color: var(--accent-color); opacity: 1; }
+        .list-mgmt-card button:not(:disabled):hover { background-color: var(--accent-color); color: var(--control-active-text); border-color: var(--accent-color); opacity: 1; transform: translateY(-2px); }
         .list-mgmt-card .list-status { font-size: 0.85rem; color: var(--label-color); margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         .list-status .status-text.error { color: var(--error-color); font-weight: bold; }
         .download-btn { font-size: 0.85rem; padding: 0.3rem 0.8rem; }
@@ -182,10 +196,24 @@
         .modal-footer { text-align: right; margin-top: 1.5rem; }
         .modal-close-btn { background-color: var(--accent-color); color: var(--control-active-text); border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-control); cursor: pointer; }
 
+        /* Toast & Tooltip Styles */
+        #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.8rem; }
+        .toast { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-radius: var(--radius-main); color: #fff; font-weight: 600; font-size: 0.95rem; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transform: translateX(120%); opacity: 0; animation: toast-in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1) forwards, toast-out 0.5s 3s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards; }
+        .toast.success { background-color: var(--success-color); }
+        .toast.error { background-color: var(--error-color); }
+        .toast i { font-size: 1.2rem; }
+        @keyframes toast-in { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toast-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+
+        .info-tooltip-icon { color: var(--label-color); font-size: 0.9em; cursor: help; transition: color 0.2s ease; display: inline-flex; }
+        .info-tooltip-icon:hover { color: var(--accent-color); }
+        #global-tooltip { position: fixed; background-color: var(--value-color); color: var(--card-bg); padding: 0.5rem 0.8rem; border-radius: var(--radius-control); font-size: 0.9rem; font-weight: 500; white-space: nowrap; z-index: 10001; opacity: 0; visibility: hidden; transition: opacity 0.2s ease; pointer-events: none; max-width: 300px; white-space: normal; line-height: 1.5; }
+        #global-tooltip.active { opacity: 1; visibility: visible; }
+
         @media (max-width: 1200px) { .control-panel { grid-template-columns: 1fr; } }
         
         @media (max-width: 768px) { 
-            html { font-size: 14.5px; } /* Stable font size for mobile */
+            html { font-size: 14.5px; }
             body { padding: 1rem; }
             .header h1 { font-size: 1.8rem; }
             .card { padding: 1.2rem; }
@@ -193,94 +221,31 @@
             .chart-container { width: 100px; height: 100px; }
             .control-panel { gap: 1.5rem; }
             .left-column { gap: 1.5rem; }
-
-            .info-panel-tabs {
-                flex-wrap: wrap; overflow-x: auto; border-bottom: none;
-                margin: 0; padding-bottom: 0.5rem; gap: 0.5rem;
-                scrollbar-width: none; /* Firefox */
-            }
-            .info-panel-tabs::-webkit-scrollbar { display: none; /* Chrome, Safari */ }
-            .tab-button {
-                flex: 1 1 auto; min-width: 90px; background-color: var(--control-bg);
-                border: 1px solid var(--control-border); color: var(--control-text);
-                border-radius: var(--radius-control); text-align: center; justify-content: center;
-                padding: 0.6rem 0.5rem; font-size: 0.9rem;
-            }
-            .tab-button.active {
-                background-color: var(--accent-color); color: var(--control-active-text);
-                border-color: var(--accent-color); font-weight: 600;
-            }
+            .info-panel-tabs { flex-wrap: wrap; overflow-x: auto; border-bottom: none; margin: 0; padding-bottom: 0.5rem; gap: 0.5rem; scrollbar-width: none; }
+            .info-panel-tabs::-webkit-scrollbar { display: none; }
+            .tab-button { flex: 1 1 auto; min-width: 90px; background-color: var(--control-bg); border: 1px solid var(--control-border); color: var(--control-text); border-radius: var(--radius-control); text-align: center; justify-content: center; padding: 0.6rem 0.5rem; font-size: 0.9rem; }
+            .tab-button.active { background-color: var(--accent-color); color: var(--control-active-text); border-color: var(--accent-color); font-weight: 600; }
             .tab-button::after { display: none; }
             
-            /* [FINAL FIX V4] 系统信息: 表格布局回归，并通过 word-break 实现响应式 */
-            #metrics-system {
-                grid-template-columns: auto 1fr; /* Keep 2 columns */
-                gap: 0.8rem 1rem;
-            }
-            #metrics-system .metric-label, #metrics-system .metric-value {
-                font-size: 0.95rem;
-                padding: 0.5rem 0;
-            }
-            #metrics-system .metric-value {
-                text-align: right;
-                word-break: break-all; /* Key fix for long values */
-            }
-             #tab-system-info #last_updated { font-size: 0.85rem; }
+            #metrics-system { grid-template-columns: auto 1fr; gap: 0.8rem 1rem; }
+            #metrics-system .metric-label, #metrics-system .metric-value { font-size: 0.95rem; padding: 0.5rem 0; }
+            #metrics-system .metric-value { text-align: right; word-break: break-all; }
+            #tab-system-info #last_updated { font-size: 0.85rem; }
             
-            /* [FINAL FIX V4] 外观设置: 智能双列网格 */
             #appearance-container { display: flex; flex-direction: column; gap: 1.5rem; }
             #appearance-container .subsection-title { margin-bottom: 0.5rem; }
-            #appearance-container .theme-selector,
-            #appearance-container .card-toggle-group {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                gap: 0.8rem;
-            }
+            #appearance-container .theme-selector, #appearance-container .card-toggle-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.8rem; }
             
-            /* [优化] 功能开关移动端体验优化 */
-            .switch-card {
-                grid-template-columns: auto 1fr auto; /* 改为三列布局：图标 - 内容 - 开关 */
-                align-items: center; /* 垂直居中所有元素，使布局更整齐 */
-                gap: 0 1.2rem;       /* 仅保留列间距，移除行间距 */
-                padding: 1rem 1.2rem; /* 微调内边距，使其更紧凑 */
-            }
-            .switch-card .switch-control {
-                grid-column: auto;  /* 重置 grid-column，让其自然流入第三列 */
-                justify-self: auto; /* 重置 justify-self */
-                margin-top: 0;      /* 移除不必要的顶部边距 */
-            }
+            .switch-card { grid-template-columns: auto 1fr auto; align-items: center; gap: 0 1.2rem; padding: 1rem 1.2rem; }
+            .switch-card .switch-control { grid-column: auto; justify-self: auto; margin-top: 0; }
 
             .list-mgmt-layout { flex-direction: column; } 
-            .list-submenu {
-                flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 0.5rem;
-                border-right: none; border-bottom: 1px solid var(--border-color);
-                margin: 0; padding: 0.8rem 0;
-            } 
-            /* [优化] 名单管理子菜单 -> 智能流式“芯片”布局 */
-            .list-submenu-item {
-                flex: 0 1 auto; /* 让项目根据内容自适应宽度，不拉伸 */
-                text-align: center;
-                justify-content: center;
-                border-left: none;
-                border-bottom: none; /* 移除旧的边框逻辑 */
-                padding: 0.5rem 1rem; /* 调整为更像芯片的内边距 */
-                border-radius: 20px; /* 使用更大的圆角，增强芯片感 */
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                border: 1px solid var(--control-border); /* 添加边框以获得更清晰的轮廓 */
-                background-color: var(--control-bg); /* 默认背景色 */
-            }
-            .list-submenu-item:hover {
-                border-color: var(--accent-color);
-                background-color: var(--control-hover-bg);
-            }
-            .list-submenu-item.active {
-                background-color: var(--accent-color);
-                color: var(--control-active-text);
-                border-color: var(--accent-color); /* 激活时边框颜色也统一 */
-                font-weight: 600;
-            } 
+            .list-submenu { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 0.5rem; border-right: none; border-bottom: 1px solid var(--border-color); margin: 0; padding: 0.8rem 0; } 
+            
+            .list-submenu-item { flex: 0 1 auto; text-align: center; justify-content: center; border-left: none; border-bottom: none; padding: 0.5rem 1rem; border-radius: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--control-border); background-color: var(--control-bg); }
+            .list-submenu-item:hover { border-color: var(--accent-color); background-color: var(--control-hover-bg); }
+            .list-submenu-item.active { background-color: var(--accent-color); color: var(--control-active-text); border-color: var(--accent-color); font-weight: 600; } 
+            
             .list-content-area { padding: 0; }
             footer .footer-content { flex-direction: column; gap: 0.8rem; }
             footer .footer-separator { display: none; }
@@ -365,9 +330,9 @@
     </div>
     <footer>
         <div class="footer-content">
-            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.1 FINAL</span></div>
+            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.3.1 FINAL</span></div>
             <div class="footer-separator"></div>
-            <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: Phil Horse & Jimmy DADA</span></div>
+            <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: P佬 & 熊佬 & Jimmy</span></div>
         </div>
     </footer>
 
@@ -385,6 +350,8 @@
             </div>
         </div>
     </div>
+    <div id="toast-container"></div>
+    <div id="global-tooltip"></div>
     
     <script>
         const REFRESH_INTERVAL = 5000;
@@ -394,11 +361,11 @@
         let isMgmtTabInitialized = { config: false, list: false };
 
         const switchProfiles = [
-            { tag: 'switch3', name: '核心运行模式（切换后应清空分流规则）', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
-            { tag: 'switch1', name: '请求屏蔽开关', desc: '启用或禁用对无解析结果请求的屏蔽（建议开启）', icon: 'fa-ban', valueForOn: 'A' },
-            { tag: 'switch5', name: '类型屏蔽开关', desc: '启用或禁用SOA PTR HTTPS请求的屏蔽（建议开启）', icon: 'fa-ban', valueForOn: 'A' },
-            { tag: 'switch2', name: '指定 Client 开关', desc: '启用或禁用对特定客户端的策略（按需开启，需监听53端口）', icon: 'fa-user-secret', valueForOn: 'A' },
-            { tag: 'switch4', name: '过期缓存开关', desc: '启用或禁用过期缓存 (Lazy Cache，建议开启)', icon: 'fa-history', valueForOn: 'A' },
+            { tag: 'switch3', name: '核心运行模式', tip: '切换后将自动清空全部分流规则，确保新模式立即生效。兼容模式性能更高，安全模式防泄露和劫持能力更强。', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
+            { tag: 'switch1', name: '请求屏蔽开关', desc: '对无解析结果的请求进行屏蔽', tip: '建议开启，可有效防止 DNS 泄露和污染。', icon: 'fa-ban', valueForOn: 'A' },
+            { tag: 'switch5', name: '类型屏蔽开关', desc: '屏蔽 SOA、PTR、HTTPS 等请求类型', tip: '建议开启，可减少不必要的网络请求，提高效率。', icon: 'fa-ban', valueForOn: 'A' },
+            { tag: 'switch2', name: '指定 Client 开关', desc: '对特定客户端 IP 应用分流策略', tip: '按需开启。需要 MosDNS 监听53端口，并正确配置 client_ip 名单。', icon: 'fa-user-secret', valueForOn: 'A' },
+            { tag: 'switch4', name: '过期缓存开关', desc: '启用 Lazy Cache 惰性缓存', tip: '建议开启，可以提升重复查询的响应速度，即使缓存已过期。', icon: 'fa-history', valueForOn: 'A' },
         ];
         
         const ipSetProfiles = [ 
@@ -411,6 +378,8 @@
             { tag: 'ddnslist', name: 'DDNS 域名', icon: 'fa-sync-alt' },
         ];
         const hostsProfiles = [];
+        // [LOGIC FIX] 定义分流规则列表
+        const ruleListPaths = ['my_fakeiplist/flush', 'my_nodenov4list/flush', 'my_nodenov6list/flush', 'my_notinlist/flush', 'my_nov4list/flush', 'my_nov6list/flush', 'my_realiplist/flush'];
 
         Chart.register(ChartDataLabels); Chart.defaults.plugins.legend.display = false; Chart.defaults.plugins.datalabels.font = { weight: 'bold', size: 11 }; Chart.defaults.cutout = '70%'; Chart.defaults.responsive = true; Chart.defaults.maintainAspectRatio = false;
         Chart.defaults.plugins.datalabels.formatter = (v, c) => { const s = c.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; };
@@ -419,12 +388,22 @@
         
         function createElement(tag, className, innerText = '', id = '') { const el = D.createElement(tag); if (className) el.className = className; if (innerText) el.innerText = innerText; if (id) el.id = id; return el; }
         function formatNumber(num) { if (typeof num !== 'number' && isNaN(num = parseFloat(num))) { return num; } return num.toLocaleString('en-US'); }
+
+        function showToast(message, type = 'success', duration = 3500) {
+            const container = getById('toast-container');
+            const toast = createElement('div', `toast ${type}`);
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
+            toast.style.animationDelay = `0s, ${(duration / 1000) - 0.5}s`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), duration);
+        }
         
         const themeMap = {
             'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
             'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
             'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
-            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
             'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
             'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
             'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
@@ -438,7 +417,7 @@
         const cacheConfig = {
             'cache_all': { default: 'cache_all', modeB: 'cache_all_noleak', title: '全部缓存', titleModeB: '全部缓存 (安全模式)' },
             'cache_cn': { default: 'cache_cn', modeB: 'cache_cn', title: '国内缓存' },
-            'cache_google': { default: 'cache_google', modeB: 'cache_google_node', title: '国外缓存（无数据正常）', titleModeB: '国外缓存 (安全模式)' },
+            'cache_google': { default: 'cache_google', modeB: 'cache_google_node', title: '国外缓存', titleModeB: '国外缓存 (安全模式)', tooltip: '无数据属正常现象，此缓存主要用于安全模式下的节点解析。' },
             'cache_node': { default: 'cache_node', modeB: 'cache_node', title: '节点缓存' }
         };
         const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node']; 
@@ -524,8 +503,8 @@
                 D.body.classList.remove('loading');
             }
         }
-
-        function createCacheCard(tag, title) { const c = createElement('div', 'card'); c.dataset.tag = tag; c.innerHTML = `<h2><i class="fas fa-server"></i><span class="title-text">${title}</span><span class="status-dot" id="status-dot-${tag}"></span></h2><div class="card-title-gradient-bar"></div><div class="metrics-container" id="metrics-${tag}"></div><div class="charts" id="charts-${tag}"><div class="chart-container"><canvas id="chart-hit-${tag}"></canvas></div><div class="chart-container"><canvas id="chart-lazy-${tag}"></canvas></div></div>`; return c; }
+        
+        function createCacheCard(tag, titleHTML) { const c = createElement('div', 'card'); c.dataset.tag = tag; c.innerHTML = `<h2><i class="fas fa-server"></i><span class="title-text">${titleHTML}</span><span class="status-dot" id="status-dot-${tag}"></span></h2><div class="card-title-gradient-bar"></div><div class="metrics-container" id="metrics-${tag}"></div><div class="charts" id="charts-${tag}"><div class="chart-container"><canvas id="chart-hit-${tag}"></canvas></div><div class="chart-container"><canvas id="chart-lazy-${tag}"></canvas></div></div>`; return c; }
         function createOrUpdatePieChart(id, title, hit, total) { const ctx = getById(id); if (!ctx) return; const c = themeMap[currentTheme]?.chartColors || themeMap.light.chartColors; const d = { labels: ['命中', '未命中'], datasets: [{ data: [hit, Math.max(0, total - hit)], backgroundColor: [c.hit, c.miss], borderWidth: 0 }] }; const o = { plugins: { title: { display: true, text: title, color: c.text, font: { size: 12, weight: '500' } }, datalabels: { color: c.text, formatter: (v, ctx) => { const s = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; } } } }; if (chartInstances[id]) { chartInstances[id].data = d; chartInstances[id].options = o; chartInstances[id].update('none'); } else { chartInstances[id] = new Chart(ctx, { type: 'doughnut', data: d, options: o }); } }
         
         function updateMetrics(containerId, metricsData) {
@@ -554,12 +533,17 @@
             cacheOrder.forEach(key => {
                 let card = D.querySelector(`.card[data-tag="${key}"]`);
                 const config = cacheConfig[key];
-                const title = coreMode === 'B' ? (config.titleModeB || config.title) : config.title;
+                let title = coreMode === 'B' ? (config.titleModeB || config.title) : config.title;
                 const shouldBeVisible = visibleCards.includes(key);
 
-                if (shouldBeVisible && !card) { card = createCacheCard(key, title); getById('main-content').appendChild(card); } 
+                let titleHTML = `<span>${title}</span>`;
+                if (config.tooltip) {
+                    titleHTML += `<i class="fas fa-info-circle info-tooltip-icon" data-tooltip="${config.tooltip}"></i>`;
+                }
+
+                if (shouldBeVisible && !card) { card = createCacheCard(key, titleHTML); getById('main-content').appendChild(card); } 
                 else if (card && !shouldBeVisible) { card.remove(); return; }
-                else if (card && shouldBeVisible) { card.querySelector('.title-text').innerText = title; }
+                else if (card && shouldBeVisible) { card.querySelector('.title-text').innerHTML = titleHTML; }
                 
                 const cardData = data.caches[key];
                 if (card && cardData && shouldBeVisible) {
@@ -582,6 +566,8 @@
             updateMetrics('metrics-system', [{ label: '启动时间', value: data.system.start_time }, { label: 'CPU 时间', value: data.system.cpu_time }, { label: '常驻内存 (RSS)', value: data.system.resident_memory }, { label: '待用堆内存 (Idle)', value: data.system.heap_idle_memory }, { label: 'Go 版本', value: data.system.go_version, accent: true }, { label: '线程数', numericValue: data.system.threads }, { label: '打开文件描述符', numericValue: data.system.open_fds }, ]);
             const lastUpdatedEl = getById('last_updated');
             if(lastUpdatedEl) lastUpdatedEl.innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
+            
+            initializeTooltips();
         }
         
         function setupCardToggles() { const c = getById('card-toggles'); c.innerHTML = ''; cacheOrder.forEach(t => { const l = createElement('label', 'control-base-label'); const i = createElement('input'); i.type = 'checkbox'; i.dataset.tag = t; i.checked = visibleCards.includes(t); i.onchange = (e) => { const tag = e.target.dataset.tag; if (e.target.checked) { if (!visibleCards.includes(tag)) visibleCards.push(tag); } else { visibleCards = visibleCards.filter(t => t !== tag); } localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards)); refreshData(true, true); }; l.append(i, createElement('span', 'toggle-label-text', cacheConfig[t].title)); c.appendChild(l); }); }
@@ -598,8 +584,6 @@
         
         function throttle(func, limit) { let inThrottle; return function() { const args = arguments; const context = this; if (!inThrottle) { func.apply(context, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } } }
 
-        // --- Functions for Management Tabs (Switches & Lists) ---
-        
         function showErrorModal(message) {
             getById('error-modal-message').textContent = message || '发生未知错误。';
             getById('error-modal').classList.add('visible');
@@ -645,7 +629,9 @@
                 if (masterProfile) {
                     const masterCard = createElement('div', 'master-switch-card');
                     const currentState = statuses[masterProfile.tag];
-                    masterCard.innerHTML = `<h5><i class="fas fa-satellite-dish"></i> ${masterProfile.name}</h5>` + 
+                    const titleHTML = `<h5><i class="fas fa-satellite-dish"></i> <span>${masterProfile.name}</span>${masterProfile.tip ? `<i class="fas fa-info-circle info-tooltip-icon" data-tooltip="${masterProfile.tip}"></i>` : ''}</h5>`;
+                    
+                    masterCard.innerHTML = titleHTML + 
                         (currentState === 'error' ? `<p class="error-message" style="padding:0;background:none;border:none;text-align:center;color:var(--error-color);">获取状态失败</p>` :
                         `<div class="segmented-control">
                             <div class="glider" style="transform: translateX(${currentState === 'A' ? '0%' : '100%'});"></div>
@@ -666,9 +652,11 @@
                     const currentState = statuses[profile.tag];
                     const isChecked = currentState === profile.valueForOn;
                     const switchId = `switch-input-${profile.tag}`;
-                    card.innerHTML = currentState === 'error' ? `<i class="icon-area fas ${profile.icon}"></i><div class="switch-content"><h4>${profile.name}</h4><p style="color:var(--error-color);">获取状态失败</p></div>`
+                    const titleHTML = `<h4><span>${profile.name}</span>${profile.tip ? `<i class="fas fa-info-circle info-tooltip-icon" data-tooltip="${profile.tip}"></i>` : ''}</h4>`;
+                    
+                    card.innerHTML = currentState === 'error' ? `<i class="icon-area fas ${profile.icon}"></i><div class="switch-content">${titleHTML}<p style="color:var(--error-color);">获取状态失败</p></div>`
                         : `<i class="icon-area fas ${profile.icon}"></i>
-                        <div class="switch-content"><h4>${profile.name}</h4><p>${profile.desc}</p></div>
+                        <div class="switch-content">${titleHTML}<p>${profile.desc}</p></div>
                         <div class="switch-control">
                             <input type="checkbox" id="${switchId}" class="apple-switch-input" data-switch-tag="${profile.tag}" ${isChecked ? 'checked' : ''}>
                             <label for="${switchId}" class="apple-switch-slider"></label>
@@ -679,7 +667,8 @@
                 });
                 if (secondaryContainer.children.length > 1) container.appendChild(secondaryContainer);
                 isMgmtTabInitialized.config = true;
-
+                
+                initializeTooltips();
             } catch (error) {
                 console.error("Switch tab initialization error:", error);
                 container.innerHTML = `<div class="error-message" style="margin: 0;"><p>加载开关状态时发生意外错误</p><small>${error.message}</small></div>`;
@@ -693,9 +682,24 @@
             try {
                 await postApi(`/plugins/${tag}/post`, { value: valueToPost });
                 coreMode = valueToPost; 
+
+                // [LOGIC FIX] 切换模式后自动清空分流规则
+                try {
+                    const requests = ruleListPaths.map(path => fetch(`/plugins/${path}`));
+                    await Promise.all(requests.map(async p => {
+                        const res = await p;
+                        if (!res.ok) throw new Error(`清空规则失败于: ${res.url} (${res.status})`);
+                    }));
+                    showToast('核心模式切换成功，已自动清空分流规则。');
+                } catch(flushError) {
+                    console.error("自动清空分流规则失败:", flushError);
+                    showToast(`核心模式已切换，但自动清空分流规则失败。`, 'error');
+                }
+
                 await refreshData(true, true);
             } catch (error) {
-                showErrorModal(`切换核心模式失败: \n${error.message}`);
+                showToast(`切换核心模式失败！`, 'error');
+                showErrorModal(error.message);
             } finally {
                 await initializeSwitchManagementTab();
             }
@@ -708,8 +712,10 @@
             const valueToPost = checkbox.checked ? profile.valueForOn : (profile.valueForOn === 'A' ? 'B' : 'A');
             try {
                 await postApi(`/plugins/${tag}/post`, { value: valueToPost });
+                showToast(`“${profile.name}” 已${checkbox.checked ? '启用' : '禁用'}`);
             } catch (error) {
-                showErrorModal(`切换 "${profile.name}" 失败: \n${error.message}`);
+                showToast(`切换 "${profile.name}" 失败`, 'error');
+                showErrorModal(error.message);
             } finally {
                 await initializeSwitchManagementTab();
             }
@@ -719,34 +725,14 @@
             const container = getById('list-mgmt-container');
             container.innerHTML = '<div id="loading-spinner" style="display: block; margin: 2rem auto;"></div>';
             isMgmtTabInitialized.list = false;
-
             const allProfiles = [...ipSetProfiles, ...domainSetProfiles, ...hostsProfiles];
-
-            container.innerHTML = `
-                <div class="list-mgmt-layout">
-                    <div class="list-submenu"></div>
-                    <div class="list-content-area"></div>
-                </div>`;
-            
+            container.innerHTML = `<div class="list-mgmt-layout"><div class="list-submenu"></div><div class="list-content-area"></div></div>`;
             const submenu = container.querySelector('.list-submenu');
             const contentArea = container.querySelector('.list-content-area');
 
             allProfiles.forEach(profile => {
-                const submenuItem = createElement('div', 'list-submenu-item');
-                submenuItem.dataset.tag = profile.tag;
-                submenuItem.innerHTML = `<i class="icon-area fas ${profile.icon}"></i> <span>${profile.name}</span>`;
-                submenu.appendChild(submenuItem);
-                
-                const cardHTML = `
-                    <div class="list-mgmt-card" id="list-card-${profile.tag}">
-                        <h4><i class="icon-area fas ${profile.icon}"></i> ${profile.name}</h4>
-                        <textarea id="textarea-${profile.tag}" placeholder="文件内容为空"></textarea>
-                        <div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div>
-                        <div class="action-area">
-                            <button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button>
-                        </div>
-                    </div>`;
-                contentArea.innerHTML += cardHTML;
+                submenu.innerHTML += `<div class="list-submenu-item" data-tag="${profile.tag}"><i class="icon-area fas ${profile.icon}"></i> <span>${profile.name}</span></div>`;
+                contentArea.innerHTML += `<div class="list-mgmt-card" id="list-card-${profile.tag}"><h4><i class="icon-area fas ${profile.icon}"></i> ${profile.name}</h4><textarea id="textarea-${profile.tag}" placeholder="文件内容为空"></textarea><div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div><div class="action-area"><button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button></div></div>`;
             });
 
             const submenuItems = submenu.querySelectorAll('.list-submenu-item');
@@ -760,9 +746,7 @@
                 });
             });
 
-            if (submenuItems.length > 0) {
-                submenuItems[0].click();
-            }
+            if (submenuItems.length > 0) submenuItems[0].click();
 
             for (const profile of allProfiles) {
                 const textarea = getById(`textarea-${profile.tag}`);
@@ -812,48 +796,84 @@
             const textarea = getById(`textarea-${profile.tag}`);
             const statusEl = getById(`status-${profile.tag}`).querySelector('.status-text');
             try {
-                statusEl.textContent = '正在保存...';
-                statusEl.classList.remove('error');
+                statusEl.textContent = '正在保存...'; statusEl.classList.remove('error');
                 const values = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
-                
-                const isDomainSet = domainSetProfiles.some(p => p.tag === profile.tag);
-
                 await postApi(`/plugins/${profile.tag}/post`, { values });
-
-                const lineCount = values.length;
-                statusEl.textContent = `保存成功! ${new Date().toLocaleTimeString()} (共 ${lineCount} 行)`;
+                showToast(`“${profile.name}” 保存成功！`);
+                statusEl.textContent = `保存成功! ${new Date().toLocaleTimeString()} (共 ${values.length} 行)`;
             } catch (e) {
-                showErrorModal(`保存 ${profile.name} 失败: \n${e.message}`);
+                showToast(`保存 “${profile.name}” 失败`, 'error');
+                showErrorModal(e.message);
                 statusEl.textContent = '保存失败';
                 statusEl.classList.add('error');
             }
         }
         
+        function initializeTooltips() {
+            const tooltipEl = getById('global-tooltip');
+            if (!tooltipEl) return;
+            
+            const tooltipIcons = D.querySelectorAll('[data-tooltip]');
+            tooltipIcons.forEach(icon => {
+                icon.onmouseenter = (e) => {
+                    tooltipEl.textContent = icon.dataset.tooltip;
+                    tooltipEl.classList.add('active');
+                    
+                    const iconRect = icon.getBoundingClientRect();
+                    
+                    let top = iconRect.top - 8; // Default top alignment with 8px gap
+                    let left = iconRect.left + (iconRect.width / 2);
+                    
+                    tooltipEl.style.left = `${left}px`;
+                    tooltipEl.style.top = `${top}px`;
+                    
+                    // Recalculate after applying content to get correct dimensions
+                    const tooltipRect = tooltipEl.getBoundingClientRect();
+                    top = iconRect.top - tooltipRect.height - 8;
+                    left = iconRect.left + (iconRect.width / 2) - (tooltipRect.width / 2);
+
+                    if (top < 10) top = iconRect.bottom + 8;
+                    if (left < 10) left = 10;
+                    if (left + tooltipRect.width > window.innerWidth - 10) {
+                        left = window.innerWidth - tooltipRect.width - 10;
+                    }
+
+                    tooltipEl.style.top = `${top}px`;
+                    tooltipEl.style.left = `${left}px`;
+                };
+
+                icon.onmouseleave = () => {
+                    tooltipEl.classList.remove('active');
+                };
+            });
+        }
+        
         function setupEventListeners() {
-            getById('refresh-now-btn').onclick = () => refreshData(false, true);
+            getById('refresh-now-btn').onclick = () => { refreshData(false, true); showToast('数据已手动刷新'); };
             const autoRefreshToggle = getById('auto-refresh-toggle');
             autoRefreshToggle.onchange = (e) => { const isEnabled = e.target.checked; localStorage.setItem('autoRefresh', isEnabled); if (isEnabled) { if (!autoRefreshTimer) autoRefreshTimer = setInterval(() => refreshData(false, true), REFRESH_INTERVAL); } else if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; } };
             
             const createApiAction = (btnId, paths, msg, successMsg) => {
                 getById(btnId).addEventListener('click', async () => {
-                    if (!confirm(msg)) return;
+                    if (msg && !confirm(msg)) return;
                     try {
                         const requests = paths.map(p => fetch(`/plugins/${p}`));
-                        const results = await Promise.allSettled(requests);
-                        const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
-                        if(failed.length > 0) {
-                            throw new Error(`部分操作失败:\n${failed.map(f => (f.reason || f.value.url)).join('\n')}`);
-                        }
-                        alert(successMsg);
-                    } catch (e) { showErrorModal(e.message); }
+                        await Promise.all(requests.map(async p => {
+                            const res = await p;
+                            if (!res.ok) throw new Error(`操作失败于: ${res.url} (${res.status})`);
+                        }));
+                        showToast(successMsg);
+                    } catch (e) {
+                        showToast('操作失败', 'error');
+                        showErrorModal(e.message);
+                    }
                 });
             };
 
-            createApiAction('save-rules-btn', ['my_fakeiplist/save', 'my_nodenov4list/save', 'my_nodenov6list/save', 'my_notinlist/save', 'my_nov4list/save', 'my_nov6list/save', 'my_realiplist/save'], '确定保存所有分流规则吗?', '✅ 操作完成: 分流规则已保存。');
-            createApiAction('flush-rules-btn', ['my_fakeiplist/flush', 'my_nodenov4list/flush', 'my_nodenov6list/flush', 'my_notinlist/flush', 'my_nov4list/flush', 'my_nov6list/flush', 'my_realiplist/flush'], '【危险操作】确定清空所有分流规则吗?', '✅ 操作完成: 分流规则已清空。');
-            createApiAction('flush-cache-btn', ['cache_all/flush'], '确定清空全部缓存吗?', '✅ 操作完成: 全部缓存已清空。');
-
-            getById('restart-mosdns-btn').onclick = () => { if (confirm('【危险操作】确定重启 MosDNS 吗?')) { fetch('/plugins/my_fakeiplist/restartall').then(() => { alert('🚀 MosDNS 正在重启，页面将在 1 秒后刷新。'); setTimeout(() => location.reload(), 1000); }).catch(e => showErrorModal(`❌ 重启失败: ${e.message}`)); } };
+            createApiAction('save-rules-btn', ['my_fakeiplist/save', 'my_nodenov4list/save', 'my_nodenov6list/save', 'my_notinlist/save', 'my_nov4list/save', 'my_nov6list/save', 'my_realiplist/save'], '确定保存所有分流规则吗?', '分流规则已保存。');
+            createApiAction('flush-rules-btn', ruleListPaths, '【危险操作】确定清空所有分流规则吗?', '分流规则已清空。');
+            createApiAction('flush-cache-btn', ['cache_all/flush'], '确定清空全部缓存吗?', '全部缓存已清空。');
+            getById('restart-mosdns-btn').onclick = () => { if (confirm('【危险操作】确定重启 MosDNS 吗?')) { fetch('/plugins/my_fakeiplist/restartall').then(() => { showToast('MosDNS 正在重启，页面即将刷新...'); setTimeout(() => location.reload(), 1500); }).catch(e => { showToast('重启命令发送失败', 'error'); showErrorModal(e.message); }); } };
 
             const showEndpoints = { 'fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '全部缓存（兼容）': 'cache_all', '全部缓存（安全）': 'cache_all_noleak','国内缓存': 'cache_cn', '国外缓存（兼容）': 'cache_google', '国外缓存（安全）': 'cache_google_node','节点缓存': 'cache_node' };
             const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; Object.entries(showEndpoints).forEach(([name, path]) => { const btn = createElement('button', 'btn'); btn.textContent = name; btn.onclick = () => window.open(`/plugins/${path}/show`, '_blank'); dvContainer.appendChild(btn); });
@@ -864,18 +884,10 @@
                 button.addEventListener('click', () => { 
                     tabButtons.forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active'); 
-                    
                     const targetTabId = `tab-${button.dataset.tab}`;
-                    tabContents.forEach(content => {
-                        content.classList.toggle('active', content.id === targetTabId);
-                    }); 
-                    
-                    if (button.dataset.tab === 'config-mgmt' && !isMgmtTabInitialized.config) {
-                        initializeSwitchManagementTab();
-                    }
-                    if (button.dataset.tab === 'list-mgmt' && !isMgmtTabInitialized.list) {
-                        initializeListManagementTab();
-                    }
+                    tabContents.forEach(content => content.classList.toggle('active', content.id === targetTabId));
+                    if (button.dataset.tab === 'config-mgmt' && !isMgmtTabInitialized.config) initializeSwitchManagementTab();
+                    if (button.dataset.tab === 'list-mgmt' && !isMgmtTabInitialized.list) initializeListManagementTab();
                 }); 
             });
             
@@ -920,7 +932,8 @@
             const autoRefresh = localStorage.getItem('autoRefresh') === 'true';
             getById('auto-refresh-toggle').checked = autoRefresh;
             if (autoRefresh) getById('auto-refresh-toggle').dispatchEvent(new Event('change'));
-
+            
+            initializeTooltips();
         });
     </script>
 </body>
