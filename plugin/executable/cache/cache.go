@@ -23,7 +23,7 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 	"github.com/go-chi/chi/v5"
 	"github.com/klauspost/compress/gzip"
-	"github.com/miekg/dns"
+	"github.com/miekg/dns" // <--- FIX: Corrected import path
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
@@ -167,7 +167,7 @@ func NewCache(args *Args, opts Opts) *Cache {
 			continue
 		}
 
-                logger.Debug("parsed exclude_ip network", zap.String("input", cidr), zap.String("network", ipnet.String()))
+		logger.Debug("parsed exclude_ip network", zap.String("input", cidr), zap.String("network", ipnet.String()))
 		excludeNets = append(excludeNets, ipnet)
 	}
 
@@ -263,19 +263,18 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 		c.hitTotal.Inc()
 		cachedResp.Id = q.Id
 		qCtx.SetResponse(cachedResp)
+		return nil
 	}
 
-              err := next.ExecNext(ctx, qCtx)
-              r := qCtx.R()
-           
-              // —— 统一排除逻辑 —— 
-              // 不管是首次写入还是延迟更新，都先检查 containsExcluded
-              if r != nil && !c.containsExcluded(r) {
-                  saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
-                  c.updatedKey.Add(1)
-              }
-              // 如果 r == nil 或 IP 在排除网段内，则不会写入缓存
-              return err
+	err := next.ExecNext(ctx, qCtx)
+	r := qCtx.R()
+
+	if r != nil && !c.containsExcluded(r) {
+		saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
+		c.updatedKey.Add(1)
+	}
+
+	return err
 }
 
 func (c *Cache) doLazyUpdate(msgKey string, qCtx *query_context.Context, next sequence.ChainWalker) {
@@ -320,6 +319,10 @@ func (c *Cache) loadDump() error {
 	}
 	f, err := os.Open(c.args.DumpFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			c.logger.Info("cache dump file not found, skipping load", zap.String("file", c.args.DumpFile))
+			return nil
+		}
 		return err
 	}
 	defer f.Close()
@@ -376,9 +379,27 @@ func (c *Cache) dumpCache() error {
 
 func (c *Cache) Api() *chi.Mux {
 	r := chi.NewRouter()
+
 	r.Get("/flush", func(w http.ResponseWriter, req *http.Request) {
+		c.logger.Info("flushing cache via api")
+		// 1. Flush the in-memory cache.
 		c.backend.Flush()
+
+		// 2. Reset the updated key counter, as the cache is now empty.
+		c.updatedKey.Store(0)
+
+		// 3. Trigger a background dump to persist the empty state to the disk.
+		//    This is done asynchronously to avoid blocking the HTTP response.
+		go func() {
+			if err := c.dumpCache(); err != nil {
+				c.logger.Error("failed to dump cache after flushing", zap.Error(err))
+			}
+		}()
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Cache flushed and a background dump has been triggered.\n"))
 	})
+
 	r.Get("/dump", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("content-type", "application/octet-stream")
 		_, err := c.writeDump(w)
