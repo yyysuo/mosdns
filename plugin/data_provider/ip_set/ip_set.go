@@ -36,9 +36,9 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/matcher/netlist"
 	"github.com/IrineSistiana/mosdns/v5/plugin/data_provider"
+	"github.com/go-chi/chi/v5"
 	"github.com/sagernet/sing/common/varbin"
 	"go4.org/netipx"
-	"github.com/go-chi/chi/v5"
 )
 
 const PluginType = "ip_set"
@@ -134,12 +134,13 @@ func (d *IPSet) api() *chi.Mux {
 	// GET /flush: clear in-memory and save empty list
 	r.Get("/flush", func(w http.ResponseWriter, r *http.Request) {
 		d.mutex.Lock()
-		d.list = netlist.NewList()
-		d.mg = nil
-		d.list.Sort()
-		d.mg = append(d.mg, d.list)
-		d.mutex.Unlock()
+		defer d.mutex.Unlock() // Use defer for safety
 
+		d.list = netlist.NewList()
+		// MODIFIED: Simplified the update of the matcher group.
+		d.mg = []netlist.Matcher{d.list}
+
+		// MODIFIED: Moved saveToFiles inside the lock to ensure atomicity.
 		if err := d.saveToFiles(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -149,31 +150,34 @@ func (d *IPSet) api() *chi.Mux {
 
 	// POST /post: replace in-memory list with provided values and save
 	r.Post("/post", func(w http.ResponseWriter, r *http.Request) {
-	    var body struct{ Values []string `json:"values"` }
-	    if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-	        http.Error(w, "invalid JSON", http.StatusBadRequest)
-	        return
-	    }
+		var body struct{ Values []string `json:"values"` }
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
 
-	    tmpList := netlist.NewList()
-	    for _, s := range body.Values {
-	        if pfx, err := parseNetipPrefix(s); err == nil {
-	            tmpList.Append(pfx)
-	        }
-	    }
-	    tmpList.Sort()
-		
-	    d.mutex.Lock()
-	    d.list = tmpList
-	    d.mg = []netlist.Matcher{d.list}
-	    d.mutex.Unlock()
+		tmpList := netlist.NewList()
+		for _, s := range body.Values {
+			if pfx, err := parseNetipPrefix(s); err == nil {
+				tmpList.Append(pfx)
+			}
+		}
+		tmpList.Sort()
 
-	    if err := d.saveToFiles(); err != nil {
-	        http.Error(w, err.Error(), http.StatusInternalServerError)
-	        return
-	    }
+		d.mutex.Lock()
+		defer d.mutex.Unlock() // Use defer for safety
 
-	    w.Write([]byte(fmt.Sprintf("ip_set replaced with %d entries", d.list.Len())))
+		d.list = tmpList
+		d.mg = []netlist.Matcher{d.list}
+
+		// BUG FIX: Moved saveToFiles inside the lock to fix a race condition.
+		// This ensures that the newly posted data is what gets saved, atomically.
+		if err := d.saveToFiles(); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte(fmt.Sprintf("ip_set replaced with %d entries", d.list.Len())))
 	})
 
 	return r
@@ -187,11 +191,23 @@ func (d *IPSet) saveToFiles() error {
 			return err
 		}
 		w := bufio.NewWriter(f)
+		var writeErr error
 		d.list.ForEach(func(pfx netip.Prefix) {
-			w.WriteString(normalizePrefix(pfx).String() + "\n")
+			if writeErr == nil {
+				_, writeErr = w.WriteString(normalizePrefix(pfx).String() + "\n")
+			}
 		})
-		w.Flush()
-		f.Close()
+		if writeErr != nil {
+			f.Close() // Attempt to close even on error
+			return writeErr
+		}
+		if err := w.Flush(); err != nil {
+			f.Close()
+			return err
+		}
+		if err := f.Close(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -208,16 +224,12 @@ func parseNetipPrefix(s string) (netip.Prefix, error) {
 	if strings.ContainsRune(s, '/') {
 		return netip.ParsePrefix(s)
 	}
-   addr, err := netip.ParseAddr(s)
-   if err != nil {
-       return netip.Prefix{}, err
-   }
-
-   pfx, err := addr.Prefix(addr.BitLen())
-   if err != nil {
-       return netip.Prefix{}, err
-   }
-   return pfx, nil
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return netip.Prefix{}, err
+	}
+	// MODIFIED: Simplified to use PrefixFrom which is more direct and doesn't return an error.
+	return netip.PrefixFrom(addr, addr.BitLen()), nil
 }
 
 func loadFromIPs(ips []string, l *netlist.List) error {
@@ -246,26 +258,21 @@ func loadFromFile(path string, l *netlist.List) error {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
+		// MODIFIED: Improve robustness by not treating a non-existent file as a fatal error.
+		if os.IsNotExist(err) {
+			fmt.Printf("[ip_set] file not found, skipping: %s\n", path)
+			return nil
+		}
 		return err
 	}
 
-	// capture last txt line
-	scanner := bufio.NewScanner(bytes.NewReader(data))
-	var lastTxt string
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" && !strings.HasPrefix(line, "#") {
-			lastTxt = line
-		}
-	}
+	// PERFORMANCE: The pre-scan for `lastTxt` is removed to avoid reading large files twice.
 
 	// try .srs binary format
 	if ok, cnt, lastSrs := tryLoadSRS(data, l); ok {
 		fmt.Printf("[ip_set] loaded %d rules from srs file: %s\n", cnt, path)
 		if lastSrs != "" {
 			fmt.Printf("[ip_set] last srs rule: %s\n", lastSrs)
-		} else {
-			fmt.Printf("[ip_set] last srs rule: <none>\n")
 		}
 		return nil
 	}
@@ -277,11 +284,6 @@ func loadFromFile(path string, l *netlist.List) error {
 	}
 	after := l.Len()
 	fmt.Printf("[ip_set] loaded %d rules from text file: %s\n", after-before, path)
-	if lastTxt != "" {
-		fmt.Printf("[ip_set] last txt rule: %s\n", lastTxt)
-	} else {
-		fmt.Printf("[ip_set] last txt rule: <none>\n")
-	}
 	return nil
 }
 
@@ -441,7 +443,7 @@ func normalizePrefix(p netip.Prefix) netip.Prefix {
 		if bits < 0 {
 			bits = 0
 		}
-		pfx := netip.PrefixFrom(unmapped, bits)
+		pfx, _ := unmapped.Prefix(bits)
 		return pfx
 	}
 	return p
