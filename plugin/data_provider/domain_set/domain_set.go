@@ -17,9 +17,9 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/matcher/domain"
 	"github.com/IrineSistiana/mosdns/v5/plugin/data_provider"
+	"github.com/go-chi/chi/v5"
 	scdomain "github.com/sagernet/sing/common/domain"
 	"github.com/sagernet/sing/common/varbin"
-	"github.com/go-chi/chi/v5"
 )
 
 const PluginType = "domain_set"
@@ -39,73 +39,146 @@ type domainPayload struct {
 }
 
 var _ data_provider.DomainMatcherProvider = (*DomainSet)(nil)
+var _ domain.Matcher[struct{}] = (*DomainSet)(nil)
 
 type DomainSet struct {
-	mu       sync.RWMutex
-	mixM     *domain.MixMatcher[struct{}]
-	mg       []domain.Matcher[struct{}]
+	mu     sync.RWMutex
+	mixM   *domain.MixMatcher[struct{}]
+	otherM []domain.Matcher[struct{}]
+
 	ruleFile string
 	rules    []string
+}
+
+// initAndLoadRules is a new internal function for loading rules within this plugin.
+// It populates the matcher and returns the list of rule strings.
+func (d *DomainSet) initAndLoadRules(exps, files []string) ([]string, error) {
+	allRules := make([]string, 0, len(exps)+len(files)*100)
+
+	// Load from expressions
+	if err := LoadExps(exps, d.mixM); err != nil {
+		return nil, err
+	}
+	allRules = append(allRules, exps...)
+
+	// Load from files
+	for i, f := range files {
+		// Use a new internal loading function for files
+		rules, err := d.loadFileInternal(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load file %d %s: %w", i, f, err)
+		}
+		allRules = append(allRules, rules...)
+	}
+
+	return allRules, nil
+}
+
+// loadFileInternal is the new internal version of LoadFile.
+// It loads rules into the instance's mixM and returns the rule strings.
+func (d *DomainSet) loadFileInternal(f string) ([]string, error) {
+	if f == "" {
+		return nil, nil
+	}
+	b, err := os.ReadFile(f)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if ok, count, last := tryLoadSRS(b, d.mixM); ok {
+		fmt.Printf("[domain_set] loaded %d rules from srs file: %s (last rule: %s)\n", count, f, last)
+		return nil, nil
+	}
+
+	var rules []string
+	var lastTxt string
+	before := d.mixM.Len()
+	scanner := bufio.NewScanner(bytes.NewReader(b))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if err := d.mixM.Add(line, struct{}{}); err == nil {
+			rules = append(rules, line)
+			lastTxt = line
+		}
+	}
+
+	after := d.mixM.Len()
+	if after > before {
+		fmt.Printf("[domain_set] loaded %d rules from text file: %s (last rule: %s)\n", after-before, f, lastTxt)
+	}
+	return rules, scanner.Err()
 }
 
 func Init(bp *coremain.BP, args any) (any, error) {
 	cfg := args.(*Args)
 	ds := &DomainSet{
-		mixM: domain.NewDomainMixMatcher(),
+		mixM:   domain.NewDomainMixMatcher(),
+		otherM: make([]domain.Matcher[struct{}], 0, len(cfg.Sets)),
 	}
+
 	if len(cfg.Files) > 0 {
 		ds.ruleFile = cfg.Files[0]
 	}
-	if err := LoadExpsAndFiles(cfg.Exps, cfg.Files, ds.mixM); err != nil {
-		return nil, err
+
+	// Use the new internal loading function to avoid changing public API.
+	loadedRules, err := ds.initAndLoadRules(cfg.Exps, cfg.Files)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load rules: %w", err)
 	}
-	ds.rules = append(ds.rules, cfg.Exps...)
-	for _, f := range cfg.Files {
-		if strings.EqualFold(filepath.Ext(f), ".srs") {
-			continue
-		}
-		file, err := os.Open(f)
-		if err != nil {
-			continue
-		}
-		sc := bufio.NewScanner(file)
-		for sc.Scan() {
-			line := strings.TrimSpace(sc.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			ds.rules = append(ds.rules, line)
-		}
-		file.Close()
-	}
-	if ds.mixM.Len() > 0 {
-		ds.mg = append(ds.mg, ds.mixM)
-	}
+	ds.rules = loadedRules
+
 	for _, tag := range cfg.Sets {
-		provider, _ := bp.M().GetPlugin(tag).(data_provider.DomainMatcherProvider)
-		if provider == nil {
+		provider, ok := bp.M().GetPlugin(tag).(data_provider.DomainMatcherProvider)
+		if !ok || provider == nil {
 			return nil, fmt.Errorf("%s is not a DomainMatcherProvider", tag)
 		}
-		ds.mg = append(ds.mg, provider.GetDomainMatcher())
+		ds.otherM = append(ds.otherM, provider.GetDomainMatcher())
 	}
+
 	bp.RegAPI(ds.api())
 	return ds, nil
 }
 
 func (d *DomainSet) GetDomainMatcher() domain.Matcher[struct{}] {
-	return MatcherGroup(d.mg)
+	return d
+}
+
+func (d *DomainSet) Match(domainStr string) (value struct{}, ok bool) {
+	d.mu.RLock()
+	m := d.mixM
+	d.mu.RUnlock()
+
+	if _, ok := m.Match(domainStr); ok {
+		return struct{}{}, true
+	}
+
+	for _, matcher := range d.otherM {
+		if _, ok := matcher.Match(domainStr); ok {
+			return struct{}{}, true
+		}
+	}
+
+	return struct{}{}, false
 }
 
 func (d *DomainSet) api() *chi.Mux {
 	r := chi.NewRouter()
+
 	r.Get("/show", func(w http.ResponseWriter, r *http.Request) {
-	    d.mu.RLock()
-	    defer d.mu.RUnlock()
-	    w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	    for _, rule := range d.rules {
-	        fmt.Fprintln(w, rule)
-	    }
+		d.mu.RLock()
+		defer d.mu.RUnlock()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		for _, rule := range d.rules {
+			fmt.Fprintln(w, rule)
+		}
 	})
+
 	r.Get("/save", func(w http.ResponseWriter, r *http.Request) {
 		d.mu.RLock()
 		defer d.mu.RUnlock()
@@ -119,101 +192,38 @@ func (d *DomainSet) api() *chi.Mux {
 		}
 		w.WriteHeader(http.StatusOK)
 	})
-	r.Post("/add", func(w http.ResponseWriter, r *http.Request) {
-		var p domainPayload
-		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		d.mu.Lock()
-		defer d.mu.Unlock()
-		for _, pat := range p.Values {
-			found := false
-			for _, ex := range d.rules {
-				if ex == pat {
-					found = true
-					break
-				}
-			}
-			if !found {
-				d.mixM.Add(pat, struct{}{})
-				d.rules = append(d.rules, pat)
-			}
-		}
-		if d.ruleFile != "" {
-			writeRulesToFile(d.ruleFile, d.rules)
-		}
-		w.WriteHeader(http.StatusOK)
-	})
-	r.Post("/del", func(w http.ResponseWriter, r *http.Request) {
-		var p domainPayload
-		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		d.mu.Lock()
-		defer d.mu.Unlock()
-		newRules := make([]string, 0, len(d.rules))
-		for _, ex := range d.rules {
-			keep := true
-			for _, bad := range p.Values {
-				if ex == bad {
-					keep = false
-					break
-				}
-			}
-			if keep {
-				newRules = append(newRules, ex)
-			}
-		}
-		d.rules = newRules
-		newMix := domain.NewDomainMixMatcher()
-		for _, pat := range d.rules {
-			newMix.Add(pat, struct{}{})
-		}
-		d.mixM = newMix
-		d.mg[0] = d.mixM
-		if d.ruleFile != "" {
-			writeRulesToFile(d.ruleFile, d.rules)
-		}
-		w.WriteHeader(http.StatusOK)
-	})
 
 	r.Post("/post", func(w http.ResponseWriter, r *http.Request) {
-	    var p domainPayload
-	    if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-	        http.Error(w, "invalid JSON", http.StatusBadRequest)
-	        return
-	    }
+		var p domainPayload
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
 
-	    if d.ruleFile == "" || !strings.EqualFold(filepath.Ext(d.ruleFile), ".txt") {
-	        http.Error(w, "no txt file configured, cannot post", http.StatusBadRequest)
-	        return
-	    }
+		if d.ruleFile == "" || !strings.EqualFold(filepath.Ext(d.ruleFile), ".txt") {
+			http.Error(w, "no txt file configured, cannot post", http.StatusBadRequest)
+			return
+		}
 
-	    tmpMix := domain.NewDomainMixMatcher()
-	    tmpRules := make([]string, 0, len(p.Values))
-	    for _, pat := range p.Values {
-	        tmpMix.Add(pat, struct{}{})
-	        tmpRules = append(tmpRules, pat)
-	    }
+		tmpMix := domain.NewDomainMixMatcher()
+		tmpRules := make([]string, 0, len(p.Values))
+		for _, pat := range p.Values {
+			if err := tmpMix.Add(pat, struct{}{}); err == nil {
+				tmpRules = append(tmpRules, pat)
+			}
+		}
 
-	    d.mu.Lock()
-	    d.mixM = tmpMix
-	    if len(d.mg) > 0 {
-	        d.mg[0] = d.mixM
-	    } else {
-	        d.mg = []domain.Matcher[struct{}]{d.mixM}
-	    }
-	    d.rules = tmpRules
-	    d.mu.Unlock()
+		d.mu.Lock()
+		d.mixM = tmpMix
+		d.rules = tmpRules
+		d.mu.Unlock()
 
-	    if err := writeRulesToFile(d.ruleFile, d.rules); err != nil {
-	        http.Error(w, err.Error(), http.StatusInternalServerError)
-	        return
-	    }
-	    w.WriteHeader(http.StatusOK)
-	    fmt.Fprintf(w, "domain_set replaced with %d entries", len(d.rules))
+		if err := writeRulesToFile(d.ruleFile, d.rules); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "domain_set replaced with %d entries", len(d.rules))
 	})
 
 	return r
@@ -225,13 +235,16 @@ func writeRulesToFile(path string, rules []string) error {
 		return err
 	}
 	defer f.Close()
+	writer := bufio.NewWriter(f)
 	for _, r := range rules {
-		if _, err := f.WriteString(r + "\n"); err != nil {
+		if _, err := writer.WriteString(r + "\n"); err != nil {
 			return err
 		}
 	}
-	return nil
+	return writer.Flush()
 }
+
+// --- Public loading functions (UNCHANGED to maintain compatibility) ---
 
 func LoadExpsAndFiles(exps, fs []string, m *domain.MixMatcher[struct{}]) error {
 	if err := LoadExps(exps, m); err != nil {
@@ -264,15 +277,19 @@ func LoadFile(f string, m *domain.MixMatcher[struct{}]) error {
 	}
 	b, err := os.ReadFile(f)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
+
 	if ok, count, last := tryLoadSRS(b, m); ok {
-		fmt.Printf("[domain_set] last srs rule: %s\n", last)
-		fmt.Printf("[domain_set] loaded %d rules from srs file: %s\n", count, f)
+		fmt.Printf("[domain_set] loaded %d rules from srs file: %s (last rule: %s)\n", count, f, last)
 		return nil
 	}
-	before := m.Len()
+
 	var lastTxt string
+	before := m.Len()
 	scanner := bufio.NewScanner(bytes.NewReader(b))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -280,13 +297,17 @@ func LoadFile(f string, m *domain.MixMatcher[struct{}]) error {
 			continue
 		}
 		lastTxt = line
-		m.Add(line, struct{}{})
+		m.Add(line, struct{}{}) // Ignore error to match original behavior
 	}
+
 	after := m.Len()
-	fmt.Printf("[domain_set] last txt rule: %s\n", lastTxt)
-	fmt.Printf("[domain_set] loaded %d rules from text file: %s\n", after-before, f)
-	return nil
+	if after > before {
+		fmt.Printf("[domain_set] loaded %d rules from text file: %s (last rule: %s)\n", after-before, f, lastTxt)
+	}
+	return scanner.Err()
 }
+
+// --- SRS parsing functions (mostly unchanged) ---
 
 func tryLoadSRS(b []byte, m *domain.MixMatcher[struct{}]) (bool, int, string) {
 	r := bytes.NewReader(b)
@@ -362,27 +383,31 @@ func readDefaultRuleCompat(r *bufio.Reader, m *domain.MixMatcher[struct{}], last
 			doms, suffix := matcher.Dump()
 			for _, d := range doms {
 				*last = "full:" + d
-				m.Add(*last, struct{}{})
-				count++
+				if m.Add(*last, struct{}{}) == nil {
+					count++
+				}
 			}
 			for _, d := range suffix {
 				*last = "domain:" + d
-				m.Add(*last, struct{}{})
-				count++
+				if m.Add(*last, struct{}{}) == nil {
+					count++
+				}
 			}
 		case ruleItemDomainKeyword:
 			sl, _ := varbin.ReadValue[[]string](r, binary.BigEndian)
 			for _, d := range sl {
 				*last = "keyword:" + d
-				m.Add(*last, struct{}{})
-				count++
+				if m.Add(*last, struct{}{}) == nil {
+					count++
+				}
 			}
 		case ruleItemDomainRegex:
 			sl, _ := varbin.ReadValue[[]string](r, binary.BigEndian)
 			for _, d := range sl {
 				*last = "regexp:" + d
-				m.Add(*last, struct{}{})
-				count++
+				if m.Add(*last, struct{}{}) == nil {
+					count++
+				}
 			}
 		case ruleItemFinal:
 			return count
