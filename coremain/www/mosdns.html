@@ -30,9 +30,8 @@
             --focus-ring-color: rgba(74, 144, 226, 0.6);
         }
         
-        /* [V4 FIX] 核心修复：全局 box-sizing 和 overflow 控制，杜绝溢出 */
         html { 
-            font-size: 16px; scroll-behavior: smooth; box-sizing: border-box; 
+            font-size: 10.75px; scroll-behavior: smooth; box-sizing: border-box; 
         }
         *, *::before, *::after {
             box-sizing: inherit;
@@ -48,48 +47,46 @@
         }
 
         body { 
-            font-family: var(--font-family-main); margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; 
+            font-family: var(--font-family-main); margin: 0; padding: 1.2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; 
             transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out, font-family 0.4s ease; 
             min-height: 100vh; display: flex; flex-direction: column; align-items: center; 
-            overflow-x: hidden; /* 强制禁止水平滚动 */
+            overflow-x: hidden;
         }
         body.custom-background { background-size: cover; background-position: center; background-attachment: fixed; }
-        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; }
-        .header h1 { font-size: 2.2rem; color: var(--text-color); margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: -0.03em; }
-        .header .header-gradient-bar { width: 80px; height: 4px; margin: 0 auto 1.5rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
+        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 0; }
+        .header h1 { font-size: 1.7rem; color: var(--text-color); margin: 0; font-weight: 700; letter-spacing: -0.03em; }
+        .header .header-gradient-bar { width: 80px; height: 4px; margin: 0.5rem auto 0.8rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
         
-        /* [V4 OPTIMIZATION] 增加流光动画 */
-        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; max-width: 100%; margin: 0.5rem 0 1.2rem 0; }
+        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; max-width: 100%; margin: 0.5rem 0 1rem 0; }
         @keyframes gradient-scroll { 100% { background-position: 100% 0%; } }
         
-        /* [V4 FIX] 缓存视图居中，防止单数卡片拉伸 */
-        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; }
-        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease; border: 1px solid var(--border-color); }
+        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.2rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 1.2rem; justify-content: center; }
+        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.2rem; display: none; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease; border: 1px solid var(--border-color); }
         .card.visible { display: flex; }
         .card:hover { transform: translateY(-5px); box-shadow: var(--card-shadow-hover); }
         h2 { font-size: 1.5rem; color: var(--text-color); margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.7rem; }
         h2 .title-text { flex-grow: 1; text-align: left; display: flex; align-items: center; gap: 0.5rem;}
         h2 .status-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; transition: background-color 0.3s ease; flex-shrink: 0; }
         h2 .status-dot.status-green { background-color: var(--status-green); } h2 .status-dot.status-yellow { background-color: var(--status-yellow); }
-        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 1.2rem; margin-top: 1rem; border-top: 1px solid var(--border-color); }
-        .chart-container { position: relative; width: 130px; height: 130px; }
+        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 0.6rem; margin-top: 0.6rem; border-top: 1px solid var(--border-color); }
+        .chart-container { position: relative; width: 110px; height: 110px; }
         #loading-spinner { display: none; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 4rem auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading #loading-spinner { display: block; }
         .loading #main-content, .loading .control-panel, .loading footer { opacity: 0.5; pointer-events: none; }
         .error-message { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 2rem; border-radius: var(--radius-main); margin: 2rem auto; text-align:center; grid-column: 1 / -1; font-size: 1.2rem; width: fit-content; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; align-items: stretch; width: 100%; max-width: 1800px; }
-        .left-column, .right-column { display: flex; flex-direction: column; gap: 1.5rem; }
+        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.2rem; align-items: stretch; width: 100%; max-width: 1800px; }
+        .left-column, .right-column { display: flex; flex-direction: column; gap: 1.2rem; }
         .control-section { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); box-shadow: var(--card-shadow); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .control-section:hover { box-shadow: var(--card-shadow-hover); }
         .right-column .control-section { flex-grow: 1; padding: 0; }
-        .control-section-header { padding: 1.5rem; flex-shrink: 0; }
-        .control-section-body { flex-grow: 1; overflow-y: auto; padding: 0 1.5rem 1.5rem 1.5rem; min-height: 0; display: flex; flex-direction: column; }
-        .left-column .control-section { padding: 1.5rem; }
+        .control-section-header { padding: 1.2rem; flex-shrink: 0; }
+        .control-section-body { flex-grow: 1; overflow-y: auto; padding: 0 1.2rem 1.2rem 1.2rem; min-height: 0; display: flex; flex-direction: column; }
+        .left-column .control-section { padding: 1.2rem; }
         .left-column .control-section-body { overflow-y: visible; padding: 0; }
-        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin: 0 0 1.2rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
+        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin: 0 0 1rem 0; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
         .section-title .fas, .section-title .fa-solid, .section-title .fa-brands { color: var(--accent-color); font-size: 1.1em; opacity: 0.9; }
-        .control-section-body > *:not(.subsection-title) + *:not(.subsection-title) { margin-top: 1.2rem; }
+        .control-section-body > *:not(.subsection-title) + *:not(.subsection-title) { margin-top: 1rem; }
         .refresh-action-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
         .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
         .auto-refresh-control .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
@@ -120,7 +117,7 @@
         .tab-content.active { display: flex; }
         .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 0.5rem;}
         .subsection-title:first-child { margin-top: 0; }
-        .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem 1.2rem; align-items: center; }
+        .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.7rem 1.2rem; align-items: center; }
         .metric-item { display: contents; } 
         .metric-label { display: flex; align-items: center; gap: 0.7rem; font-weight: 500; color: var(--label-color); font-size: 0.95rem; }
         .metric-label .fas, .metric-label .fa-brands { color: var(--accent-color); width: 1.2em; text-align: center; }
@@ -144,7 +141,7 @@
         .blur-control { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
         .blur-control .switch-label { display: flex; align-items: center; }
         .blur-control input[type="range"] { flex-grow: 1; width: 100%; }
-        .mgmt-container { background-color: color-mix(in srgb, var(--control-border) 20%, var(--card-bg)); padding: 1.5rem; border-radius: var(--radius-main); display: flex; flex-direction: column; gap: 1.5rem; border: 1px solid var(--control-border); flex-grow: 1; }
+        .mgmt-container { background-color: color-mix(in srgb, var(--control-border) 20%, var(--card-bg)); padding: 1.2rem; border-radius: var(--radius-main); display: flex; flex-direction: column; gap: 1.2rem; border: 1px solid var(--control-border); flex-grow: 1; }
         .master-switch-card { text-align: center; }
         .master-switch-card h5 { margin: 0 0 1rem 0; font-size: 1rem; color: var(--label-color); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         .segmented-control { position: relative; display: flex; background-color: var(--control-bg); border-radius: var(--radius-control); padding: 0.3rem; border: 1px solid var(--control-border); }
@@ -169,11 +166,11 @@
         .switch-card.loading .mini-loader { display: block; }
         .switch-card.loading .apple-switch-slider:before { display: none; }
         .list-mgmt-layout { display: flex; height: 100%; width: 100%; flex-grow: 1; }
-        .list-submenu { flex: 0 0 200px; border-right: 1px solid var(--border-color); overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
-        .list-submenu-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 1.5rem; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
+        .list-submenu { flex: 0 0 120px; border-right: 1px solid var(--border-color); overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
+        .list-submenu-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.8rem 1rem; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
         .list-submenu-item:hover { background-color: var(--control-hover-bg); }
         .list-submenu-item.active { background-color: color-mix(in srgb, var(--accent-color) 15%, transparent); border-left-color: var(--accent-color); color: var(--accent-color); font-weight: 600; }
-        .list-content-area { flex-grow: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column;}
+        .list-content-area { flex-grow: 1; padding: 1.2rem; overflow-y: auto; display: flex; flex-direction: column;}
         .list-mgmt-card { grid-template-columns: 1fr; gap: 1rem; display: none; flex-direction: column; flex-grow: 1; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 1.2rem 1.5rem; }
         .list-mgmt-card.active { display: grid; }
         .list-mgmt-card h4 { display: flex; align-items: center; gap: 0.8rem; margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; }
@@ -196,7 +193,6 @@
         .modal-footer { text-align: right; margin-top: 1.5rem; }
         .modal-close-btn { background-color: var(--accent-color); color: var(--control-active-text); border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-control); cursor: pointer; }
 
-        /* Toast & Tooltip Styles */
         #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.8rem; }
         .toast { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-radius: var(--radius-main); color: #fff; font-weight: 600; font-size: 0.95rem; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transform: translateX(120%); opacity: 0; animation: toast-in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1) forwards, toast-out 0.5s 3s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards; }
         .toast.success { background-color: var(--success-color); }
@@ -218,7 +214,7 @@
             .header h1 { font-size: 1.8rem; }
             .card { padding: 1.2rem; }
             h2 { font-size: 1.3rem; }
-            .chart-container { width: 100px; height: 100px; }
+            .chart-container { width: 90px; height: 90px; }
             .control-panel { gap: 1.5rem; }
             .left-column { gap: 1.5rem; }
             .info-panel-tabs { flex-wrap: wrap; overflow-x: auto; border-bottom: none; margin: 0; padding-bottom: 0.5rem; gap: 0.5rem; scrollbar-width: none; }
@@ -732,7 +728,7 @@
 
             allProfiles.forEach(profile => {
                 submenu.innerHTML += `<div class="list-submenu-item" data-tag="${profile.tag}"><i class="icon-area fas ${profile.icon}"></i> <span>${profile.name}</span></div>`;
-                contentArea.innerHTML += `<div class="list-mgmt-card" id="list-card-${profile.tag}"><h4><i class="icon-area fas ${profile.icon}"></i> ${profile.name}</h4><textarea id="textarea-${profile.tag}" placeholder="文件内容为空"></textarea><div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div><div class="action-area"><button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button></div></div>`;
+                contentArea.innerHTML += `<div class="list-mgmt-card" id="list-card-${profile.tag}"><h4><i class="icon-area fas ${profile.icon}"></i> ${profile.name}</h4><textarea id="textarea-${profile.tag}" placeholder="文件内容为空" spellcheck="false"></textarea><div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div><div class="action-area"><button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button></div></div>`;
             });
 
             const submenuItems = submenu.querySelectorAll('.list-submenu-item');
@@ -901,36 +897,27 @@
 
             createApiAction('flush-rules-btn', ruleListPaths, '【危险操作】确定清空所有分流规则吗?', '分流规则已清空。');
             
-            // --- START: MODIFIED CODE ---
-            // Replaced the generic createApiAction with a specific listener for the "Flush Cache" button.
             getById('flush-cache-btn').addEventListener('click', async () => {
                 if (!confirm('确定清空全部缓存吗? 此操作将根据当前核心运行模式清空对应的缓存。')) {
                     return;
                 }
-
-                // Determine which cache to flush based on the current core mode.
-                // 'A' is Compatibility Mode (兼容模式), 'B' is Safe Mode (安全模式).
                 const cacheToFlush = coreMode === 'B' ? 'cache_all_noleak' : 'cache_all';
                 const path = `/plugins/${cacheToFlush}/flush`;
 
                 try {
-                    // Send the request to flush the cache.
                     const response = await fetch(path);
                     if (!response.ok) {
                         const errorText = await response.text();
                         throw new Error(`清空缓存失败于 ${path}: ${errorText || response.statusText}`);
                     }
-
-                    // On success, show a toast and then trigger a data refresh.
                     showToast('全部缓存已清空，正在刷新数据...', 'success');
-                    await refreshData(false, true); // This is the same as clicking the "Refresh Now" button.
+                    await refreshData(false, true);
 
                 } catch (e) {
                     showToast('清空缓存操作失败！', 'error');
                     showErrorModal(e.message);
                 }
             });
-            // --- END: MODIFIED CODE ---
             
             getById('restart-mosdns-btn').onclick = async () => {
                 if (confirm('【危险操作】此操作将首先保存所有分流规则，然后重启 MosDNS。确定要继续吗?')) {
