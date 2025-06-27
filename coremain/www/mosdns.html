@@ -116,7 +116,9 @@
         .tab-button.active::after { opacity: 1; transform: scaleX(1); }
         .tab-content { display: none; flex-direction: column; gap: 1rem; height: 100%; flex-grow: 1; }
         .tab-content.active { display: flex; }
-        .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 0.5rem;}
+        .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.2rem 0 0.6rem 0; display: flex; align-items: center; gap: 0.5rem;}
+        #config-mgmt-container .subsection-title { margin-top: 1.2rem; }
+        #config-mgmt-container .subsection-title:first-of-type { margin-top: 0; }
         .subsection-title:first-child { margin-top: 0; }
         .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.7rem 1.2rem; align-items: center; }
         .metric-item { display: contents; } 
@@ -142,27 +144,24 @@
         .blur-control { display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem; }
         .blur-control .switch-label { display: flex; align-items: center; }
         .blur-control input[type="range"] { flex-grow: 1; width: 100%; }
-        .mgmt-container { padding: 0; border-radius: var(--radius-main); display: flex; flex-direction: column; gap: 1.2rem; border: none; flex-grow: 1; }
-        #tab-config-mgmt .mgmt-container { padding: 1.2rem; border: 1px solid var(--control-border); background-color: color-mix(in srgb, var(--control-border) 20%, var(--card-bg)); }
-        .master-switch-card { text-align: center; }
-        .master-switch-card h5 { margin: 0 0 1rem 0; font-size: 1rem; color: var(--label-color); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .mgmt-container { padding: 0; border: none; background: none; border-radius: var(--radius-main); display: flex; flex-direction: column; gap: 1.2rem; flex-grow: 1; }
         .segmented-control { position: relative; display: flex; background-color: var(--control-bg); border-radius: var(--radius-control); padding: 0.3rem; border: 1px solid var(--control-border); }
         .segmented-control .glider { position: absolute; top: 0.3rem; bottom: 0.3rem; width: 50%; background-color: var(--card-bg); border-radius: calc(var(--radius-control) - 0.2rem); box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
         .segmented-control button { flex: 1; padding: 0.7rem; border: none; background-color: transparent; color: var(--control-text); font-weight: 600; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.6rem; z-index: 1; }
         .segmented-control button.active { color: var(--accent-color); }
         .segmented-control.loading { pointer-events: none; opacity: 0.6; }
-        .secondary-switches-list { display: flex; flex-direction: column; gap: 1rem; }
-        .switch-card { display: grid; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 1.2rem 1.5rem; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2rem; }
-        .switch-card .icon-area { font-size: 1.2rem; color: var(--label-color); width: 1.5em; text-align: center; }
-        .switch-card .switch-content h4 { margin: 0 0 0.2rem 0; color: var(--value-color); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem; }
-        .switch-card .switch-content p { margin: 0; color: var(--label-color); font-size: 0.9rem; }
+        .secondary-switches-list { display: flex; flex-direction: column; gap: 0.6rem; }
+        .switch-card { display: grid; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); padding: 0.8rem 1.2rem; grid-template-columns: auto 1fr auto; align-items: center; gap: 1.2rem; }
+        .switch-card .icon-area { font-size: 1.1rem; color: var(--label-color); width: 1.5em; text-align: center; }
+        .switch-card .switch-content h4 { margin: 0 0 0.1rem 0; color: var(--value-color); font-size: 1.0rem; display: flex; align-items: center; gap: 0.5rem; }
+        .switch-card .switch-content p { margin: 0; color: var(--label-color); font-size: 0.85rem; }
         .switch-card .switch-control { position: relative; }
         .switch-card .apple-switch-input { display: none; }
-        .switch-card .apple-switch-slider { position: relative; display: inline-block; width: 51px; height: 31px; background-color: var(--control-border); transition: .4s; border-radius: 31px; cursor: pointer; }
-        .switch-card .apple-switch-slider:before { position: absolute; content: ""; height: 23px; width: 23px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        .switch-card .apple-switch-slider { position: relative; display: inline-block; width: 40px; height: 22px; background-color: var(--control-border); transition: .4s; border-radius: 22px; cursor: pointer; }
+        .switch-card .apple-switch-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         .switch-card .apple-switch-input:checked + .apple-switch-slider { background-color: var(--status-green); }
         .switch-card .apple-switch-input:focus + .apple-switch-slider { box-shadow: 0 0 1px var(--status-green); }
-        .switch-card .apple-switch-input:checked + .apple-switch-slider:before { transform: translateX(20px); }
+        .switch-card .apple-switch-input:checked + .apple-switch-slider:before { transform: translateX(18px); }
         .switch-card.loading .apple-switch-slider { opacity: 0.5; }
         .switch-card .mini-loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
         .switch-card.loading .mini-loader { display: block; }
@@ -629,7 +628,7 @@
                 if (masterProfile) {
                     const masterCard = createElement('div', 'master-switch-card');
                     const currentState = statuses[masterProfile.tag];
-                    const titleHTML = `<h5><i class="fas fa-satellite-dish"></i> <span>${masterProfile.name}</span>${masterProfile.tip ? `<i class="fas fa-info-circle info-tooltip-icon" data-tooltip="${masterProfile.tip}"></i>` : ''}</h5>`;
+                    const titleHTML = `<h5 class="subsection-title"><i class="fas fa-satellite-dish"></i> <span>${masterProfile.name}</span>${masterProfile.tip ? `<i class="fas fa-info-circle info-tooltip-icon" data-tooltip="${masterProfile.tip}"></i>` : ''}</h5>`;
                     
                     masterCard.innerHTML = titleHTML + 
                         (currentState === 'error' ? `<p class="error-message" style="padding:0;background:none;border:none;text-align:center;color:var(--error-color);">获取状态失败</p>` :
@@ -642,11 +641,7 @@
                 }
 
                 const secondaryContainer = createElement('div', 'secondary-switches-list');
-                const secondaryTitle = createElement('h5', 'subsection-title');
-                const iconEl = createElement('i', 'fas fa-puzzle-piece');
-                secondaryTitle.append(iconEl, '附加功能模块');
-                secondaryContainer.appendChild(secondaryTitle);
-
+                
                 switchProfiles.filter(p => !p.modes).forEach(profile => {
                     const card = createElement('div', 'switch-card', '', `switch-card-${profile.tag}`);
                     const currentState = statuses[profile.tag];
@@ -665,7 +660,7 @@
                     if(currentState !== 'error') card.querySelector('input[type="checkbox"]').onchange = (e) => handleSecondarySwitch(e.target);
                     secondaryContainer.appendChild(card);
                 });
-                if (secondaryContainer.children.length > 1) container.appendChild(secondaryContainer);
+                if (secondaryContainer.children.length > 0) container.appendChild(secondaryContainer);
                 isMgmtTabInitialized.config = true;
                 
                 initializeTooltips();
