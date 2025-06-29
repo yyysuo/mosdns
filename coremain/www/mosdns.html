@@ -553,13 +553,28 @@
     <script>
         const REFRESH_INTERVAL = 5000;
         const MAX_LINES_TO_DISPLAY = 500;
-        let chartInstances = {}; let autoRefreshTimer = null; let isRefreshing = false; let currentTheme = 'light';
+        const D = document; 
+        const getById = (id) => D.getElementById(id);
+
+        let chartInstances = {}; 
+        let autoRefreshTimer = null; 
+        let isRefreshing = false; 
+        let currentTheme = 'light';
         let coreMode = 'A';
         let isMgmtTabInitialized = { config: false, list: false };
 
         // 全局变量来存储当前弹窗的数据和搜索输入框的引用
         let currentModalData = { type: null, rawEntries: [], filteredEntries: [], totalCount: 0, loadTime: 0 };
         let dataModalSearchInput = null;
+        
+        // **修正3**: 将 iconMap 移到全局作用域，提高代码健壮性
+        const iconMap = { 
+            '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', 
+            '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', 
+            '启动时间': 'fa-power-off', 'CPU 时间': 'fa-microchip', '常驻内存 (RSS)': 'fa-memory', 
+            '待用堆内存 (Idle)': 'fa-box-open', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap', 
+            '打开文件描述符': 'fa-folder-open' 
+        };
 
         const switchProfiles = [
             { tag: 'switch3', name: '核心运行模式', tip: '切换后将清空自动生成的分流规则，确保完全按照新模式分流（兼容/安全模式理论上分流效果无差异）。兼容模式性能更高，安全模式防泄露和劫持能力更强。', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
@@ -584,8 +599,6 @@
         Chart.register(ChartDataLabels); Chart.defaults.plugins.legend.display = false; Chart.defaults.plugins.datalabels.font = { weight: 'bold', size: 11 }; Chart.defaults.cutout = '70%'; Chart.defaults.responsive = true; Chart.defaults.maintainAspectRatio = false;
         Chart.defaults.plugins.datalabels.formatter = (v, c) => { const s = c.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return s > 0 && v / s > 0.05 ? `${(v / s * 100).toFixed(0)}%` : ''; };
         
-        const D = document; const getById = (id) => D.getElementById(id);
-        
         function createElement(tag, className, innerText = '', id = '') { const el = D.createElement(tag); if (className) el.className = className; if (innerText) el.innerText = innerText; if (id) el.id = id; return el; }
         function formatNumber(num) { if (typeof num !== 'number' && isNaN(num = parseFloat(num))) { return num; } return num.toLocaleString('en-US'); }
 
@@ -603,7 +616,7 @@
             'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
             'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
             'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
-            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } }, // **修正1**: 此处SVG数据已修正
             'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
             'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
             'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
@@ -714,7 +727,7 @@
             metricsData.forEach(m => {
                 const itemWrapper = createElement('div', 'metric-item');
                 const labelEl = createElement('div', 'metric-label');
-                labelEl.innerHTML = `<i class="fas ${updateMetrics.iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}</span>`;
+                labelEl.innerHTML = `<i class="fas ${iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}</span>`;
                 const valueEl = createElement('div', `metric-value${m.accent ? ' accent' : ''}`);
                 valueEl.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value;
 
@@ -752,7 +765,7 @@
                     metricsContainer.innerHTML = ''; 
                     [{ label: '请求总数', numericValue: cardData.query_total }, { label: '缓存命中', numericValue: cardData.hit_total }, { label: '过期缓存命中', numericValue: cardData.lazy_hit_total }, { label: '缓存命中率', value: cardData.hit_rate, accent: true }, { label: '过期缓存命中率', value: cardData.lazy_hit_rate, accent: true }, { label: '缓存条目数', numericValue: cardData.size_current }, ].forEach(m => {
                         const p = createElement('div', 'metric-label');
-                        p.innerHTML = `<i class="fas ${updateMetrics.iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}:</span>`;
+                        p.innerHTML = `<i class="fas ${iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}:</span>`;
                         const v = createElement('div', `metric-value${m.accent ? ' accent' : ''}`);
                         v.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value;
                         metricsContainer.append(p, v);
@@ -770,7 +783,34 @@
             initializeTooltips();
         }
         
-        function setupCardToggles() { const c = getById('card-toggles'); c.innerHTML = ''; cacheOrder.forEach(t => { const l = createElement('label', 'control-base-label'); const i = createElement('input'); i.type = 'checkbox'; i.dataset.tag = t; i.checked = visibleCards.includes(t); i.onchange = (e) => { const tag = e.target.dataset.tag; if (e.target.checked) { if (!visibleCards.includes(tag)) visibleCards.push(tag); } else { visibleCards = visibleCards.filter(t => t !== tag); } localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards)); refreshData(true, true); }; l.append(i, createElement('span', 'toggle-label-text', cacheConfig[t].title)); c.appendChild(l); }); }
+        function setupCardToggles() { 
+            const container = getById('card-toggles');
+            container.innerHTML = ''; 
+            cacheOrder.forEach(tag => { 
+                const toggleId = `card-toggle-${tag}`;
+                const label = createElement('label', 'control-base-label');
+                label.htmlFor = toggleId; // **修正4**: 添加 for 属性
+
+                const input = createElement('input', '', '', toggleId); // **修正4**: 添加 id
+                input.type = 'checkbox'; 
+                input.dataset.tag = tag; 
+                input.checked = visibleCards.includes(tag); 
+                
+                input.onchange = (e) => { 
+                    const currentTag = e.target.dataset.tag; 
+                    if (e.target.checked) { 
+                        if (!visibleCards.includes(currentTag)) visibleCards.push(currentTag); 
+                    } else { 
+                        visibleCards = visibleCards.filter(t => t !== currentTag); 
+                    } 
+                    localStorage.setItem('visibleMosdnsCards', JSON.stringify(visibleCards)); 
+                    refreshData(true, true); 
+                }; 
+                
+                label.append(input, createElement('span', 'toggle-label-text', cacheConfig[tag].title)); 
+                container.appendChild(label); 
+            }); 
+        }
         
         function updateThemeButtons(activeMode) {
             const ts = getById('theme-selector'); ts.innerHTML = '';
@@ -919,14 +959,16 @@
             const container = getById('list-mgmt-container');
             container.innerHTML = '<div id="loading-spinner" style="display: block; margin: 2rem auto;"></div>';
             isMgmtTabInitialized.list = false;
+
             const allProfiles = [...ipSetProfiles, ...domainSetProfiles, ...hostsProfiles];
             container.innerHTML = `<div class="list-mgmt-layout"><div class="list-submenu"></div><div class="list-content-area"></div></div>`;
             const submenu = container.querySelector('.list-submenu');
             const contentArea = container.querySelector('.list-content-area');
 
+            // 准备 UI 框架
             allProfiles.forEach(profile => {
                 submenu.innerHTML += `<div class="list-submenu-item" data-tag="${profile.tag}"><i class="icon-area fas ${profile.icon}"></i> <span>${profile.name}</span></div>`;
-                contentArea.innerHTML += `<div class="list-mgmt-card" id="list-card-${profile.tag}"><textarea id="textarea-${profile.tag}" placeholder="文件内容为空" spellcheck="false"></textarea><div class="list-mgmt-footer"><div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div><div class="action-area"><button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button></div></div></div>`;
+                contentArea.innerHTML += `<div class="list-mgmt-card" id="list-card-${profile.tag}"><textarea id="textarea-${profile.tag}" placeholder="正在加载内容..." spellcheck="false"></textarea><div class="list-mgmt-footer"><div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div><div class="action-area"><button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button></div></div></div>`;
             });
 
             const submenuItems = submenu.querySelectorAll('.list-submenu-item');
@@ -941,17 +983,26 @@
             });
 
             if (submenuItems.length > 0) submenuItems[0].click();
+            
+            // **修正2**: 使用 Promise.allSettled 并行加载所有名单数据
+            const fetchPromises = allProfiles.map(profile => 
+                fetch(`/plugins/${profile.tag}/show`).then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.text();
+                }).then(text => ({ status: 'fulfilled', value: text, profile }))
+                  .catch(error => ({ status: 'rejected', reason: error, profile }))
+            );
 
-            for (const profile of allProfiles) {
+            const results = await Promise.all(fetchPromises);
+
+            results.forEach(result => {
+                const { profile } = result;
                 const textarea = getById(`textarea-${profile.tag}`);
                 const statusEl = getById(`status-${profile.tag}`).querySelector('.status-text');
                 const saveBtn = getById(`save-btn-${profile.tag}`);
 
-                try {
-                    const res = await fetch(`/plugins/${profile.tag}/show`);
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    
-                    const fullText = await res.text();
+                if (result.status === 'fulfilled') {
+                    const fullText = result.value;
                     const lines = fullText.trim() === '' ? [] : fullText.split('\n');
                     
                     if (lines.length > MAX_LINES_TO_DISPLAY) {
@@ -969,19 +1020,22 @@
                         statusEl.textContent = `已截断显示前 ${MAX_LINES_TO_DISPLAY} 行 (共 ${lines.length} 行)`;
                     } else if (lines.length === 0) {
                         textarea.value = '';
+                        textarea.placeholder = '文件内容为空';
                         statusEl.textContent = '列表为空';
                     } else {
                         textarea.value = fullText.trim();
                         statusEl.textContent = `加载于 ${new Date().toLocaleTimeString()} (共 ${lines.length} 行)`;
                     }
-                } catch (error) {
-                    textarea.value = `加载失败: ${error.message}`;
+                } else {
+                    textarea.value = `加载失败: ${result.reason.message}`;
+                    textarea.placeholder = '加载失败';
                     statusEl.textContent = `加载失败`;
                     statusEl.classList.add('error');
                     if (saveBtn) saveBtn.disabled = true;
                 }
+
                 if (saveBtn) saveBtn.onclick = () => handleListSave(profile);
-            }
+            });
             
             isMgmtTabInitialized.list = true;
         }
@@ -1419,8 +1473,6 @@
             D.documentElement.style.setProperty('--glass-blur-strength', `${blurEnabled ? blurStrength : 0}px`);
             
             setTheme(savedTheme);
-            
-            updateMetrics.iconMap = { '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', '启动时间': 'fa-power-off', 'CPU 时间': 'fa-microchip', '常驻内存 (RSS)': 'fa-memory', '待用堆内存 (Idle)': 'fa-box-open', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap', '打开文件描述符': 'fa-folder-open' };
 
             const activeTabButton = D.querySelector('.tab-button.active');
             if (activeTabButton) {
