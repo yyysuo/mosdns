@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -196,6 +197,185 @@
         .modal-footer { text-align: right; margin-top: 1.5rem; }
         .modal-close-btn { background-color: var(--accent-color); color: var(--control-active-text); border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-control); cursor: pointer; }
 
+        /* START: MODIFIED/NEW STYLES FOR DATA MODAL */
+        .modal-content.data-modal-content {
+            max-width: 800px;
+            width: 95%;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+        }
+        .data-modal-content .modal-header {
+            padding: 1rem 1.5rem;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            /* Updated for search box layout */
+            display: flex;
+            flex-direction: row; /* Main header row */
+            justify-content: space-between;
+            align-items: flex-start; /* Align search area properly */
+            flex-shrink: 0;
+        }
+        /* New wrapper for title and search area */
+        .data-modal-content .modal-header > div:first-child {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem; /* Space between title and search */
+            flex-grow: 1; /* Allow title/search to take available space */
+        }
+
+        .data-modal-content .modal-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .modal-close-btn-simple {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            line-height: 1;
+            color: var(--label-color);
+            cursor: pointer;
+            padding: 0 0.5rem;
+            transition: color 0.2s ease;
+        }
+        .modal-close-btn-simple:hover {
+            color: var(--accent-color);
+        }
+        .data-modal-content .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+            white-space: normal;
+            max-height: initial;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        .data-table th, .data-table td {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .data-table thead th {
+            background-color: var(--control-bg);
+            font-weight: 600;
+            color: var(--text-color);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .data-table tbody tr:hover {
+            background-color: var(--control-hover-bg);
+        }
+        .data-table td:first-child {
+            width: 120px;
+            font-weight: 500;
+            color: var(--label-color);
+        }
+
+        /* Styles for Cache Data Accordion */
+        .cache-accordion-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .cache-entry-accordion {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-control);
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+        .cache-entry-accordion:hover {
+            box-shadow: 0 0 0 1px var(--accent-color);
+        }
+        .accordion-header {
+            background-color: var(--control-bg);
+            width: 100%;
+            border: none;
+            padding: 0.8rem 1.2rem;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-color);
+            transition: background-color 0.2s ease;
+        }
+        .accordion-header:hover {
+            background-color: var(--control-hover-bg);
+        }
+        .accordion-header::after {
+            content: '\f078'; /* FontAwesome chevron-down */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            transition: transform 0.3s ease;
+            color: var(--label-color);
+        }
+        .accordion-header.active::after {
+            transform: rotate(-180deg);
+        }
+        .accordion-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+            background-color: var(--card-bg);
+            padding: 0 1.2rem;
+        }
+        .accordion-panel.active {
+             padding: 1.2rem;
+        }
+        .accordion-panel .metadata-table {
+            margin-bottom: 1.2rem;
+        }
+        .accordion-panel pre {
+            background-color: var(--control-bg);
+            color: var(--text-color);
+            padding: 1rem;
+            border-radius: var(--radius-control);
+            border: 1px solid var(--border-color);
+            font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* New styles for data modal search */
+        .modal-search-area {
+            display: flex;
+            flex-direction: column; /* Stack input and info vertically */
+            gap: 0.4rem;
+            width: 100%;
+        }
+        .data-modal-search-input {
+            width: 100%;
+            padding: 0.6rem 1rem;
+            border-radius: var(--radius-control);
+            border: 1px solid var(--control-border);
+            background-color: var(--control-bg);
+            color: var(--text-color);
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .data-modal-search-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px var(--focus-ring-color);
+            outline: none;
+        }
+        .data-modal-info-text {
+            font-size: 0.85rem;
+            color: var(--label-color);
+            margin-top: 0.2rem;
+            text-align: right;
+            padding-right: 0.2rem; /* Give a little padding */
+        }
+
+        /* END: MODIFIED/NEW STYLES FOR DATA MODAL */
+
         #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.8rem; }
         .toast { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-radius: var(--radius-main); color: #fff; font-weight: 600; font-size: 0.95rem; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transform: translateX(120%); opacity: 0; animation: toast-in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1) forwards, toast-out 0.5s 3s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards; }
         .toast.success { background-color: var(--success-color); }
@@ -352,12 +532,35 @@
     <div id="toast-container"></div>
     <div id="global-tooltip"></div>
     
+    <div id="data-view-modal" class="modal-overlay">
+        <div class="modal-content data-modal-content">
+            <div class="modal-header">
+                <!-- 头部修改：添加一个 div 包裹标题和搜索区域 -->
+                <div>
+                    <h3 id="data-modal-title">数据查看</h3>
+                    <div class="modal-search-area">
+                        <input type="text" id="data-modal-search" placeholder="搜索域名..." class="data-modal-search-input">
+                        <span id="data-modal-info" class="data-modal-info-text"></span>
+                    </div>
+                </div>
+                <button id="data-modal-close" class="modal-close-btn-simple">×</button>
+            </div>
+            <div id="data-modal-body" class="modal-body">
+                <!-- 数据将通过 JS 动态插入这里 -->
+            </div>
+        </div>
+    </div>
+    
     <script>
         const REFRESH_INTERVAL = 5000;
         const MAX_LINES_TO_DISPLAY = 500;
         let chartInstances = {}; let autoRefreshTimer = null; let isRefreshing = false; let currentTheme = 'light';
         let coreMode = 'A';
         let isMgmtTabInitialized = { config: false, list: false };
+
+        // 全局变量来存储当前弹窗的数据和搜索输入框的引用
+        let currentModalData = { type: null, rawEntries: [], filteredEntries: [], totalCount: 0, loadTime: 0 };
+        let dataModalSearchInput = null;
 
         const switchProfiles = [
             { tag: 'switch3', name: '核心运行模式', tip: '切换后将清空自动生成的分流规则，确保完全按照新模式分流（兼容/安全模式理论上分流效果无差异）。兼容模式性能更高，安全模式防泄露和劫持能力更强。', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
@@ -377,7 +580,6 @@
             { tag: 'ddnslist', name: 'DDNS 域名', icon: 'fa-sync-alt' },
         ];
         const hostsProfiles = [];
-        // [LOGIC FIX] 定义分流规则列表
         const ruleListPaths = ['my_fakeiplist/flush', 'my_nodenov4list/flush', 'my_nodenov6list/flush', 'my_notinlist/flush', 'my_nov4list/flush', 'my_nov6list/flush', 'my_realiplist/flush'];
 
         Chart.register(ChartDataLabels); Chart.defaults.plugins.legend.display = false; Chart.defaults.plugins.datalabels.font = { weight: 'bold', size: 11 }; Chart.defaults.cutout = '70%'; Chart.defaults.responsive = true; Chart.defaults.maintainAspectRatio = false;
@@ -402,7 +604,7 @@
             'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
             'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
             'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
-            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v--9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } },
             'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
             'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
             'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
@@ -677,8 +879,6 @@
             try {
                 await postApi(`/plugins/${tag}/post`, { value: valueToPost });
                 coreMode = valueToPost; 
-
-                // [LOGIC FIX] 切换模式后自动清空分流规则
                 try {
                     const requests = ruleListPaths.map(path => fetch(`/plugins/${path}`));
                     await Promise.all(requests.map(async p => {
@@ -816,13 +1016,12 @@
                     
                     const iconRect = icon.getBoundingClientRect();
                     
-                    let top = iconRect.top - 8; // Default top alignment with 8px gap
+                    let top = iconRect.top - 8;
                     let left = iconRect.left + (iconRect.width / 2);
                     
                     tooltipEl.style.left = `${left}px`;
                     tooltipEl.style.top = `${top}px`;
                     
-                    // Recalculate after applying content to get correct dimensions
                     const tooltipRect = tooltipEl.getBoundingClientRect();
                     top = iconRect.top - tooltipRect.height - 8;
                     left = iconRect.left + (iconRect.width / 2) - (tooltipRect.width / 2);
@@ -863,6 +1062,214 @@
                 showToast('保存分流规则时发生错误！', 'error');
                 showErrorModal(e.message);
                 return false; 
+            }
+        }
+        
+        // 新增：渲染表格数据 (用于非缓存列表)
+        function renderTableData(entries) {
+            const dataModalBody = getById('data-modal-body');
+            const dataModalInfo = getById('data-modal-info');
+            
+            dataModalBody.innerHTML = ''; // 清空原有内容
+
+            if (entries.length === 0) {
+                dataModalBody.innerHTML = '<p style="text-align: center; color: var(--label-color);">无数据或无匹配条目。</p>';
+                dataModalInfo.textContent = `总条目: ${currentModalData.totalCount} (过滤后: 0), 加载耗时: ${currentModalData.loadTime}ms`;
+                return;
+            }
+            
+            const table = createElement('table', 'data-table');
+            table.innerHTML = `<thead><tr><th>Count / ID</th><th>Domain / Value</th></tr></thead>`;
+            const tbody = createElement('tbody');
+
+            entries.forEach(item => {
+                const tr = createElement('tr');
+                tr.innerHTML = `<td>${item.id}</td><td>${item.value}</td>`;
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+            dataModalBody.appendChild(table);
+            dataModalInfo.textContent = `总条目: ${currentModalData.totalCount} (过滤后: ${entries.length}), 加载耗时: ${currentModalData.loadTime}ms`;
+        }
+
+        // 新增：渲染缓存数据 (用于缓存列表)
+        function renderAccordionData(entries) {
+            const dataModalBody = getById('data-modal-body');
+            const dataModalInfo = getById('data-modal-info');
+
+            dataModalBody.innerHTML = '';
+            if (entries.length === 0) {
+                dataModalBody.innerHTML = '<p style="text-align: center; color: var(--label-color);">缓存为空或无匹配条目。</p>';
+                dataModalInfo.textContent = `总条目: ${currentModalData.totalCount} (过滤后: 0), 加载耗时: ${currentModalData.loadTime}ms`;
+                return;
+            }
+
+            const accordionContainer = createElement('div', 'cache-accordion-container');
+            entries.forEach((entry, idx) => { // Use entry.headerTitle, entry.fullText
+                const entryWrapper = createElement('div', 'cache-entry-accordion');
+                const header = createElement('button', 'accordion-header');
+                header.textContent = entry.headerTitle;
+
+                const panel = createElement('div', 'accordion-panel');
+                entryWrapper.appendChild(header);
+                entryWrapper.appendChild(panel);
+                accordionContainer.appendChild(entryWrapper);
+                
+                header.addEventListener('click', () => {
+                    const isActive = header.classList.toggle('active');
+                    panel.classList.toggle('active');
+                    // Lazy load content on first click
+                    if (isActive && panel.innerHTML === '') {
+                        const dnsMsgIndex = entry.fullText.indexOf('DNS Message:');
+                        const metadataText = dnsMsgIndex !== -1 ? entry.fullText.substring(0, dnsMsgIndex) : entry.fullText;
+                        const dnsMessageText = dnsMsgIndex !== -1 ? entry.fullText.substring(dnsMsgIndex) : 'DNS Message not found.';
+
+                        const metadataTable = createElement('table', 'data-table metadata-table');
+                        const tbody = createElement('tbody');
+                        metadataText.trim().split('\n').forEach(line => {
+                            const parts = line.match(/^([^:]+):\s*(.*)$/);
+                            if (parts) {
+                               tbody.innerHTML += `<tr><td>${parts[1].trim()}</td><td>${parts[2].trim()}</td></tr>`;
+                            }
+                        });
+                        metadataTable.appendChild(tbody);
+                        
+                        const pre = createElement('pre', '', dnsMessageText.trim());
+                        
+                        panel.appendChild(metadataTable);
+                        panel.appendChild(pre);
+                    }
+
+                    if (isActive) {
+                        panel.style.maxHeight = panel.scrollHeight + "px";
+                    } else {
+                        panel.style.maxHeight = null;
+                    }
+                });
+            });
+            dataModalBody.appendChild(accordionContainer);
+            dataModalInfo.textContent = `总条目: ${currentModalData.totalCount} (过滤后: ${entries.length}), 加载耗时: ${currentModalData.loadTime}ms`;
+        }
+
+        // 修改：displayCacheDataInModal 以支持搜索和耗时
+        async function displayCacheDataInModal(url, title) {
+            const dataModal = getById('data-view-modal');
+            const dataModalTitle = getById('data-modal-title');
+            const dataModalBody = getById('data-modal-body');
+            const dataModalInfo = getById('data-modal-info');
+            
+            dataModalTitle.textContent = title;
+            dataModalBody.innerHTML = '<div id="loading-spinner" style="display: block; margin: 4rem auto;"></div>';
+            dataModalInfo.textContent = '正在加载...';
+            dataModal.classList.add('visible');
+
+            // 每次打开时清除搜索框内容和旧的事件监听器
+            dataModalSearchInput.value = '';
+            dataModalSearchInput.oninput = null; // 清除之前的事件监听器
+            
+            try {
+                const startTime = performance.now();
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`网络响应错误: ${response.status} ${response.statusText}`);
+                
+                const text = await response.text();
+                const entries = text.trim().split('----- Cache Entry -----').filter(entry => entry.trim() !== '');
+                const endTime = performance.now();
+
+                currentModalData.type = 'accordion';
+                currentModalData.rawEntries = entries.map((entryText, index) => {
+                    const questionMatch = entryText.match(/;; QUESTION SECTION:\s*;\s*([^\s]+)/);
+                    const keyMatch = entryText.match(/Key:\s*([^\s]+)\s+\d+\s+([A-Z\d]+)/);
+                    let headerTitle;
+                    if (questionMatch && keyMatch) {
+                        headerTitle = `${questionMatch[1]} (${keyMatch[2]})`;
+                    } else if (questionMatch) {
+                        headerTitle = `${questionMatch[1]}`;
+                    } else {
+                        headerTitle = `缓存条目 #${index + 1}`;
+                    }
+                    return {
+                        headerTitle: headerTitle,
+                        fullText: entryText, // Store full text for lazy loading panel content
+                        index: index // Keep original index
+                    };
+                });
+                currentModalData.totalCount = currentModalData.rawEntries.length;
+                currentModalData.loadTime = (endTime - startTime).toFixed(2);
+                currentModalData.filteredEntries = currentModalData.rawEntries; // 初始化时显示所有
+
+                renderAccordionData(currentModalData.filteredEntries);
+
+                // 添加搜索事件监听器
+                dataModalSearchInput.oninput = () => {
+                    const searchTerm = dataModalSearchInput.value.toLowerCase();
+                    currentModalData.filteredEntries = currentModalData.rawEntries.filter(item => 
+                        item.headerTitle.toLowerCase().includes(searchTerm)
+                    );
+                    renderAccordionData(currentModalData.filteredEntries);
+                };
+
+            } catch (error) {
+                console.error('获取缓存数据失败:', error);
+                dataModalBody.innerHTML = `<p class="error-message" style="margin: 0; padding: 2rem;">获取数据失败: ${error.message}</p>`;
+                dataModalInfo.textContent = `加载失败: ${error.message}`;
+            }
+        }
+
+        // 修改：displayDataInModal 以支持搜索和耗时
+        async function displayDataInModal(url, title) {
+            const dataModal = getById('data-view-modal');
+            const dataModalTitle = getById('data-modal-title');
+            const dataModalBody = getById('data-modal-body');
+            const dataModalInfo = getById('data-modal-info');
+            
+            dataModalTitle.textContent = title;
+            dataModalBody.innerHTML = '<div id="loading-spinner" style="display: block; margin: 4rem auto;"></div>';
+            dataModalInfo.textContent = '正在加载...';
+            dataModal.classList.add('visible');
+
+            // 每次打开时清除搜索框内容和旧的事件监听器
+            dataModalSearchInput.value = '';
+            dataModalSearchInput.oninput = null; // 清除之前的事件监听器
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`网络响应错误: ${response.status} ${response.statusText}`);
+                
+                const text = await response.text();
+                const lines = text.trim().split('\n').filter(Boolean);
+                const endTime = performance.now();
+
+                currentModalData.type = 'table';
+                currentModalData.rawEntries = lines.map(line => {
+                    const parts = line.trim().match(/^(\S+)\s+(.*)$/);
+                    return {
+                        id: parts ? parts[1] : '-',
+                        value: parts ? parts[2] : line,
+                        originalLine: line // Store original line for consistency
+                    };
+                });
+                currentModalData.totalCount = currentModalData.rawEntries.length;
+                currentModalData.loadTime = (endTime - startTime).toFixed(2);
+                currentModalData.filteredEntries = currentModalData.rawEntries; // 初始化时显示所有
+
+                renderTableData(currentModalData.filteredEntries);
+
+                // 添加搜索事件监听器
+                dataModalSearchInput.oninput = () => {
+                    const searchTerm = dataModalSearchInput.value.toLowerCase();
+                    currentModalData.filteredEntries = currentModalData.rawEntries.filter(item => 
+                        item.value.toLowerCase().includes(searchTerm)
+                    );
+                    renderTableData(currentModalData.filteredEntries);
+                };
+
+            } catch (error) {
+                console.error('获取数据失败:', error);
+                dataModalBody.innerHTML = `<p class="error-message" style="margin: 0; padding: 2rem;">获取数据失败: ${error.message}</p>`;
+                dataModalInfo.textContent = `加载失败: ${error.message}`;
             }
         }
 
@@ -940,9 +1347,22 @@
                     }
                 }
             };
-
+            
             const showEndpoints = { 'fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '全部缓存（兼容）': 'cache_all', '全部缓存（安全）': 'cache_all_noleak','国内缓存': 'cache_cn', '国外缓存（兼容）': 'cache_google', '国外缓存（安全）': 'cache_google_node','节点缓存': 'cache_node' };
-            const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; Object.entries(showEndpoints).forEach(([name, path]) => { const btn = createElement('button', 'btn'); btn.textContent = name; btn.onclick = () => window.open(`/plugins/${path}/show`, '_blank'); dvContainer.appendChild(btn); });
+            const dvContainer = getById('data-view-buttons'); 
+            dvContainer.innerHTML = ''; 
+            Object.entries(showEndpoints).forEach(([name, path]) => { 
+                const btn = createElement('button', 'btn'); 
+                btn.textContent = name; 
+                btn.onclick = () => {
+                    if (path.startsWith('cache_')) {
+                        displayCacheDataInModal(`/plugins/${path}/show`, name);
+                    } else {
+                        displayDataInModal(`/plugins/${path}/show`, name);
+                    }
+                };
+                dvContainer.appendChild(btn); 
+            });
             
             const tabButtons = D.querySelectorAll('.tab-button');
             const tabContents = D.querySelectorAll('.control-section-body .tab-content');
@@ -966,11 +1386,28 @@
             blurSlider.addEventListener('input', throttle(() => setBlur(blurSlider.value), 50));
             blurSlider.onchange = () => localStorage.setItem('blurStrength', blurSlider.value);
             
+            const dataModal = getById('data-view-modal');
+            const hideDataModal = () => {
+                dataModal.classList.remove('visible');
+                // 清理搜索框和数据
+                if (dataModalSearchInput) {
+                    dataModalSearchInput.value = '';
+                    dataModalSearchInput.oninput = null; // 移除事件监听器
+                }
+                currentModalData = { type: null, rawEntries: [], filteredEntries: [], totalCount: 0, loadTime: 0 };
+                getById('data-modal-info').textContent = ''; // 清空信息
+            };
+            getById('data-modal-close').onclick = hideDataModal;
+            dataModal.onclick = (e) => { if(e.target === dataModal) hideDataModal(); };
+
             getById('error-modal-close').onclick = hideErrorModal;
             getById('error-modal').onclick = (e) => { if(e.target === getById('error-modal')) hideErrorModal(); };
         }
         
         document.addEventListener('DOMContentLoaded', async () => {
+            // 获取搜索输入框的引用
+            dataModalSearchInput = getById('data-modal-search'); 
+
             setupEventListeners();
             setupCardToggles();
             
