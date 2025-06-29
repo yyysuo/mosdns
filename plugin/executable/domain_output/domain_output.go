@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,31 +49,30 @@ type domainOutput struct {
 	maxEntries     int
 	dumpInterval   time.Duration
 
-	stats        map[string]int // 存储统计数据，受 mu 保护
-	mu           sync.Mutex     // 保护 stats, totalCount, entryCounter 的并发访问
-	totalCount   int            // 总计数，受 mu 保护
-	entryCounter int            // 自上次写入或启动以来，处理的域名数量，受 mu 保护
+	stats        map[string]int
+	mu           sync.Mutex
+	totalCount   int
+	entryCounter int
 
-	writeSignalChan chan struct{} // 用于通知 worker goroutine 执行写入操作的通道
-	stopChan        chan struct{} // 用于通知 worker goroutine 停止的通道
-	workerDoneChan  chan struct{} // 用于等待 worker goroutine 完成的通道
+	writeSignalChan chan struct{}
+	stopChan        chan struct{}
+	workerDoneChan  chan struct{}
 
 	domainSetURL string
 }
 
-// 定义写入模式
 type WriteMode int
 
 const (
-	WriteModePeriodic WriteMode = iota // 周期性写入或达到阈值写入，无数据则不写
-	WriteModeFlush                     // /flush API 触发，清空内存并写入空文件
-	WriteModeSave                      // /save API 触发 或 优雅关闭时触发，写入当前内存状态，无论是否为空
+	WriteModePeriodic WriteMode = iota
+	WriteModeFlush
+	WriteModeSave
 )
 
 func Init(bp *coremain.BP, args any) (any, error) {
 	cfg := args.(*Args)
 	if cfg.DumpInterval <= 0 {
-		cfg.DumpInterval = 60 // 默认值为60秒
+		cfg.DumpInterval = 60
 	}
 	d := &domainOutput{
 		fileStat:        cfg.FileStat,
@@ -83,16 +83,14 @@ func Init(bp *coremain.BP, args any) (any, error) {
 		maxEntries:      cfg.MaxEntries,
 		dumpInterval:    time.Duration(cfg.DumpInterval) * time.Second,
 		stats:           make(map[string]int),
-		writeSignalChan: make(chan struct{}, 1), // 缓冲1，避免Exec阻塞
+		writeSignalChan: make(chan struct{}, 1),
 		stopChan:        make(chan struct{}),
 		workerDoneChan:  make(chan struct{}),
 		domainSetURL:    cfg.DomainSetURL,
 	}
-	d.loadFromFile() // 首次加载文件仍然在主 goroutine
+	d.loadFromFile()
 
-	// 启动异步工作者协程
 	go d.startWorker()
-	// 注册 /plugins/<tag>/flush，刷新并重写所有文件
 	bp.RegAPI(d.Api())
 
 	return d, nil
@@ -115,7 +113,6 @@ func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	if err != nil || dumpInterval <= 0 {
 		dumpInterval = 60
 	}
-	// QuickSetup 中未支持 appended_string，可按需要扩展
 	d := &domainOutput{
 		fileStat:        fileStat,
 		fileRule:        fileRule,
@@ -124,7 +121,7 @@ func QuickSetup(_ sequence.BQ, s string) (any, error) {
 		maxEntries:      maxEntries,
 		dumpInterval:    time.Duration(dumpInterval) * time.Second,
 		stats:           make(map[string]int),
-		writeSignalChan: make(chan struct{}, 1), // 缓冲1，避免Exec阻塞
+		writeSignalChan: make(chan struct{}, 1),
 		stopChan:        make(chan struct{}),
 		workerDoneChan:  make(chan struct{}),
 	}
@@ -133,61 +130,48 @@ func QuickSetup(_ sequence.BQ, s string) (any, error) {
 	}
 	d.loadFromFile()
 
-	// 启动异步工作者协程
 	go d.startWorker()
 
 	return d, nil
 }
 
-// Exec 方法现在只负责更新内存统计和非阻塞地发送写入信号
 func (d *domainOutput) Exec(ctx context.Context, qCtx *query_context.Context) error {
-	d.mu.Lock() // 快速获取锁，更新内存统计
+	d.mu.Lock()
 	for _, question := range qCtx.Q().Question {
-		domain := strings.TrimSuffix(question.Name, ".") // 去掉末尾的点
+		domain := strings.TrimSuffix(question.Name, ".")
 		d.stats[domain]++
 		d.totalCount++
 		d.entryCounter++
 	}
-	// 检查是否达到阈值，如果达到，尝试发送写入信号
-	// select-default 模式确保发送是无阻塞的，如果通道已满，则跳过发送
 	if d.entryCounter >= d.maxEntries {
 		select {
 		case d.writeSignalChan <- struct{}{}:
-			// 信号发送成功
 		default:
-			// 通道已满，说明写入操作已经在队列中或正在进行，无需重复发送信号
-			// 这避免了 Exec 方法因为通道阻塞而等待
 		}
 	}
-	d.mu.Unlock() // 快速释放锁
+	d.mu.Unlock()
 
-	return nil // Exec 立即返回，不等待文件写入
+	return nil
 }
 
-// startWorker 是异步工作者 goroutine
 func (d *domainOutput) startWorker() {
 	ticker := time.NewTicker(d.dumpInterval)
 	defer ticker.Stop()
-	defer close(d.workerDoneChan) // 工作者退出时关闭此通道
+	defer close(d.workerDoneChan)
 
 	for {
 		select {
 		case <-ticker.C:
-			// 定时触发写入
 			d.performWrite(WriteModePeriodic)
 		case <-d.writeSignalChan:
-			// 由 Exec 触发的写入信号
 			d.performWrite(WriteModePeriodic)
 		case <-d.stopChan:
-			// 收到停止信号，worker 退出，将最终写入的任务留给 Shutdown 方法
 			fmt.Println("[domain_output] worker received stop signal, stopping.")
 			return
 		}
 	}
 }
 
-// performWrite 是实际执行文件写入的函数
-// mode 参数指示写入的模式 (周期性、清空、保存)
 func (d *domainOutput) performWrite(mode WriteMode) {
 	d.mu.Lock()
 
@@ -195,61 +179,48 @@ func (d *domainOutput) performWrite(mode WriteMode) {
 
 	switch mode {
 	case WriteModePeriodic:
-		// 复制 stats 映射
 		statsToDump = make(map[string]int, len(d.stats))
 		for k, v := range d.stats {
 			statsToDump[k] = v
 		}
-		// 如果周期性写入且没有数据，则不执行写入操作
 		if len(statsToDump) == 0 {
 			d.mu.Unlock()
 			return
 		}
-		d.entryCounter = 0 // 重置计数器
+		d.entryCounter = 0
 	case WriteModeFlush:
-		// 复制 stats 映射 (将是空的，因为目标是清空文件)
-		statsToDump = make(map[string]int) // 直接创建空map
-		// 清空内存中的统计数据
+		statsToDump = make(map[string]int)
 		d.stats = make(map[string]int)
 		d.totalCount = 0
-		d.entryCounter = 0 // 重置计数器
+		d.entryCounter = 0
 	case WriteModeSave:
-		// 复制 stats 映射
 		statsToDump = make(map[string]int, len(d.stats))
 		for k, v := range d.stats {
 			statsToDump[k] = v
 		}
-		d.entryCounter = 0 // 重置计数器
+		d.entryCounter = 0
 	}
 
-	d.mu.Unlock() // 立即释放锁
+	d.mu.Unlock()
 
-	// 执行文件写入操作
 	d.doWriteFiles(statsToDump)
 
-	// 触发热更新
-	// 只有当有数据时，或在 Flush/Save 模式下 (即使数据为空也要通知更新状态)
 	if len(statsToDump) > 0 || mode == WriteModeFlush || mode == WriteModeSave {
 		d.pushToDomainSet(statsToDump)
 	}
 }
 
-// doWriteFiles 封装了实际的文件写入逻辑
-// 不再进行排序，直接遍历 map 写入
 func (d *domainOutput) doWriteFiles(statsData map[string]int) {
-	// Helper function to write to a file
-	// filePath: 要写入的文件路径
-	// writeContent: 一个函数，接收io.Writer，返回写入错误。用于定义具体写入内容。
 	writeFile := func(filePath string, writeContent func(io.Writer) error) {
-		if filePath == "" { // 如果文件路径未配置，则跳过
+		if filePath == "" {
 			return
 		}
-		file, err := os.Create(filePath) // os.Create 会清空文件或创建文件
+		file, err := os.Create(filePath)
 		if err != nil {
 			fmt.Printf("[domain_output] failed to create file %s: %v\n", filePath, err)
-			return // 创建文件失败，直接返回，不尝试写入
+			return
 		}
-		defer file.Close() // 确保文件句柄被关闭
+		defer file.Close()
 
 		if err := writeContent(file); err != nil {
 			fmt.Printf("[domain_output] failed to write to file %s: %v\n", filePath, err)
@@ -259,7 +230,8 @@ func (d *domainOutput) doWriteFiles(statsData map[string]int) {
 	// 写入 stat 文件
 	writeFile(d.fileStat, func(w io.Writer) error {
 		for domain, count := range statsData {
-			if _, err := w.Write([]byte(fmt.Sprintf("%010d %s\n", count, domain) + "\n")); err != nil {
+			// [FIXED] Removed extra "+ \n" to prevent double newlines.
+			if _, err := w.Write([]byte(fmt.Sprintf("%010d %s\n", count, domain))); err != nil {
 				return err
 			}
 		}
@@ -269,7 +241,8 @@ func (d *domainOutput) doWriteFiles(statsData map[string]int) {
 	// 写入 rule 文件
 	writeFile(d.fileRule, func(w io.Writer) error {
 		for domain := range statsData {
-			if _, err := w.Write([]byte(fmt.Sprintf("full:%s\n", domain) + "\n")); err != nil {
+			// [FIXED] Removed extra "+ \n" to prevent double newlines.
+			if _, err := w.Write([]byte(fmt.Sprintf("full:%s\n", domain))); err != nil {
 				return err
 			}
 		}
@@ -278,7 +251,7 @@ func (d *domainOutput) doWriteFiles(statsData map[string]int) {
 
 	// 写入 genRule 文件
 	writeFile(d.genRule, func(w io.Writer) error {
-		if d.pattern == "" { // 如果没有pattern，不生成genRule文件内容
+		if d.pattern == "" {
 			return nil
 		}
 		if d.appendedString != "" {
@@ -299,19 +272,20 @@ func (d *domainOutput) doWriteFiles(statsData map[string]int) {
 func (d *domainOutput) loadFromFile() {
 	file, err := os.Open(d.fileStat)
 	if err != nil {
-		if !os.IsNotExist(err) { // 只有不是文件不存在的错误才打印
+		if !os.IsNotExist(err) {
 			fmt.Printf("[domain_output] failed to open stat file %s: %v\n", d.fileStat, err)
 		}
 		return
 	}
 	defer file.Close()
 
-	d.mu.Lock() // 加载时也需要保护 stats
+	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	var domain string
 	var count int
 	for {
+		// fmt.Fscanf can handle extra newlines gracefully.
 		_, err := fmt.Fscanf(file, "%d %s\n", &count, &domain)
 		if err != nil {
 			break
@@ -322,15 +296,13 @@ func (d *domainOutput) loadFromFile() {
 	fmt.Printf("[domain_output] loaded %d entries from %s\n", len(d.stats), d.fileStat)
 }
 
-// pushToDomainSet 异步 POST 全量 "full:domain" 列表到 domain_set /post
-// 使用传入的 statsData 而不是 d.stats，且不再进行排序
 func (d *domainOutput) pushToDomainSet(statsData map[string]int) {
 	if d.domainSetURL == "" {
 		return
 	}
 
 	vals := make([]string, 0, len(statsData))
-	for domain := range statsData { // 直接遍历map，不排序
+	for domain := range statsData {
 		vals = append(vals, fmt.Sprintf("full:%s", domain))
 	}
 
@@ -341,7 +313,7 @@ func (d *domainOutput) pushToDomainSet(statsData map[string]int) {
 		return
 	}
 
-	go func() { // 独立协程执行 HTTP 请求
+	go func() {
 		req, err := http.NewRequest("POST", d.domainSetURL, bytes.NewReader(body))
 		if err != nil {
 			fmt.Printf("[domain_output] create POST request error: %v\n", err)
@@ -359,29 +331,22 @@ func (d *domainOutput) pushToDomainSet(statsData map[string]int) {
 	}()
 }
 
-// Shutdown 方法实现了 io.Closer 接口，用于优雅关闭时保存数据
-func (d *domainOutput) Shutdown() error { // <-- 关键修改：添加 `error` 返回值
+func (d *domainOutput) Shutdown() error {
 	fmt.Println("[domain_output] initiating shutdown...")
-	close(d.stopChan)      // 通知 worker 停止
-	<-d.workerDoneChan // 等待 worker goroutine 退出
+	close(d.stopChan)
+	<-d.workerDoneChan
 
-	// 在 worker 退出后，执行一次最终的保存操作
-	// 这将确保在 MosDNS 优雅关闭时，所有内存中的数据都被保存到磁盘
 	d.performWrite(WriteModeSave)
 
 	fmt.Println("[domain_output] shutdown complete.")
-	return nil // <-- 关键修改：返回 nil
+	return nil
 }
 
-// restartSelf 用 syscall.Exec 重启当前二进制
 func restartSelf() {
-	// 微小延迟，确保 HTTP 响应已发送
 	time.Sleep(100 * time.Millisecond)
 
 	bin, err := os.Executable()
 	if err != nil {
-		// 无法获取可执行文件路径时直接退出，
-		// 让外部如 systemd/容器重启它
 		os.Exit(0)
 	}
 	args := os.Args
@@ -389,56 +354,59 @@ func restartSelf() {
 	syscall.Exec(bin, args, env)
 }
 
-// Api 返回 domain_output 插件的路由
 func (d *domainOutput) Api() *chi.Mux {
 	r := chi.NewRouter()
 
-	// GET /plugins/{your_plugin_tag}/flush
-	// 清空内存统计并触发一次写入 (文件会被清空)
 	r.Get("/flush", func(w http.ResponseWriter, req *http.Request) {
-		// API 调用仍然是同步的，以便调用者知道操作是否完成
 		d.performWrite(WriteModeFlush)
-
 		w.WriteHeader(http.StatusOK)
-		// Removed: go restartSelf()
 		w.Write([]byte("domain_output flushed and files rewritten."))
 	})
 
-	// save 路由：不清空，立即写文件 (文件将反映当前内存状态，即使为空)
 	r.Get("/save", func(w http.ResponseWriter, req *http.Request) {
-		// API 调用仍然是同步的
 		d.performWrite(WriteModeSave)
-
 		w.WriteHeader(http.StatusOK)
-		// Removed: go restartSelf()
 		w.Write([]byte("domain_output files saved."))
 	})
 
 	// GET /plugins/{tag}/show
-	// 将 file_stat 文件内容以纯文本输出到浏览器
+	// Directly reads from memory, sorts, and returns real-time statistics as plain text.
 	r.Get("/show", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Type", "text-plain; charset=utf-8")
 
-		// 直接读取文件内容，不涉及插件内部状态的修改
-		f, err := os.Open(d.fileStat)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to open stat file: %v", err), http.StatusInternalServerError)
-			return
+		// 1. Safely copy statistics from memory.
+		d.mu.Lock()
+		statsCopy := make(map[string]int, len(d.stats))
+		for domain, count := range d.stats {
+			statsCopy[domain] = count
 		}
-		defer f.Close()
+		d.mu.Unlock()
 
-		if _, err := io.Copy(w, f); err != nil {
-			http.Error(w, fmt.Sprintf("failed to send stat file content: %v", err), http.StatusInternalServerError)
-			return
+		// 2. For better readability, sort the results (descending by count).
+		type domainStat struct {
+			Domain string
+			Count  int
+		}
+		statsSlice := make([]domainStat, 0, len(statsCopy))
+		for domain, count := range statsCopy {
+			statsSlice = append(statsSlice, domainStat{Domain: domain, Count: count})
+		}
+		sort.Slice(statsSlice, func(i, j int) bool {
+			return statsSlice[i].Count > statsSlice[j].Count
+		})
+
+		// 3. Format and write the sorted data to the HTTP response.
+		for _, stat := range statsSlice {
+			// %010d format is consistent with the original file_stat format.
+			if _, err := fmt.Fprintf(w, "%010d %s\n", stat.Count, stat.Domain); err != nil {
+				fmt.Printf("[domain_output] failed to write to http response: %v\n", err)
+				return
+			}
 		}
 	})
 
-	// GET /plugins/{tag}/restartall
-	// 仅执行重启逻辑（调用 restartSelf）
 	r.Get("/restartall", func(w http.ResponseWriter, req *http.Request) {
-		// 在重启前，显式地保存当前内存中的数据，确保不丢失
-		d.performWrite(WriteModeSave) // 确保在重启前，将内存中的数据保存到磁盘
-
+		d.performWrite(WriteModeSave)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("mosdns restarted"))
 		go restartSelf()
