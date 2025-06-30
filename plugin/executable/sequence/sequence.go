@@ -23,6 +23,7 @@ import (
 	"context"
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
+	"go.uber.org/zap"
 )
 
 const PluginType = "sequence"
@@ -35,13 +36,14 @@ func init() {
 	MustRegExecQuickSetup("return", setupReturn)
 	MustRegExecQuickSetup("goto", setupGoto)
 	MustRegExecQuickSetup("jump", setupJump)
-	MustRegMatchQuickSetup("_true", setupTrue) // add _ prefix to avoid being mis-parsed as bool
+	MustRegMatchQuickSetup("_true", setupTrue)
 	MustRegMatchQuickSetup("_false", setupFalse)
 }
 
 type Sequence struct {
 	chain            []*ChainNode
 	anonymousPlugins []any
+	logger           *zap.Logger
 }
 
 func (s *Sequence) Close() error {
@@ -54,11 +56,13 @@ func (s *Sequence) Close() error {
 type Args = []RuleArgs
 
 func Init(bp *coremain.BP, args any) (any, error) {
-	return NewSequence(bp, *args.(*Args))
+	return NewSequence(NewBQ(bp.M(), bp.L()), *args.(*Args))
 }
 
 func NewSequence(bq BQ, ra []RuleArgs) (*Sequence, error) {
-	s := &Sequence{}
+	s := &Sequence{
+		logger: bq.L(),
+	}
 
 	var rc []RuleConfig
 	for _, ra := range ra {
@@ -72,6 +76,6 @@ func NewSequence(bq BQ, ra []RuleArgs) (*Sequence, error) {
 }
 
 func (s *Sequence) Exec(ctx context.Context, qCtx *query_context.Context) error {
-	walker := NewChainWalker(s.chain, nil)
+	walker := NewChainWalker(s.chain, nil, s.logger)
 	return walker.ExecNext(ctx, qCtx)
 }
