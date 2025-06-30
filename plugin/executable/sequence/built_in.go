@@ -22,9 +22,10 @@ package sequence
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/miekg/dns"
-	"strconv"
 )
 
 var _ RecursiveExecutable = (*ActionAccept)(nil)
@@ -87,7 +88,7 @@ type ActionJump struct {
 }
 
 func (a *ActionJump) Exec(ctx context.Context, qCtx *query_context.Context, next ChainWalker) error {
-	w := NewChainWalker(a.To, &next)
+	w := NewChainWalker(a.To, &next, next.logger)
 	return w.ExecNext(ctx, qCtx)
 }
 
@@ -105,8 +106,8 @@ type ActionGoto struct {
 	To []*ChainNode
 }
 
-func (a ActionGoto) Exec(ctx context.Context, qCtx *query_context.Context, _ ChainWalker) error {
-	w := NewChainWalker(a.To, nil)
+func (a ActionGoto) Exec(ctx context.Context, qCtx *query_context.Context, next ChainWalker) error {
+	w := NewChainWalker(a.To, nil, next.logger)
 	return w.ExecNext(ctx, qCtx)
 }
 
