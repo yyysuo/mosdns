@@ -1,3 +1,4 @@
+// /root/mosdns/coremain/mosdns.go
 /*
  * Copyright (C) 2020-2022, IrineSistiana
  *
@@ -20,10 +21,14 @@
 package coremain
 
 import (
-                "embed"
 	"bytes"
+	"embed"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/pprof"
+
 	"github.com/IrineSistiana/mosdns/v5/mlog"
 	"github.com/IrineSistiana/mosdns/v5/pkg/safe_close"
 	"github.com/go-chi/chi/v5"
@@ -31,13 +36,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"io"
-	"net/http"
-	"net/http/pprof"
 )
 
-               //go:embed www/mosdns.html
-               var content embed.FS
+//go:embed www/mosdns.html
+var content embed.FS
 
 type Mosdns struct {
 	logger *zap.Logger // non-nil logger.
@@ -53,10 +55,17 @@ type Mosdns struct {
 // NewMosdns initializes a mosdns instance and its plugins.
 func NewMosdns(cfg *Config) (*Mosdns, error) {
 	// Init logger.
-	lg, err := mlog.NewLogger(cfg.Log)
+	baseLogger, err := mlog.NewLogger(cfg.Log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init logger: %w", err)
 	}
+
+	// Create our TeeCore to also write to the in-memory collector.
+	teeCore := NewTeeCore(baseLogger.Core(), GlobalLogCollector)
+	
+	// Create the final logger with our TeeCore.
+	// It will automatically use the global atomic level from mlog.Lvl.
+	lg := zap.New(teeCore, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
 
 	m := &Mosdns{
 		logger:     lg,
@@ -65,8 +74,12 @@ func NewMosdns(cfg *Config) (*Mosdns, error) {
 		metricsReg: newMetricsReg(),
 		sc:         safe_close.NewSafeClose(),
 	}
+
 	// This must be called after m.httpMux and m.metricsReg been set.
 	m.initHttpMux()
+
+	// Register our new capture API.
+	RegisterCaptureAPI(m.httpMux)
 
 	// Start http api server
 	if httpAddr := cfg.API.HTTP; len(httpAddr) > 0 {
