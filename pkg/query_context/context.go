@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/IrineSistiana/mosdns/v5/pkg/server"
+	"github.com/google/uuid"
 	"github.com/miekg/dns"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -36,6 +37,7 @@ const (
 // Context is a query context that pass through plugins.
 // All Context funcs are not safe for concurrent use.
 type Context struct {
+	TraceID   string
 	id        uint32
 	startTime time.Time
 
@@ -63,6 +65,7 @@ type ServerMeta = server.QueryMeta
 // NewContext takes the ownership of q.
 func NewContext(q *dns.Msg) *Context {
 	ctx := &Context{
+		TraceID:   uuid.NewString()[:8],
 		id:        contextUid.Add(1),
 		startTime: time.Now(),
 		query:     q,
@@ -174,6 +177,7 @@ func (ctx *Context) Copy() *Context {
 // CopyTo deep copies this Context to d.
 // Note that values that stored by StoreValue is not deep-copied.
 func (ctx *Context) CopyTo(d *Context) *Context {
+	d.TraceID = ctx.TraceID
 	d.id = ctx.id
 	d.startTime = ctx.startTime
 
@@ -235,6 +239,7 @@ func (ctx *Context) DeleteMark(m uint32) {
 
 // MarshalLogObject implements zapcore.ObjectMarshaler.
 func (ctx *Context) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
+	encoder.AddString("trace", ctx.TraceID)
 	encoder.AddUint32("uqid", ctx.id)
 
 	if clientAddr := ctx.ServerMeta.ClientAddr; clientAddr.IsValid() {
