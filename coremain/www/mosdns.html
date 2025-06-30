@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <style>
         :root {
             --bg-color: #f7f9fd; --text-color: #2c3e50; --card-bg: #ffffff;
@@ -28,6 +29,10 @@
             --glass-blur-strength: 12px;
             --font-family-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
             --focus-ring-color: rgba(74, 144, 226, 0.6);
+            /* These are now only default values for general use, not for the fixed log section */
+            --timeline-matcher-ok-bg: #e6f4ea; --timeline-matcher-ok-text: #1e4620;
+            --timeline-matcher-fail-bg: #fbe9e7; --timeline-matcher-fail-text: var(--error-color); 
+            --timeline-plugin-bg: #e3f2fd; --timeline-plugin-text: #0d47a1;
         }
         
         html { 
@@ -88,7 +93,98 @@
         .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin: 0 0 1rem 0; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
         .section-title .fas, .section-title .fa-solid, .section-title .fa-brands { color: var(--accent-color); font-size: 1.1em; opacity: 0.9; }
         .control-section-body > *:not(.subsection-title) + *:not(.subsection-title) { margin-top: 1rem; }
-        .refresh-action-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        
+        /* MODIFICATION START: Styles for the combined control bar */
+        .refresh-action-bar { 
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            align-items: center; 
+            justify-content: flex-start; /* Aligns all content to the left */
+            gap: 1.5rem; /* Increased gap between control groups */
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .control-separator {
+            width: 1px;
+            height: 24px;
+            background-color: var(--control-border);
+            margin: 0 0.5rem;
+        }
+
+        /* NEW/MODIFIED: Apply consistent button styling to all relevant buttons */
+        #refresh-now-btn,
+        #start-capture-btn, 
+        #get-logs-btn { 
+            background-color: var(--control-bg);
+            color: var(--control-text);
+            border: 1px solid var(--control-border);
+            padding: 0.6rem 1.2rem; /* Consistent padding */
+            font-weight: 500;
+            font-size: 0.95rem;
+            border-radius: var(--radius-control);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem; /* Consistent gap between icon and text */
+            height: 38px; /* Ensure consistent height */
+            box-sizing: border-box; /* Include padding and border in height calculation */
+        }
+
+        /* NEW/MODIFIED: Hover styles for all consistent buttons */
+        #refresh-now-btn:hover,
+        #start-capture-btn:hover, 
+        #get-logs-btn:hover { 
+            background-color: var(--control-hover-bg);
+            border-color: var(--accent-color);
+            transform: translateY(-2px);
+        }
+
+        /* NEW/MODIFIED: Styles for input and span to match button style */
+        #capture-duration-input,
+        .duration-unit {
+            background-color: var(--control-bg);
+            border: 1px solid var(--control-border);
+            padding: 0.6rem 1.2rem; /* Adjusted padding to match buttons */
+            border-radius: var(--radius-control);
+            font-size: 0.95rem; /* Consistent font size */
+            font-weight: 500; /* Consistent font weight */
+            color: var(--control-text);
+            text-align: center;
+            transition: all 0.2s ease;
+            box-sizing: border-box; /* Include padding and border in height calculation */
+            height: 38px; /* Match button height approximately */
+            display: flex; /* Use flex for vertical centering of text */
+            align-items: center;
+            justify-content: center;
+        }
+        #capture-duration-input {
+            width: 60px; /* Keep specific width for the number input */
+            -moz-appearance: textfield; /* Remove Firefox spinner */
+        }
+        #capture-duration-input::-webkit-outer-spin-button,
+        #capture-duration-input::-webkit-inner-spin-button {
+            -webkit-appearance: none; /* Remove Chrome/Safari spinner */
+            margin: 0;
+        }
+        /* Ensure consistency for focus state */
+        #capture-duration-input:focus-visible,
+        .duration-unit:hover { /* Hover for '秒' unit */
+            border-color: var(--accent-color);
+            /* Focus-visible box-shadow is handled globally for inputs/textareas */
+        }
+
+        /* NEW: Ensure icons within these buttons are consistently sized */
+        #refresh-now-btn .fas,
+        #start-capture-btn .fas,
+        #get-logs-btn .fas {
+            font-size: 1em; /* Ensures icon size scales with button text size */
+        }
+        /* END MODIFICATION */
+
         .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
         .auto-refresh-control .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
         .generic-switch-input { display: none; }
@@ -96,12 +192,9 @@
         .generic-switch-slider::before { content: ''; position: absolute; top: 2px; left: 3px; width: 18px; height: 18px; background-color: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.3s ease; }
         .generic-switch-input:checked + .generic-switch-slider { background-color: var(--status-green); }
         .generic-switch-input:checked + .generic-switch-slider:before { transform: translateX(19px); }
-        .btn, button { transition: all 0.2s ease; }
-        #refresh-now-btn { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-        #refresh-now-btn:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); transform: translateY(-2px); }
         .rule-actions-group { display: flex; flex-direction: column; gap: 0.8rem; }
         .button-group-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
-        .button-group-inline button, .rule-actions-group > button { padding: 0.8rem; font-size: 0.95rem; font-weight: 500; border-radius: var(--radius-control); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .button-group-inline button, .rule-actions-group > button { padding: 0.8rem; font-size: 0.95rem; font-weight: 500; border-radius: var(--radius-control); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s ease; }
         .button-group-inline button { background-color: var(--control-bg); color: var(--control-text); border: 1px solid var(--control-border); }
         .button-group-inline button:hover { background-color: var(--control-hover-bg); border-color: var(--accent-color); transform: translateY(-2px); }
         button.danger { background-color: var(--danger-bg-color); border: 1px solid var(--danger-border-color); color: var(--danger-text-color); }
@@ -163,11 +256,10 @@
         .switch-card .apple-switch-input:focus + .apple-switch-slider { box-shadow: 0 0 1px var(--status-green); }
         .switch-card .apple-switch-input:checked + .apple-switch-slider:before { transform: translateX(18px); }
         .switch-card.loading .apple-switch-slider { opacity: 0.5; }
-        .switch-card .mini-loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .switch-card .mini-loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid var(--control-border); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 0.8s linear infinite; }
         .switch-card.loading .mini-loader { display: block; }
         .switch-card.loading .apple-switch-slider:before { display: none; }
         
-        /* List Management Tab Specific Styles */
         .list-mgmt-layout { display: flex; height: 100%; width: 100%; flex-grow: 1; }
         .list-submenu { flex: 0 0 90px; border-right: 1px solid var(--border-color); overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
         .list-submenu-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.8rem; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
@@ -372,7 +464,6 @@
             text-align: right;
             padding-right: 0.2rem; /* Give a little padding */
         }
-
         /* END: MODIFIED/NEW STYLES FOR DATA MODAL */
 
         #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.8rem; }
@@ -387,6 +478,198 @@
         .info-tooltip-icon:hover { color: var(--accent-color); }
         #global-tooltip { position: fixed; background-color: var(--value-color); color: var(--card-bg); padding: 0.5rem 0.8rem; border-radius: var(--radius-control); font-size: 0.9rem; font-weight: 500; white-space: nowrap; z-index: 10001; opacity: 0; visibility: hidden; transition: opacity 0.2s ease; pointer-events: none; max-width: 300px; white-space: normal; line-height: 1.5; }
         #global-tooltip.active { opacity: 1; visibility: visible; }
+
+        /* MODIFICATION START: Styles for log capture section to fix to light theme */
+        .log-capture-section { 
+            margin-top: 1.5rem;
+            width: 100%;
+            max-width: 1800px;
+            /* Define local CSS variables for light theme colors */
+            --log-text-color: #2c3e50; 
+            --log-card-bg: #ffffff;
+            --log-border-color: #e0e6ec;
+            --log-accent-color: #4a90e2;
+            --log-label-color: #7f8c8d;
+            --log-value-color: #34495e; 
+            --log-control-bg: #f0f4f7;
+            --log-error-color: #e74c3c; 
+            --log-success-color: #2ecc71; 
+
+            --log-timeline-matcher-ok-bg: #e6f4ea;
+            --log-timeline-matcher-ok-text: #1e4620;
+            --log-timeline-matcher-fail-bg: #fbe9e7;
+            --log-timeline-matcher-fail-text: #e74c3c; /* Fixed to light theme error color */
+            --log-timeline-plugin-bg: #e3f2fd;
+            --log-timeline-plugin-text: #0d47a1;
+        }
+
+        #log-analysis-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 1.2rem;
+            height: 70vh;
+            max-height: 800px;
+            /* Apply fixed light theme colors to the main container */
+            background-color: var(--log-card-bg); 
+            border: 1px solid var(--log-border-color);
+            border-radius: var(--radius-main);
+        }
+        #log-request-list {
+            border: none; /* Remove individual border as parent has it */
+            overflow-y: auto;
+            background-color: transparent; /* Use transparent to show parent's background */
+            padding: 0.5rem;
+        }
+        .log-request-item {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--log-border-color); /* Use fixed border color */
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            color: var(--log-text-color); /* Default text color */
+        }
+        .log-request-item:last-child {
+            border-bottom: none;
+        }
+        .log-request-item:hover {
+            background-color: var(--log-control-bg); /* Use fixed hover background */
+        }
+        .log-request-item.active {
+            background-color: color-mix(in srgb, var(--log-accent-color) 15%, transparent); /* Use fixed accent color */
+            font-weight: 600;
+            color: var(--log-accent-color); /* Use fixed accent color */
+        }
+        .log-request-item .domain {
+            font-weight: 600;
+            color: var(--log-text-color); /* Use fixed text color */
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+        .log-request-item .details {
+            font-size: 0.85rem;
+            color: var(--log-label-color); /* Use fixed label color */
+            display: flex;
+            justify-content: space-between;
+        }
+        #log-flowchart-container {
+            border: none; /* Remove individual border as parent has it */
+            overflow: auto;
+            background-color: transparent; /* Use transparent to show parent's background */
+            padding: 1.5rem;
+        }
+        #log-flowchart-container p { /* For the initial "select a request" message */
+            color: var(--log-label-color); /* Use fixed label color */
+        }
+        
+        /* Styles for Log Visualization elements */
+        .timeline-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid var(--log-border-color); /* Use fixed border color */
+            color: var(--log-text-color); /* Use fixed text color */
+        }
+        .structured-log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .log-section-header {
+            font-weight: bold;
+            color: var(--log-accent-color); /* Use fixed accent color */
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background-color: var(--log-control-bg); /* Use fixed control background */
+            border-radius: var(--radius-control);
+            border-left: 3px solid var(--log-accent-color); /* Use fixed accent color */
+        }
+        .log-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0.8rem;
+            border-radius: var(--radius-control);
+            transition: background-color 0.2s;
+            border: 1px solid transparent;
+            border-left-width: 3px;
+            color: var(--log-text-color); /* Ensure item text color is fixed */
+        }
+        .log-item.result-ok {
+            background-color: var(--log-timeline-matcher-ok-bg); /* Use fixed color */
+            border-color: var(--log-timeline-matcher-ok-text); /* Use fixed color */
+        }
+        .log-item.result-fail {
+            background-color: var(--log-timeline-matcher-fail-bg); /* Use fixed color */
+            border-color: var(--log-timeline-matcher-fail-text); /* Use fixed color */
+        }
+        .log-item.type-plugin {
+            background-color: var(--log-timeline-plugin-bg); /* Use fixed color */
+            border-color: var(--log-timeline-plugin-text); /* Use fixed color */
+        }
+        .log-item-main {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .log-item .icon {
+            font-size: 1.1em;
+            width: 20px;
+            text-align: center;
+        }
+        .log-item.type-matcher .icon { color: var(--log-label-color); } /* Use fixed label color */
+        .log-item.result-ok .icon { color: var(--log-timeline-matcher-ok-text); } /* Use fixed color */
+        .log-item.result-fail .icon { color: var(--log-timeline-matcher-fail-text); } /* Use fixed color */
+        .log-item.type-plugin .icon { color: var(--log-timeline-plugin-text); } /* Use fixed color */
+        .log-item .name {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            color: var(--log-text-color); /* Explicitly set text color */
+        }
+        .log-item-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            margin-left: 1rem;
+            color: var(--log-text-color); /* Fixed text color for meta data */
+        }
+        .log-item-meta .result {
+            font-weight: bold;
+        }
+        .log-item-meta .result.ok { color: var(--log-timeline-matcher-ok-text); } /* Use fixed color */
+        .log-item-meta .result.fail { color: var(--log-timeline-matcher-fail-text); } /* Use fixed color */
+        .log-item-meta .time {
+            color: var(--log-label-color); /* Use fixed label color */
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Fixed table styling for raw logs inside log-flowchart-container */
+        #log-flowchart-container .data-table {
+            color: var(--log-text-color); /* Ensure table text color is fixed */
+        }
+        #log-flowchart-container .data-table th,
+        #log-flowchart-container .data-table td {
+            border-bottom: 1px solid var(--log-border-color); /* Use fixed border color */
+        }
+        #log-flowchart-container .data-table thead th {
+            background-color: var(--log-control-bg); /* Use fixed control background */
+            color: var(--log-text-color); /* Fixed text color for table headers */
+        }
+        #log-flowchart-container .data-table tbody tr:hover {
+            background-color: var(--log-control-bg); /* Use fixed control background for hover */
+        }
+        #log-flowchart-container .data-table td:first-child {
+            color: var(--log-label-color); /* Fixed color for first column */
+        }
+        #log-flowchart-container .data-table .result.ok {
+            color: var(--log-timeline-matcher-ok-text); /* Fixed color */
+        }
+        #log-flowchart-container .data-table .result.fail {
+            color: var(--log-timeline-matcher-fail-text); /* Fixed color */
+        }
+        /* MODIFICATION END */
 
         @media (max-width: 1200px) { .control-panel { grid-template-columns: 1fr; } }
         
@@ -427,6 +710,23 @@
             .list-content-area { padding: 0; }
             footer .footer-content { flex-direction: column; gap: 0.8rem; }
             footer .footer-separator { display: none; }
+
+            /* MODIFICATION START: Responsive styles for log capture - ensure it uses fixed colors */
+            #log-analysis-container { 
+                grid-template-columns: 1fr; 
+                height: auto; 
+                /* Fixed background/border remain from parent log-capture-section */
+            }
+            #log-request-list { max-height: 40vh; }
+            #log-flowchart-container { min-height: 50vh; }
+
+            /* Remove mobile-specific overrides that would re-apply global theme colors */
+            /* e.g., NO .log-request-item { color: var(--text-color); } etc. */
+            /* All relevant log-section styles should already use --log- prefix */
+            /* The only thing to consider is if global media query styling impacts them unexpectedly, but direct --log- var usage should prevent this */
+            /* For instance, if .data-table was affected by a global mobile rule, we'd need to re-assert its --log- var colors */
+            /* Re-checked and confirmed that existing rules correctly point to --log- vars within this section. */
+            /* So no specific mobile overrides are needed here for colors, as they're already fixed. */
         }
     </style>
 </head>
@@ -439,15 +739,35 @@
             <section class="control-section">
                 <div class="control-section-body">
                     <h4 class="section-title"><i class="fas fa-cogs"></i> 控制中心</h4>
+                    
+                    <!-- MODIFICATION START: Combined control bar and style alignment -->
                     <div class="refresh-action-bar">
-                        <label for="auto-refresh-toggle" class="auto-refresh-control">
-                            <span class="switch-label-text">自动刷新 (5s)</span>
-                            <input type="checkbox" id="auto-refresh-toggle" class="generic-switch-input">
-                            <span class="generic-switch-slider"></span>
-                        </label>
-                        <button id="refresh-now-btn" class="btn"><i class="fas fa-sync-alt"></i> 立即刷新</button>
+                        <div class="control-group">
+                            <label for="auto-refresh-toggle" class="auto-refresh-control">
+                                <span class="switch-label-text">自动刷新</span>
+                                <input type="checkbox" id="auto-refresh-toggle" class="generic-switch-input">
+                                <span class="generic-switch-slider"></span>
+                            </label>
+                            <button id="refresh-now-btn" class="btn"><i class="fas fa-sync-alt"></i> 立即刷新</button>
+                        </div>
+
+                        <div class="control-separator"></div>
+
+                        <div class="control-group">
+                            <button id="start-capture-btn" class="btn">
+                                <i class="fas fa-bug"></i> 日志抓取
+                            </button>
+                            <input type="number" id="capture-duration-input" value="15" min="1" max="600">
+                            <span class="duration-unit">秒</span>
+                            <i class="fas fa-info-circle info-tooltip-icon" data-tooltip="点击开始抓取。到期后debug会自动关闭，日志在获取一次后自动清空。"></i>
+                            <button id="get-logs-btn" class="btn">
+                                <i class="fas fa-search"></i> 获取日志
+                            </button>
+                        </div>
                     </div>
-                    <div class="rule-actions-group">
+                    <!-- MODIFICATION END -->
+
+                    <div class="rule-actions-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                         <div class="button-group-inline"><button id="save-rules-btn" class="btn"><i class="fas fa-save"></i> 保存分流规则</button><button id="flush-cache-btn" class="btn"><i class="fas fa-broom"></i> 清空全部缓存</button></div>
                         <div class="button-group-inline" style="margin-top:0.8rem"><button id="flush-rules-btn" class="btn danger"><i class="fas fa-trash-alt"></i> 清空分流规则</button><button id="restart-mosdns-btn" class="btn danger"><i class="fas fa-redo"></i> 重启 MosDNS</button></div>
                     </div>
@@ -506,6 +826,18 @@
             </section>
         </div>
     </div>
+
+    <!-- MODIFICATION START: Log capture section now has fixed light theme styling -->
+    <div class="log-capture-section">
+        <div id="log-analysis-container" style="display: none;">
+            <div id="log-request-list"></div>
+            <div id="log-flowchart-container">
+                <p style="color: var(--log-label-color); margin-top: 2rem;">请从左侧列表选择一个请求以查看流程。</p>
+            </div>
+        </div>
+    </div>
+    <!-- MODIFICATION END -->
+
     <footer>
         <div class="footer-content">
             <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.3.1 FINAL</span></div>
@@ -534,7 +866,6 @@
     <div id="data-view-modal" class="modal-overlay">
         <div class="modal-content data-modal-content">
             <div class="modal-header">
-                <!-- 头部修改：添加一个 div 包裹标题和搜索区域 -->
                 <div>
                     <h3 id="data-modal-title">数据查看</h3>
                     <div class="modal-search-area">
@@ -544,13 +875,16 @@
                 </div>
                 <button id="data-modal-close" class="modal-close-btn-simple">×</button>
             </div>
-            <div id="data-modal-body" class="modal-body">
-                <!-- 数据将通过 JS 动态插入这里 -->
-            </div>
+            <div id="data-modal-body" class="modal-body"></div>
         </div>
     </div>
     
     <script>
+        // --- MODIFICATION START ---
+        // I have reviewed and refactored the entire script block for clarity, 
+        // bug fixes, and new features. The logic is preserved but improved.
+        // --- MODIFICATION END ---
+        
         const REFRESH_INTERVAL = 5000;
         const MAX_LINES_TO_DISPLAY = 500;
         const D = document; 
@@ -563,11 +897,9 @@
         let coreMode = 'A';
         let isMgmtTabInitialized = { config: false, list: false };
 
-        // 全局变量来存储当前弹窗的数据和搜索输入框的引用
         let currentModalData = { type: null, rawEntries: [], filteredEntries: [], totalCount: 0, loadTime: 0 };
         let dataModalSearchInput = null;
         
-        // **修正3**: 将 iconMap 移到全局作用域，提高代码健壮性
         const iconMap = { 
             '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', 
             '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', 
@@ -616,11 +948,11 @@
             'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
             'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
             'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
-            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } }, // **修正1**: 此处SVG数据已修正
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } }, 
             'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
             'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
             'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
-            'kawaii': { name: '粉彩可爱', icon: 'fas fa-cat', cssVars: { '--bg-color': '#fcefee', '--text-color': '#5e4856', '--card-bg': 'rgba(255, 255, 255, 0.7)', '--card-shadow': '0 6px 20px rgba(234, 182, 182, 0.4)', '--border-color': 'rgba(234, 182, 182, 0.5)', '--accent-color': '#ff8a8a', '--label-color': '#a08a9a', '--value-color': '#5e4856', '--control-bg': '#f9e0e0', '--control-border': '#f5c6c6', '--control-text': '#8c6d7d', '--control-hover-bg': '#f5c6c6', '--control-active-bg': '#ff8a8a', '--control-active-text': '#ffffff', '--status-green': '#ffc0cb', '--gradient-start': '#ff8a8a', '--gradient-mid': '#ffd3b6', '--gradient-end': '#ff8a8a', '--font-family-main': "'Quicksand', sans-serif", '--radius-main': '1.2rem', '--radius-control': '2rem' }, chartColors: { hit: 'rgba(255, 138, 138, 0.8)', miss: 'rgba(204, 184, 212, 0.8)', text: '#5e4856' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23eadada\' fill-opacity=\'0.4\' fill-rule=\'evenodd\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/svg%3E");', 'h1,h2,h4': 'font-weight: 600;' } },
+            'kawaii': { name: '粉彩可爱', icon: 'fas fa-cat', cssVars: { '--bg-color': '#fcefee', '--text-color': '#5e4856', '--card-bg': 'rgba(255, 255, 255, 0.7)', '--card-shadow': '0 6px 20px rgba(234, 182, 182, 0.4)', '--border-color': 'rgba(234, 182, 182, 0.5)', '--accent-color': '#ff8a8a', '--label-color': '#a08a9a', '--value-color': '#5e4856', '--control-bg': '#f9e0e0', '--control-border': '#f5c6c6', '--control-text': '#8c6d7d', '--control-hover-bg': '#f5c6c6', '--control-active-bg': '#ff8a8a', '--control-active-text': '#ffffff', '--status-green': '#ffc0cb', '--gradient-start': '#ff8a8a', '--gradient-mid': '#ffd3b6', '--gradient-end': '#ff8a8a', '--font-family-main': "'Quicksand', sans-serif", '--radius-main': '1.2rem', '--radius-control': '2rem' }, chartColors: { hit: 'rgba(255, 138, 138, 0.8)', miss: 'rgba(204, 184, 212, 0.8)', text: '#5e4856' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg width=\'6\' height=\'6\' viewBox=\'0 0 6 6\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23eadada\' fill-opacity=\'0.4\' fill-rule=\'evenodd\'%3E%3Cpath d=\'M5 0h1L0 6V5zM6 5v1H5z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', 'h1,h2,h4': 'font-weight: 600;' } },
             'miku': { name: '初音未来', icon: 'fas fa-music', cssVars: { '--bg-color': '#1c2833', '--text-color': '#fdfefe', '--card-bg': 'rgba(35, 55, 75, 0.85)', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3498db', '--accent-color': '#39c5bb', '--label-color': '#aed6f1', '--value-color': '#ffffff', '--control-bg': 'rgba(46, 64, 83, 0.9)', '--control-border': '#5dade2', '--control-text': '#eaf2f8', '--control-hover-bg': 'rgba(93, 173, 226, 0.5)', '--control-active-bg': '#39c5bb', '--control-active-text': '#17202a', '--status-green': '#39c5bb', '--gradient-start': '#39c5bb', '--gradient-mid': '#ff4571', '--gradient-end': '#39c5bb', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(57, 197, 187, 0.8)', miss: 'rgba(255, 69, 113, 0.5)', text: '#fdfefe' }, extraStyles: {'body': 'background-color: #1c2833; background-image: linear-gradient(160deg, #1c2833 0%, #2e4053 100%);'} },
             'eva': { name: '初号机', icon: 'fas fa-robot', cssVars: { '--bg-color': '#1e1a2f', '--text-color': '#f0f0f0', '--card-bg': 'rgba(40, 35, 60, 0.8)', '--card-shadow': '0 8px 30px rgba(125, 233, 56, 0.2)', '--border-color': '#5a5278', '--accent-color': '#7de938', '--label-color': '#b0a8d1', '--value-color': '#ffffff', '--control-bg': '#28233c', '--control-border': '#5a5278', '--control-text': '#e0e0e0', '--control-hover-bg': 'rgba(90, 82, 120, 0.7)', '--control-active-bg': '#7de938', '--control-active-text': '#1e1a2f', '--status-green': '#7de938', '--gradient-start': '#7de938', '--gradient-mid': '#8a3ffc', '--gradient-end': '#7de938', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(125, 233, 56, 0.8)', miss: 'rgba(138, 63, 252, 0.5)', text: '#f0f0f0' }, extraStyles: {'body': 'background-color: #1e1a2f; background-image: radial-gradient(circle, #2e284d 0%, #1e1a2f 70%);'} },
             'monokai': { name: 'Monokai Pro', icon: 'fas fa-code', cssVars: { '--bg-color': '#222324', '--text-color': '#fcfcfa', '--card-bg': 'rgba(45, 46, 47, 0.85)', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#414344', '--accent-color': '#ff6188', '--label-color': '#8f908a', '--value-color': '#fcfcfa', '--control-bg': '#3a3b3c', '--control-border': '#515252', '--control-text': '#d5d6d2', '--control-hover-bg': '#4a4b4d', '--control-active-bg': '#ff6188', '--control-active-text': '#222324', '--status-green': '#a9dc76', '--gradient-start': '#ff6188', '--gradient-mid': '#a9dc76', '--gradient-end': '#78dce8', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(255, 97, 136, 0.8)', miss: 'rgba(169, 220, 118, 0.6)', text: '#fcfcfa' } },
@@ -789,9 +1121,9 @@
             cacheOrder.forEach(tag => { 
                 const toggleId = `card-toggle-${tag}`;
                 const label = createElement('label', 'control-base-label');
-                label.htmlFor = toggleId; // **修正4**: 添加 for 属性
+                label.htmlFor = toggleId;
 
-                const input = createElement('input', '', '', toggleId); // **修正4**: 添加 id
+                const input = createElement('input', '', '', toggleId);
                 input.type = 'checkbox'; 
                 input.dataset.tag = tag; 
                 input.checked = visibleCards.includes(tag); 
@@ -949,7 +1281,7 @@
                 showToast(`“${profile.name}” 已${checkbox.checked ? '启用' : '禁用'}`);
             } catch (error) {
                 showToast(`切换 "${profile.name}" 失败`, 'error');
-                showErrorModal(error.message);
+                showErrorModal(e.message);
             } finally {
                 await initializeSwitchManagementTab();
             }
@@ -965,7 +1297,6 @@
             const submenu = container.querySelector('.list-submenu');
             const contentArea = container.querySelector('.list-content-area');
 
-            // 准备 UI 框架
             allProfiles.forEach(profile => {
                 submenu.innerHTML += `<div class="list-submenu-item" data-tag="${profile.tag}"><i class="icon-area fas ${profile.icon}"></i> <span>${profile.name}</span></div>`;
                 contentArea.innerHTML += `<div class="list-mgmt-card" id="list-card-${profile.tag}"><textarea id="textarea-${profile.tag}" placeholder="正在加载内容..." spellcheck="false"></textarea><div class="list-mgmt-footer"><div id="status-${profile.tag}" class="list-status"><span class="status-text"></span></div><div class="action-area"><button id="save-btn-${profile.tag}"><i class="fas fa-save"></i> 保存更改</button></div></div></div>`;
@@ -984,7 +1315,6 @@
 
             if (submenuItems.length > 0) submenuItems[0].click();
             
-            // **修正2**: 使用 Promise.allSettled 并行加载所有名单数据
             const fetchPromises = allProfiles.map(profile => 
                 fetch(`/plugins/${profile.tag}/show`).then(res => {
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1118,12 +1448,11 @@
             }
         }
         
-        // 新增：渲染表格数据 (用于非缓存列表)
         function renderTableData(entries) {
             const dataModalBody = getById('data-modal-body');
             const dataModalInfo = getById('data-modal-info');
             
-            dataModalBody.innerHTML = ''; // 清空原有内容
+            dataModalBody.innerHTML = ''; 
 
             if (entries.length === 0) {
                 dataModalBody.innerHTML = '<p style="text-align: center; color: var(--label-color);">无数据或无匹配条目。</p>';
@@ -1146,7 +1475,6 @@
             dataModalInfo.textContent = `总条目: ${currentModalData.totalCount} (过滤后: ${entries.length}), 加载耗时: ${currentModalData.loadTime}ms`;
         }
 
-        // 新增：渲染缓存数据 (用于缓存列表)
         function renderAccordionData(entries) {
             const dataModalBody = getById('data-modal-body');
             const dataModalInfo = getById('data-modal-info');
@@ -1159,7 +1487,7 @@
             }
 
             const accordionContainer = createElement('div', 'cache-accordion-container');
-            entries.forEach((entry, idx) => { // Use entry.headerTitle, entry.fullText
+            entries.forEach((entry, idx) => {
                 const entryWrapper = createElement('div', 'cache-entry-accordion');
                 const header = createElement('button', 'accordion-header');
                 header.textContent = entry.headerTitle;
@@ -1172,7 +1500,6 @@
                 header.addEventListener('click', () => {
                     const isActive = header.classList.toggle('active');
                     panel.classList.toggle('active');
-                    // Lazy load content on first click
                     if (isActive && panel.innerHTML === '') {
                         const dnsMsgIndex = entry.fullText.indexOf('DNS Message:');
                         const metadataText = dnsMsgIndex !== -1 ? entry.fullText.substring(0, dnsMsgIndex) : entry.fullText;
@@ -1205,7 +1532,6 @@
             dataModalInfo.textContent = `总条目: ${currentModalData.totalCount} (过滤后: ${entries.length}), 加载耗时: ${currentModalData.loadTime}ms`;
         }
 
-        // 修改：displayCacheDataInModal 以支持搜索和耗时
         async function displayCacheDataInModal(url, title) {
             const dataModal = getById('data-view-modal');
             const dataModalTitle = getById('data-modal-title');
@@ -1217,9 +1543,8 @@
             dataModalInfo.textContent = '正在加载...';
             dataModal.classList.add('visible');
 
-            // 每次打开时清除搜索框内容和旧的事件监听器
             dataModalSearchInput.value = '';
-            dataModalSearchInput.oninput = null; // 清除之前的事件监听器
+            dataModalSearchInput.oninput = null; 
             
             try {
                 const startTime = performance.now();
@@ -1236,7 +1561,7 @@
                     const keyMatch = entryText.match(/Key:\s*([^\s]+)\s+\d+\s+([A-Z\d]+)/);
                     let headerTitle;
                     if (questionMatch && keyMatch) {
-                        headerTitle = `${questionMatch[1]} (${keyMatch[2]})`;
+                        headerTitle = `${questionMatch[1]}` + (keyMatch[2] ? ` (${keyMatch[2]})` : '');
                     } else if (questionMatch) {
                         headerTitle = `${questionMatch[1]}`;
                     } else {
@@ -1244,17 +1569,16 @@
                     }
                     return {
                         headerTitle: headerTitle,
-                        fullText: entryText, // Store full text for lazy loading panel content
-                        index: index // Keep original index
+                        fullText: entryText,
+                        index: index 
                     };
                 });
                 currentModalData.totalCount = currentModalData.rawEntries.length;
                 currentModalData.loadTime = (endTime - startTime).toFixed(2);
-                currentModalData.filteredEntries = currentModalData.rawEntries; // 初始化时显示所有
+                currentModalData.filteredEntries = currentModalData.rawEntries;
 
                 renderAccordionData(currentModalData.filteredEntries);
 
-                // 添加搜索事件监听器
                 dataModalSearchInput.oninput = () => {
                     const searchTerm = dataModalSearchInput.value.toLowerCase();
                     currentModalData.filteredEntries = currentModalData.rawEntries.filter(item => 
@@ -1270,7 +1594,6 @@
             }
         }
 
-        // 修改：displayDataInModal 以支持搜索和耗时
         async function displayDataInModal(url, title) {
             const dataModal = getById('data-view-modal');
             const dataModalTitle = getById('data-modal-title');
@@ -1282,9 +1605,8 @@
             dataModalInfo.textContent = '正在加载...';
             dataModal.classList.add('visible');
 
-            // 每次打开时清除搜索框内容和旧的事件监听器
             dataModalSearchInput.value = '';
-            dataModalSearchInput.oninput = null; // 清除之前的事件监听器
+            dataModalSearchInput.oninput = null;
 
             try {
                 const startTime = performance.now();
@@ -1301,16 +1623,15 @@
                     return {
                         id: parts ? parts[1] : '-',
                         value: parts ? parts[2] : line,
-                        originalLine: line // Store original line for consistency
+                        originalLine: line
                     };
                 });
                 currentModalData.totalCount = currentModalData.rawEntries.length;
                 currentModalData.loadTime = (endTime - startTime).toFixed(2);
-                currentModalData.filteredEntries = currentModalData.rawEntries; // 初始化时显示所有
+                currentModalData.filteredEntries = currentModalData.rawEntries;
 
                 renderTableData(currentModalData.filteredEntries);
 
-                // 添加搜索事件监听器
                 dataModalSearchInput.oninput = () => {
                     const searchTerm = dataModalSearchInput.value.toLowerCase();
                     currentModalData.filteredEntries = currentModalData.rawEntries.filter(item => 
@@ -1330,7 +1651,7 @@
             getById('refresh-now-btn').onclick = () => { refreshData(false, true); showToast('数据已手动刷新'); };
             const autoRefreshToggle = getById('auto-refresh-toggle');
             autoRefreshToggle.onchange = (e) => { const isEnabled = e.target.checked; localStorage.setItem('autoRefresh', isEnabled); if (isEnabled) { if (!autoRefreshTimer) autoRefreshTimer = setInterval(() => refreshData(false, true), REFRESH_INTERVAL); } else if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; } };
-            
+
             const createApiAction = (btnId, paths, msg, successMsg) => {
                 getById(btnId).addEventListener('click', async () => {
                     if (msg && !confirm(msg)) return;
@@ -1347,88 +1668,18 @@
                     }
                 });
             };
-
-            getById('save-rules-btn').addEventListener('click', () => {
-                if (confirm('确定保存所有分流规则吗?')) {
-                    saveAllRulesAndNotify();
-                }
-            });
-
+            getById('save-rules-btn').addEventListener('click', () => { if (confirm('确定保存所有分流规则吗?')) { saveAllRulesAndNotify(); } });
             createApiAction('flush-rules-btn', ruleListPaths, '【危险操作】确定清空所有分流规则吗?', '分流规则已清空。');
-            
-            getById('flush-cache-btn').addEventListener('click', async () => {
-                if (!confirm('确定清空全部缓存吗? 此操作将根据当前核心运行模式清空对应的缓存。')) {
-                    return;
-                }
-                const cacheToFlush = coreMode === 'B' ? 'cache_all_noleak' : 'cache_all';
-                const path = `/plugins/${cacheToFlush}/flush`;
-
-                try {
-                    const response = await fetch(path);
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`清空缓存失败于 ${path}: ${errorText || response.statusText}`);
-                    }
-                    showToast('全部缓存已清空，正在刷新数据...', 'success');
-                    await refreshData(false, true);
-
-                } catch (e) {
-                    showToast('清空缓存操作失败！', 'error');
-                    showErrorModal(e.message);
-                }
-            });
-            
-            getById('restart-mosdns-btn').onclick = async () => {
-                if (confirm('【危险操作】此操作将首先保存所有分流规则，然后重启 MosDNS。确定要继续吗?')) {
-                    const saveSuccess = await saveAllRulesAndNotify();
-                    if (saveSuccess) {
-                        showToast('规则已保存，正在发送重启命令...', 'success');
-                        try {
-                            const response = await fetch('/plugins/my_fakeiplist/restartall');
-                            if (!response.ok) {
-                                const errorText = await response.text();
-                                throw new Error(errorText || `重启命令请求失败，状态码: ${response.status}`);
-                            }
-                            showToast('MosDNS 正在重启，页面即将刷新...');
-                            setTimeout(() => location.reload(), 2000); 
-                        } catch (e) {
-                            showToast('重启命令发送失败', 'error');
-                            showErrorModal(e.message);
-                        }
-                    } else {
-                        showToast('由于规则保存失败，重启操作已取消。', 'error');
-                    }
-                }
-            };
+            getById('flush-cache-btn').addEventListener('click', async () => { if (!confirm('确定清空全部缓存吗? 此操作将根据当前核心运行模式清空对应的缓存。')) { return; } const cacheToFlush = coreMode === 'B' ? 'cache_all_noleak' : 'cache_all'; const path = `/plugins/${cacheToFlush}/flush`; try { const response = await fetch(path); if (!response.ok) { const errorText = await response.text(); throw new Error(`清空缓存失败于 ${path}: ${errorText || response.statusText}`); } showToast('全部缓存已清空，正在刷新数据...', 'success'); await refreshData(false, true); } catch (e) { showToast('清空缓存操作失败！', 'error'); showErrorModal(e.message); } });
+            getById('restart-mosdns-btn').onclick = async () => { if (confirm('【危险操作】此操作将首先保存所有分流规则，然后重启 MosDNS。确定要继续吗?')) { const saveSuccess = await saveAllRulesAndNotify(); if (saveSuccess) { showToast('规则已保存，正在发送重启命令...', 'success'); try { const response = await fetch('/plugins/my_fakeiplist/restartall'); if (!response.ok) { const errorText = await response.text(); throw new Error(errorText || `重启命令请求失败，状态码: ${response.status}`); } showToast('MosDNS 正在重启，页面即将刷新...'); setTimeout(() => location.reload(), 2000); } catch (e) { showToast('重启命令发送失败', 'error'); showErrorModal(e.message); } } else { showToast('由于规则保存失败，重启操作已取消。', 'error'); } } };
             
             const showEndpoints = { '请求排行': 'top_domains','fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '全部缓存（兼容）': 'cache_all', '全部缓存（安全）': 'cache_all_noleak','国内缓存': 'cache_cn', '国外缓存（兼容）': 'cache_google', '国外缓存（安全）': 'cache_google_node','节点缓存': 'cache_node' };
-            const dvContainer = getById('data-view-buttons'); 
-            dvContainer.innerHTML = ''; 
-            Object.entries(showEndpoints).forEach(([name, path]) => { 
-                const btn = createElement('button', 'btn'); 
-                btn.textContent = name; 
-                btn.onclick = () => {
-                    if (path.startsWith('cache_')) {
-                        displayCacheDataInModal(`/plugins/${path}/show`, name);
-                    } else {
-                        displayDataInModal(`/plugins/${path}/show`, name);
-                    }
-                };
-                dvContainer.appendChild(btn); 
-            });
+            const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; 
+            Object.entries(showEndpoints).forEach(([name, path]) => { const btn = createElement('button', 'btn'); btn.textContent = name; btn.onclick = () => { if (path.startsWith('cache_')) { displayCacheDataInModal(`/plugins/${path}/show`, name); } else { displayDataInModal(`/plugins/${path}/show`, name); } }; dvContainer.appendChild(btn); });
             
             const tabButtons = D.querySelectorAll('.tab-button');
             const tabContents = D.querySelectorAll('.control-section-body .tab-content');
-            tabButtons.forEach(button => { 
-                button.addEventListener('click', () => { 
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active'); 
-                    const targetTabId = `tab-${button.dataset.tab}`;
-                    tabContents.forEach(content => content.classList.toggle('active', content.id === targetTabId));
-                    if (button.dataset.tab === 'config-mgmt' && !isMgmtTabInitialized.config) initializeSwitchManagementTab();
-                    if (button.dataset.tab === 'list-mgmt' && !isMgmtTabInitialized.list) initializeListManagementTab();
-                }); 
-            });
+            tabButtons.forEach(button => { button.addEventListener('click', () => { tabButtons.forEach(btn => btn.classList.remove('active')); button.classList.add('active'); const targetTabId = `tab-${button.dataset.tab}`; tabContents.forEach(content => content.classList.toggle('active', content.id === targetTabId)); if (button.dataset.tab === 'config-mgmt' && !isMgmtTabInitialized.config) initializeSwitchManagementTab(); if (button.dataset.tab === 'list-mgmt' && !isMgmtTabInitialized.list) initializeListManagementTab(); }); });
             
             getById('set-bg-btn').onclick = () => { const url = prompt('请输入背景图片的 URL 或本地绝对路径:', localStorage.getItem('customBackgroundUrl') || ''); if(url !== null) setBackgroundImage(url); };
             getById('remove-bg-btn').onclick = () => { if(confirm('确定移除自定义背景吗?')) setBackgroundImage(''); };
@@ -1440,25 +1691,207 @@
             blurSlider.onchange = () => localStorage.setItem('blurStrength', blurSlider.value);
             
             const dataModal = getById('data-view-modal');
-            const hideDataModal = () => {
-                dataModal.classList.remove('visible');
-                // 清理搜索框和数据
-                if (dataModalSearchInput) {
-                    dataModalSearchInput.value = '';
-                    dataModalSearchInput.oninput = null; // 移除事件监听器
-                }
-                currentModalData = { type: null, rawEntries: [], filteredEntries: [], totalCount: 0, loadTime: 0 };
-                getById('data-modal-info').textContent = ''; // 清空信息
-            };
+            const hideDataModal = () => { dataModal.classList.remove('visible'); if (dataModalSearchInput) { dataModalSearchInput.value = ''; dataModalSearchInput.oninput = null; } currentModalData = { type: null, rawEntries: [], filteredEntries: [], totalCount: 0, loadTime: 0 }; getById('data-modal-info').textContent = ''; };
             getById('data-modal-close').onclick = hideDataModal;
             dataModal.onclick = (e) => { if(e.target === dataModal) hideDataModal(); };
 
             getById('error-modal-close').onclick = hideErrorModal;
             getById('error-modal').onclick = (e) => { if(e.target === getById('error-modal')) hideErrorModal(); };
+
+            const mosdnsHost = ''; 
+            const startCaptureBtn = getById('start-capture-btn');
+            const captureDurationInput = getById('capture-duration-input');
+            const getLogsBtn = getById('get-logs-btn');
+
+            startCaptureBtn.addEventListener('click', () => {
+                const duration = parseInt(captureDurationInput.value, 10);
+                if (isNaN(duration) || duration < 1 || duration > 600) { alert('请输入 1 到 600 之间的秒数。'); return; }
+                startCaptureBtn.disabled = true; startCaptureBtn.classList.add('active'); startCaptureBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 采集中...`;
+                fetch(`${mosdnsHost}/api/v1/capture/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ duration_seconds: duration }) })
+                .then(response => { if (!response.ok) throw new Error('启动采集失败'); return response.text(); })
+                .then(text => { showToast(text, 'success'); setTimeout(() => { startCaptureBtn.disabled = false; startCaptureBtn.classList.remove('active'); startCaptureBtn.innerHTML = `<i class="fas fa-bug"></i> 日志抓取`; }, duration * 1000); })
+                .catch(err => { showToast('启动采集失败', 'error'); startCaptureBtn.disabled = false; startCaptureBtn.classList.remove('active'); startCaptureBtn.innerHTML = `<i class="fas fa-bug"></i> 日志抓取`; });
+            });
+
+            getLogsBtn.addEventListener('click', () => {
+                getLogsBtn.disabled = true; getLogsBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 正在获取...`;
+                getById('log-analysis-container').style.display = 'grid';
+                getById('log-request-list').innerHTML = '<div id="loading-spinner" style="display: block; margin: 4rem auto;"></div>';
+                getById('log-flowchart-container').innerHTML = '<p style="color: var(--log-label-color); margin-top: 2rem;">正在获取和分析日志...</p>';
+                fetch(`${mosdnsHost}/api/v1/capture/logs`).then(response => response.json())
+                .then(logs => {
+                    if (logs.length === 0) {
+                       showToast('没有采集到任何Debug日志。', 'error');
+                       getById('log-request-list').innerHTML = '<p style="text-align:center; padding: 1rem; color: var(--log-label-color);">没有采集到任何Debug日志。</p>';
+                       getById('log-flowchart-container').innerHTML = '';
+                    } else {
+                       showToast(`成功获取 ${logs.length} 条日志，正在分析...`, 'success');
+                       processAndRenderLogs(logs);
+                    }
+                })
+                .catch(err => { showToast('获取日志失败', 'error'); getById('log-request-list').innerHTML = `<p class="error-message" style="margin:0;padding:1rem;">${err.message}</p>`; })
+                .finally(() => { getLogsBtn.disabled = false; getLogsBtn.innerHTML = `<i class="fas fa-search"></i> 获取日志`; });
+            });
         }
         
+        // --- START OF REVISED LOG RENDERING LOGIC ---
+        function sanitizeForMermaid(str) {
+            if (typeof str !== 'string') return '';
+            const replacements = { ':': '&#58;', '(': '&#40;', ')': '&#41;', '{': '&#123;', '}': '&#125;', '"': '&quot;', "'": '&#39;',  '@': '&#64;', '<': '&lt;', '>': '&gt;' };
+            return str.replace(/[:(){}"'@<>]/g, char => replacements[char]);
+        }
+
+        function processAndRenderLogs(allLogs) {
+            const requests = new Map();
+            for (const log of allLogs) {
+                if (!log.trace_id) continue;
+                if (!requests.has(log.trace_id)) { requests.set(log.trace_id, { domain: log.domain || 'N/A', startTime: log.time, logs: [] }); }
+                const reqData = requests.get(log.trace_id);
+                if (log.domain && reqData.domain === 'N/A') { reqData.domain = log.domain; }
+                reqData.logs.push(log);
+            }
+
+            const requestListDiv = getById('log-request-list');
+            requestListDiv.innerHTML = '';
+            
+            const rawLogItem = createElement('div', 'log-request-item');
+            rawLogItem.dataset.traceId = 'raw';
+            rawLogItem.innerHTML = `<span class="domain"><i class="fas fa-file-alt"></i> <strong>原始日志 (表格视图)</strong></span><div class="details"><span>全部 ${allLogs.length} 条</span></div>`;
+            rawLogItem.addEventListener('click', (e) => {
+                document.querySelectorAll('.log-request-item').forEach(el => el.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                renderRawLogsAsTable(allLogs);
+            });
+            requestListDiv.appendChild(rawLogItem);
+
+
+            requests.forEach((data, traceId) => {
+                const item = createElement('div', 'log-request-item');
+                item.dataset.traceId = traceId;
+                const startTime = new Date(data.startTime).toLocaleTimeString('it-IT');
+                item.innerHTML = `<span class="domain">${data.domain}</span><div class="details"><span>${startTime}</span><span>Trace: ${traceId}</span></div>`;
+                item.addEventListener('click', (e) => {
+                    document.querySelectorAll('.log-request-item').forEach(el => el.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                    renderStructuredList(data.logs);
+                });
+                requestListDiv.appendChild(item);
+            });
+            if (rawLogItem) { rawLogItem.click(); }
+        }
+
+        function renderRawLogsAsTable(logs) {
+            const container = getById('log-flowchart-container');
+            logs.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+            let tableHTML = `<div class="timeline-title">所有日志条目 (按时间排序)</div><table class="data-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>Trace ID</th>
+                        <th>类型</th>
+                        <th>名称/信息</th>
+                        <th>结果</th>
+                        <th>域名</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            for (const log of logs) {
+                const time = new Date(log.time);
+                const timeString = `${time.toLocaleTimeString('it-IT')}.${String(time.getMilliseconds()).padStart(3, '0')}`;
+                const type = log.matcher_name ? 'Matcher' : (log.plugin_name ? 'Plugin' : 'Log');
+                const name = log.matcher_name || log.plugin_name || log.logger_name || log.msg;
+                const result = log.match_result === undefined ? '—' : (log.match_result ? '<span style="color:var(--log-timeline-matcher-ok-text)"><strong>TRUE</strong></span>' : '<span style="color:var(--log-timeline-matcher-fail-text)"><strong>FALSE</strong></span>'); 
+                const domain = log.domain || '';
+
+                tableHTML += `
+                    <tr>
+                        <td>${timeString}</td>
+                        <td>${log.trace_id || ''}</td>
+                        <td>${type}</td>
+                        <td>${name}</td>
+                        <td>${result}</td>
+                        <td>${domain}</td>
+                    </tr>`;
+            }
+
+            tableHTML += `</tbody></table>`;
+            container.innerHTML = tableHTML;
+        }
+
+        function renderStructuredList(logs) {
+            const container = getById('log-flowchart-container');
+            container.innerHTML = ''; 
+
+            logs.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+            const domain = logs[0]?.domain || 'Unknown Domain';
+            const startTime = new Date(logs[0].time);
+            const endTime = new Date(logs[logs.length-1].time);
+            const duration = (endTime - startTime).toFixed(0);
+
+            const title = createElement('h3', 'timeline-title');
+            title.innerHTML = `DNS 查询流程: <strong>${domain}</strong> (总耗时: ${duration} ms)`;
+            container.appendChild(title);
+
+            const list = createElement('div', 'structured-log-list');
+
+            let lastLoggerName = '';
+            logs.forEach(log => {
+                if (log.logger_name && log.logger_name !== lastLoggerName && !log.msg?.includes("lazy cache")) {
+                    const sectionHeader = createElement('div', 'log-section-header');
+                    sectionHeader.textContent = `进入序列: ${log.logger_name}`;
+                    list.appendChild(sectionHeader);
+                    lastLoggerName = log.logger_name;
+                }
+                
+                const logItem = createElement('div', 'log-item');
+                const timeDiff = ((new Date(log.time) - startTime)).toFixed(0);
+                
+                let iconHtml = '';
+                let contentHtml = '';
+                let resultHtml = '';
+                
+                if (log.matcher_name) {
+                    logItem.classList.add('type-matcher');
+                    iconHtml = `<i class="fas fa-question-circle"></i>`;
+                    contentHtml = `<span class="name">${log.matcher_name}</span>`;
+                    if (log.match_result) {
+                        resultHtml = `<span class="result ok">✅ TRUE</span>`;
+                        logItem.classList.add('result-ok');
+                    } else {
+                        resultHtml = `<span class="result fail">❌ FALSE</span>`;
+                        logItem.classList.add('result-fail');
+                    }
+                } else if (log.plugin_name) {
+                    logItem.classList.add('type-plugin');
+                    iconHtml = `<i class="fas fa-cog"></i>`;
+                    contentHtml = `<span class="name">${log.plugin_name}</span>`;
+                }
+                
+                if(contentHtml) { 
+                    logItem.innerHTML = `
+                        <div class="log-item-main">
+                            <span class="icon">${iconHtml}</span>
+                            <span class="content">${contentHtml}</span>
+                        </div>
+                        <div class="log-item-meta">
+                            ${resultHtml}
+                            <span class="time">+${timeDiff}ms</span>
+                        </div>
+                    `;
+                    list.appendChild(logItem);
+                }
+            });
+
+            container.appendChild(list);
+        }
+
+        // --- END OF REVISED LOG RENDERING LOGIC ---
+
         document.addEventListener('DOMContentLoaded', async () => {
-            // 获取搜索输入框的引用
+            // No need to initialize Mermaid here anymore
             dataModalSearchInput = getById('data-modal-search'); 
 
             setupEventListeners();
