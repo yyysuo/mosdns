@@ -1,4 +1,3 @@
-// /root/mosdns/coremain/mosdns.go
 /*
  * Copyright (C) 2020-2022, IrineSistiana
  *
@@ -38,7 +37,8 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:embed www/mosdns.html
+// [修改] 增加 www/mosdnsp.html 到 embed 列表
+//go:embed www/mosdns.html www/mosdnsp.html
 var content embed.FS
 
 type Mosdns struct {
@@ -218,12 +218,27 @@ func (m *Mosdns) initHttpMux() {
     })
     m.httpMux.Method(http.MethodGet, "/metrics", wrappedMetricsHandler)
 
-    // graphic 路由
-    // 定义公共 handler
-    handler := func(w http.ResponseWriter, r *http.Request) {
-        data, err := content.ReadFile("www/mosdns.html")
+	// [修改] 将原来的公共handler拆分为两个独立的handler
+	
+    // [新增] 根路由 ("/") 的 handler，指向 mosdnsp.html
+    rootHandler := func(w http.ResponseWriter, r *http.Request) {
+        data, err := content.ReadFile("www/mosdnsp.html") // 读取新文件
         if err != nil {
-            m.logger.Error("Error reading embedded file", zap.Error(err))
+            m.logger.Error("Error reading embedded file", zap.String("file", "www/mosdnsp.html"), zap.Error(err))
+            http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+            return
+        }
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        if _, err := w.Write(data); err != nil {
+            m.logger.Error("Error writing response", zap.Error(err))
+        }
+    }
+	
+    // [新增] graphic 路由 ("/graphic") 的 handler，保持指向 mosdns.html
+    graphicHandler := func(w http.ResponseWriter, r *http.Request) {
+        data, err := content.ReadFile("www/mosdns.html") // 读取原文件
+        if err != nil {
+            m.logger.Error("Error reading embedded file", zap.String("file", "www/mosdns.html"), zap.Error(err))
             http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
             return
         }
@@ -233,9 +248,9 @@ func (m *Mosdns) initHttpMux() {
         }
     }
     
-    // 注册两个路由
-    m.httpMux.Get("/", handler)
-    m.httpMux.Get("/graphic", handler)
+    // [修改] 为每个路由注册对应的 handler
+    m.httpMux.Get("/", rootHandler)
+    m.httpMux.Get("/graphic", graphicHandler)
 
     // Register pprof.
     m.httpMux.Route("/debug/pprof", func(r chi.Router) {
