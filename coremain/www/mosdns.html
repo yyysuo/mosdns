@@ -29,14 +29,15 @@
             --glass-blur-strength: 12px;
             --font-family-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
             --focus-ring-color: rgba(74, 144, 226, 0.6);
-            /* These are now only default values for general use, not for the fixed log section */
+            /* 日志区域的颜色变量，此处只是默认值，实际在 .log-capture-section 中会被覆盖 */
             --timeline-matcher-ok-bg: #e6f4ea; --timeline-matcher-ok-text: #1e4620;
             --timeline-matcher-fail-bg: #fbe9e7; --timeline-matcher-fail-text: var(--error-color); 
             --timeline-plugin-bg: #e3f2fd; --timeline-plugin-text: #0d47a1;
         }
         
+        /* [4K FIX] 保持基准字体大小为 16px，使用 JS 进行缩放 */
         html { 
-            font-size: 10.75px; scroll-behavior: smooth; box-sizing: border-box; 
+            font-size: 16px; scroll-behavior: smooth; box-sizing: border-box; 
         }
         *, *::before, *::after {
             box-sizing: inherit;
@@ -52,138 +53,86 @@
         }
 
         body { 
-            font-family: var(--font-family-main); margin: 0; padding: 1.2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; 
+            font-family: var(--font-family-main); margin: 0; padding: 2rem; background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; 
             transition: background-color 0.4s ease, color 0.4s ease, background-image 0.5s ease-in-out, font-family 0.4s ease; 
             min-height: 100vh; display: flex; flex-direction: column; align-items: center; 
             overflow-x: hidden;
         }
         body.custom-background { background-size: cover; background-position: center; background-attachment: fixed; }
-        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 0; }
-        .header h1 { font-size: 1.7rem; color: var(--text-color); margin: 0; font-weight: 700; letter-spacing: -0.03em; }
-        .header .header-gradient-bar { width: 80px; height: 4px; margin: 0.5rem auto 0.8rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
+        .header { text-align: center; width: 100%; max-width: 1200px; margin-bottom: 2rem; }
+        .header h1 { font-size: 2.2rem; color: var(--text-color); margin: 0 0 0.5rem 0; font-weight: 700; letter-spacing: -0.03em; }
+        .header .header-gradient-bar { width: 80px; height: 4px; margin: 0 auto 1.5rem auto; border-radius: var(--radius-bar); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end)); }
         
-        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; max-width: 100%; margin: 0.5rem 0 1rem 0; }
+        .card-title-gradient-bar { width: 100%; height: 3px; border-radius: var(--radius-bar); background-color: var(--accent-color); background-image: linear-gradient(to right, var(--gradient-start), var(--gradient-mid), var(--gradient-end), var(--gradient-start)); background-size: 200% auto; animation: gradient-scroll 6s linear infinite; transition: all 0.4s ease; max-width: 100%; margin: 0.5rem 0 1.2rem 0; }
         @keyframes gradient-scroll { 100% { background-position: 100% 0%; } }
         
-        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.2rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 1.2rem; justify-content: center; }
-        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.2rem; display: none; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease; border: 1px solid var(--border-color); }
+        .main-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1800px; flex-grow: 1; margin-bottom: 2rem; justify-content: center; }
+        .card { background-color: var(--card-bg); border-radius: var(--radius-main); box-shadow: var(--card-shadow); padding: 1.5rem; display: none; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease; border: 1px solid var(--border-color); }
         .card.visible { display: flex; }
         .card:hover { transform: translateY(-5px); box-shadow: var(--card-shadow-hover); }
         h2 { font-size: 1.5rem; color: var(--text-color); margin: 0; font-weight: 600; display: flex; align-items: center; gap: 0.7rem; }
         h2 .title-text { flex-grow: 1; text-align: left; display: flex; align-items: center; gap: 0.5rem;}
         h2 .status-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; transition: background-color 0.3s ease; flex-shrink: 0; }
         h2 .status-dot.status-green { background-color: var(--status-green); } h2 .status-dot.status-yellow { background-color: var(--status-yellow); }
-        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 0.6rem; margin-top: 0.6rem; border-top: 1px solid var(--border-color); }
-        .chart-container { position: relative; width: 110px; height: 110px; }
+        .charts { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-evenly; gap: 1.2rem; align-items: center; width: 100%; padding-top: 1.2rem; margin-top: 1rem; border-top: 1px solid var(--border-color); }
+        .chart-container { position: relative; width: 130px; height: 130px; }
         #loading-spinner { display: none; width: 40px; height: 40px; border: 4px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 4rem auto; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading #loading-spinner { display: block; }
         .loading #main-content, .loading .control-panel, .loading footer { opacity: 0.5; pointer-events: none; }
         .error-message { color: var(--error-color); font-weight: bold; background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--error-color); padding: 2rem; border-radius: var(--radius-main); margin: 2rem auto; text-align:center; grid-column: 1 / -1; font-size: 1.2rem; width: fit-content; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.2rem; align-items: stretch; width: 100%; max-width: 1800px; }
+        .control-panel { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; align-items: stretch; width: 100%; max-width: 1800px; }
         .control-panel:has(#tab-appearance.active), .control-panel:has(#tab-config-mgmt.active) { align-items: start; }
-        .left-column, .right-column { display: flex; flex-direction: column; gap: 1.2rem; }
+        .left-column, .right-column { display: flex; flex-direction: column; gap: 1.5rem; }
         .control-section { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-main); box-shadow: var(--card-shadow); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .control-section:hover { box-shadow: var(--card-shadow-hover); }
         .right-column .control-section { flex-grow: 1; padding: 0; }
-        .control-section-header { padding: 1.2rem; flex-shrink: 0; }
-        .control-section-body { flex-grow: 1; overflow-y: auto; padding: 0 1.2rem 1.2rem 1.2rem; min-height: 0; display: flex; flex-direction: column; }
-        .left-column .control-section { padding: 1.2rem; }
+        .control-section-header { padding: 1.5rem; flex-shrink: 0; }
+        .control-section-body { flex-grow: 1; overflow-y: auto; padding: 0 1.5rem 1.5rem 1.5rem; min-height: 0; display: flex; flex-direction: column; }
+        .left-column .control-section { padding: 1.5rem; }
         .left-column .control-section-body { overflow-y: visible; padding: 0; }
-        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin: 0 0 1rem 0; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
+        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-color); margin: 0 0 1.2rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 0.7rem; flex-shrink: 0; }
         .section-title .fas, .section-title .fa-solid, .section-title .fa-brands { color: var(--accent-color); font-size: 1.1em; opacity: 0.9; }
-        .control-section-body > *:not(.subsection-title) + *:not(.subsection-title) { margin-top: 1rem; }
+        .control-section-body > *:not(.subsection-title) + *:not(.subsection-title) { margin-top: 1.2rem; }
         
-        /* MODIFICATION START: Styles for the combined control bar */
         .refresh-action-bar { 
-            display: flex;
-            flex-wrap: wrap; /* Allow wrapping on small screens */
-            align-items: center; 
-            justify-content: flex-start; /* Aligns all content to the left */
-            gap: 1.5rem; /* Increased gap between control groups */
+            display: flex; flex-wrap: wrap; align-items: center; 
+            justify-content: flex-start; gap: 1.5rem; 
         }
         .control-group {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
+            display: flex; align-items: center; gap: 0.8rem;
         }
         .control-separator {
-            width: 1px;
-            height: 24px;
-            background-color: var(--control-border);
-            margin: 0 0.5rem;
+            width: 1px; height: 24px; background-color: var(--control-border); margin: 0 0.5rem;
         }
-
-        /* NEW/MODIFIED: Apply consistent button styling to all relevant buttons */
-        #refresh-now-btn,
-        #start-capture-btn, 
-        #get-logs-btn { 
-            background-color: var(--control-bg);
-            color: var(--control-text);
-            border: 1px solid var(--control-border);
-            padding: 0.6rem 1.2rem; /* Consistent padding */
-            font-weight: 500;
-            font-size: 0.95rem;
-            border-radius: var(--radius-control);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem; /* Consistent gap between icon and text */
-            height: 38px; /* Ensure consistent height */
-            box-sizing: border-box; /* Include padding and border in height calculation */
+        #refresh-now-btn, #start-capture-btn, #get-logs-btn { 
+            background-color: var(--control-bg); color: var(--control-text);
+            border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; 
+            font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 0.5rem; 
+            height: 38px; box-sizing: border-box; 
         }
-
-        /* NEW/MODIFIED: Hover styles for all consistent buttons */
-        #refresh-now-btn:hover,
-        #start-capture-btn:hover, 
-        #get-logs-btn:hover { 
-            background-color: var(--control-hover-bg);
-            border-color: var(--accent-color);
+        #refresh-now-btn:hover, #start-capture-btn:hover, #get-logs-btn:hover { 
+            background-color: var(--control-hover-bg); border-color: var(--accent-color);
             transform: translateY(-2px);
         }
-
-        /* NEW/MODIFIED: Styles for input and span to match button style */
-        #capture-duration-input,
-        .duration-unit {
-            background-color: var(--control-bg);
-            border: 1px solid var(--control-border);
-            padding: 0.6rem 1.2rem; /* Adjusted padding to match buttons */
-            border-radius: var(--radius-control);
-            font-size: 0.95rem; /* Consistent font size */
-            font-weight: 500; /* Consistent font weight */
-            color: var(--control-text);
-            text-align: center;
-            transition: all 0.2s ease;
-            box-sizing: border-box; /* Include padding and border in height calculation */
-            height: 38px; /* Match button height approximately */
-            display: flex; /* Use flex for vertical centering of text */
-            align-items: center;
-            justify-content: center;
+        #capture-duration-input, .duration-unit {
+            background-color: var(--control-bg); border: 1px solid var(--control-border);
+            padding: 0.6rem 1.2rem; border-radius: var(--radius-control);
+            font-size: 0.95rem; font-weight: 500; color: var(--control-text);
+            text-align: center; transition: all 0.2s ease;
+            box-sizing: border-box; height: 38px; display: flex;
+            align-items: center; justify-content: center;
         }
         #capture-duration-input {
-            width: 60px; /* Keep specific width for the number input */
-            -moz-appearance: textfield; /* Remove Firefox spinner */
+            width: 60px; -moz-appearance: textfield;
         }
         #capture-duration-input::-webkit-outer-spin-button,
         #capture-duration-input::-webkit-inner-spin-button {
-            -webkit-appearance: none; /* Remove Chrome/Safari spinner */
-            margin: 0;
+            -webkit-appearance: none; margin: 0;
         }
-        /* Ensure consistency for focus state */
-        #capture-duration-input:focus-visible,
-        .duration-unit:hover { /* Hover for '秒' unit */
-            border-color: var(--accent-color);
-            /* Focus-visible box-shadow is handled globally for inputs/textareas */
-        }
-
-        /* NEW: Ensure icons within these buttons are consistently sized */
-        #refresh-now-btn .fas,
-        #start-capture-btn .fas,
-        #get-logs-btn .fas {
-            font-size: 1em; /* Ensures icon size scales with button text size */
-        }
-        /* END MODIFICATION */
+        #capture-duration-input:focus-visible, .duration-unit:hover { border-color: var(--accent-color); }
+        #refresh-now-btn .fas, #start-capture-btn .fas, #get-logs-btn .fas { font-size: 1em; }
 
         .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
         .auto-refresh-control .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
@@ -209,27 +158,27 @@
         .tab-button.active::after { opacity: 1; transform: scaleX(1); }
         .tab-content { display: none; flex-direction: column; gap: 1rem; height: 100%; flex-grow: 1; }
         .tab-content.active { display: flex; }
-        .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.2rem 0 0.6rem 0; display: flex; align-items: center; gap: 0.5rem;}
+        .subsection-title { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-color); margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 0.5rem;}
         #config-mgmt-container .subsection-title { margin-top: 1.2rem; }
         #config-mgmt-container .subsection-title:first-of-type { margin-top: 0; }
         .subsection-title:first-child { margin-top: 0; }
-        .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.7rem 1.2rem; align-items: center; }
+        .metrics-container { display: grid; grid-template-columns: auto 1fr; gap: 0.9rem 1.2rem; align-items: center; }
         .metric-item { display: contents; } 
         .metric-label { display: flex; align-items: center; gap: 0.7rem; font-weight: 500; color: var(--label-color); font-size: 0.95rem; }
         .metric-label .fas, .metric-label .fa-brands { color: var(--accent-color); width: 1.2em; text-align: center; }
         .metric-value { color: var(--value-color); font-weight: 600; text-align: right; font-size: 0.95rem; word-break: break-all; }
         .metric-value.accent { color: var(--accent-color); font-weight: 700; }
         #last_updated { font-size: 0.9rem; color: var(--label-color); margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border-color); width: 100%; display: flex; align-items: center; gap: 0.5rem; text-align: left; flex-shrink: 0;}
-        .theme-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.8rem; }
+        .theme-selector, .resolution-selector-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.8rem; }
         .card-toggle-group { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
         .control-base-label { background-color: var(--control-bg); border: 1px solid var(--control-border); padding: 0.6rem 0.9rem; color: var(--control-text); font-size: 0.95rem; font-weight: 500; cursor: pointer; border-radius: var(--radius-control); display: flex; align-items: center; justify-content: flex-start; gap: 0.8rem; }
         .control-base-label:hover { border-color: var(--accent-color); }
-        .theme-selector .control-base-label { justify-content: center; font-size: 0.9rem; }
+        .theme-selector .control-base-label, .resolution-selector-group .control-base-label { justify-content: center; font-size: 0.9rem; }
         .control-base-label.active { background-color: var(--control-active-bg); color: var(--control-active-text); border-color: var(--accent-color); box-shadow: 0 3px 8px -2px var(--accent-color); font-weight: 600; }
         .card-toggle-group input[type="checkbox"] { appearance: none; width: 18px; height: 18px; border: 2px solid var(--control-border); border-radius: 4px; background-color: var(--card-bg); position: relative; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; margin: 0; }
         .card-toggle-group input[type="checkbox"]:checked { background-color: var(--accent-color); border-color: var(--accent-color); }
         .card-toggle-group input[type="checkbox"]:checked::after { content: '\2713'; display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; color: white; }
-        footer { width: 100%; max-width: 1200px; text-align: center; margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--label-color); transition: all 0.4s ease; }
+        footer { width: 100%; max-width: 1200px; text-align: center; margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: var(--label-color); transition: all 0.4s ease; }
         .footer-content { display: flex; justify-content: center; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
         .footer-item { display: flex; align-items: center; gap: 0.6rem; }
         .footer-icon { color: var(--accent-color); opacity: 0.8; font-size: 1.1em; }
@@ -261,7 +210,8 @@
         .switch-card.loading .apple-switch-slider:before { display: none; }
         
         .list-mgmt-layout { display: flex; height: 100%; width: 100%; flex-grow: 1; }
-        .list-submenu { flex: 0 0 90px; border-right: 1px solid var(--border-color); overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
+        /* 修复: 增加桌面端列表子菜单的宽度，解决视觉拥挤问题 */
+        .list-submenu { flex: 0 0 160px; border-right: 1px solid var(--border-color); overflow-y: auto; padding: 1rem 0; display: flex; flex-direction: column; }
         .list-submenu-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.8rem; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s ease; font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
         .list-submenu-item:hover { background-color: var(--control-hover-bg); }
         .list-submenu-item.active { background-color: color-mix(in srgb, var(--accent-color) 15%, transparent); border-left-color: var(--accent-color); color: var(--accent-color); font-weight: 600; }
@@ -288,184 +238,97 @@
         .modal-footer { text-align: right; margin-top: 1.5rem; }
         .modal-close-btn { background-color: var(--accent-color); color: var(--control-active-text); border: none; padding: 0.6rem 1.2rem; border-radius: var(--radius-control); cursor: pointer; }
 
-        /* START: MODIFIED/NEW STYLES FOR DATA MODAL */
         .modal-content.data-modal-content {
-            max-width: 800px;
-            width: 95%;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            max-height: 85vh;
+            max-width: 800px; width: 95%; padding: 0;
+            display: flex; flex-direction: column; max-height: 85vh;
         }
         .data-modal-content .modal-header {
-            padding: 1rem 1.5rem;
-            color: var(--text-color);
+            padding: 1rem 1.5rem; color: var(--text-color);
             border-bottom: 1px solid var(--border-color);
-            /* Updated for search box layout */
-            display: flex;
-            flex-direction: row; /* Main header row */
-            justify-content: space-between;
-            align-items: flex-start; /* Align search area properly */
-            flex-shrink: 0;
+            display: flex; flex-direction: row; justify-content: space-between;
+            align-items: flex-start; flex-shrink: 0;
         }
-        /* New wrapper for title and search area */
         .data-modal-content .modal-header > div:first-child {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem; /* Space between title and search */
-            flex-grow: 1; /* Allow title/search to take available space */
+            display: flex; flex-direction: column; gap: 0.5rem; flex-grow: 1;
         }
-
-        .data-modal-content .modal-header h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
+        .data-modal-content .modal-header h3 { font-size: 1.1rem; font-weight: 600; }
         .modal-close-btn-simple {
-            background: none;
-            border: none;
-            font-size: 2rem;
-            line-height: 1;
-            color: var(--label-color);
-            cursor: pointer;
-            padding: 0 0.5rem;
-            transition: color 0.2s ease;
+            background: none; border: none; font-size: 2rem;
+            line-height: 1; color: var(--label-color); cursor: pointer;
+            padding: 0 0.5rem; transition: color 0.2s ease;
         }
-        .modal-close-btn-simple:hover {
-            color: var(--accent-color);
-        }
+        .modal-close-btn-simple:hover { color: var(--accent-color); }
         .data-modal-content .modal-body {
-            padding: 1.5rem;
-            overflow-y: auto;
-            flex-grow: 1;
-            white-space: normal;
-            max-height: initial;
+            padding: 1.5rem; overflow-y: auto; flex-grow: 1;
+            white-space: normal; max-height: initial;
         }
         .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
+            width: 100%; border-collapse: collapse; font-size: 0.95rem;
         }
         .data-table th, .data-table td {
-            padding: 0.8rem 1rem;
-            text-align: left;
+            padding: 0.8rem 1rem; text-align: left;
             border-bottom: 1px solid var(--border-color);
         }
         .data-table thead th {
-            background-color: var(--control-bg);
-            font-weight: 600;
-            color: var(--text-color);
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            background-color: var(--control-bg); font-weight: 600;
+            color: var(--text-color); position: sticky; top: 0; z-index: 10;
         }
-        .data-table tbody tr:hover {
-            background-color: var(--control-hover-bg);
-        }
+        .data-table tbody tr:hover { background-color: var(--control-hover-bg); }
         .data-table td:first-child {
-            width: 120px;
-            font-weight: 500;
-            color: var(--label-color);
+            width: 120px; font-weight: 500; color: var(--label-color);
         }
-
-        /* Styles for Cache Data Accordion */
         .cache-accordion-container {
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
+            display: flex; flex-direction: column; gap: 0.8rem;
         }
         .cache-entry-accordion {
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-control);
-            overflow: hidden;
-            transition: box-shadow 0.2s ease;
+            border: 1px solid var(--border-color); border-radius: var(--radius-control);
+            overflow: hidden; transition: box-shadow 0.2s ease;
         }
-        .cache-entry-accordion:hover {
-            box-shadow: 0 0 0 1px var(--accent-color);
-        }
+        .cache-entry-accordion:hover { box-shadow: 0 0 0 1px var(--accent-color); }
         .accordion-header {
-            background-color: var(--control-bg);
-            width: 100%;
-            border: none;
-            padding: 0.8rem 1.2rem;
-            text-align: left;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-color);
+            background-color: var(--control-bg); width: 100%; border: none;
+            padding: 0.8rem 1.2rem; text-align: left; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 1rem; font-weight: 600; color: var(--text-color);
             transition: background-color 0.2s ease;
         }
-        .accordion-header:hover {
-            background-color: var(--control-hover-bg);
-        }
+        .accordion-header:hover { background-color: var(--control-hover-bg); }
         .accordion-header::after {
-            content: '\f078'; /* FontAwesome chevron-down */
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
-            transition: transform 0.3s ease;
+            content: '\f078'; font-family: 'Font Awesome 6 Free';
+            font-weight: 900; transition: transform 0.3s ease;
             color: var(--label-color);
         }
-        .accordion-header.active::after {
-            transform: rotate(-180deg);
-        }
+        .accordion-header.active::after { transform: rotate(-180deg); }
         .accordion-panel {
-            max-height: 0;
-            overflow: hidden;
+            max-height: 0; overflow: hidden;
             transition: max-height 0.3s ease-out, padding 0.3s ease-out;
-            background-color: var(--card-bg);
-            padding: 0 1.2rem;
+            background-color: var(--card-bg); padding: 0 1.2rem;
         }
-        .accordion-panel.active {
-             padding: 1.2rem;
-        }
-        .accordion-panel .metadata-table {
-            margin-bottom: 1.2rem;
-        }
+        .accordion-panel.active { padding: 1.2rem; }
+        .accordion-panel .metadata-table { margin-bottom: 1.2rem; }
         .accordion-panel pre {
-            background-color: var(--control-bg);
-            color: var(--text-color);
-            padding: 1rem;
-            border-radius: var(--radius-control);
-            border: 1px solid var(--border-color);
-            font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
-            font-size: 0.9rem;
-            white-space: pre-wrap;
-            word-break: break-all;
+            background-color: var(--control-bg); color: var(--text-color);
+            padding: 1rem; border-radius: var(--radius-control);
+            border: 1px solid var(--border-color); font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace;
+            font-size: 0.9rem; white-space: pre-wrap; word-break: break-all;
         }
-
-        /* New styles for data modal search */
         .modal-search-area {
-            display: flex;
-            flex-direction: column; /* Stack input and info vertically */
-            gap: 0.4rem;
-            width: 100%;
+            display: flex; flex-direction: column; gap: 0.4rem; width: 100%;
         }
         .data-modal-search-input {
-            width: 100%;
-            padding: 0.6rem 1rem;
-            border-radius: var(--radius-control);
-            border: 1px solid var(--control-border);
-            background-color: var(--control-bg);
-            color: var(--text-color);
-            font-size: 0.95rem;
+            width: 100%; padding: 0.6rem 1rem; border-radius: var(--radius-control);
+            border: 1px solid var(--control-border); background-color: var(--control-bg);
+            color: var(--text-color); font-size: 0.95rem;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
         .data-modal-search-input:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 2px var(--focus-ring-color);
+            border-color: var(--accent-color); box-shadow: 0 0 0 2px var(--focus-ring-color);
             outline: none;
         }
         .data-modal-info-text {
-            font-size: 0.85rem;
-            color: var(--label-color);
-            margin-top: 0.2rem;
-            text-align: right;
-            padding-right: 0.2rem; /* Give a little padding */
+            font-size: 0.85rem; color: var(--label-color);
+            margin-top: 0.2rem; text-align: right; padding-right: 0.2rem;
         }
-        /* END: MODIFIED/NEW STYLES FOR DATA MODAL */
-
         #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.8rem; }
         .toast { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-radius: var(--radius-main); color: #fff; font-weight: 600; font-size: 0.95rem; box-shadow: 0 5px 15px rgba(0,0,0,0.2); transform: translateX(120%); opacity: 0; animation: toast-in 0.5s cubic-bezier(0.215, 0.61, 0.355, 1) forwards, toast-out 0.5s 3s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards; }
         .toast.success { background-color: var(--success-color); }
@@ -478,210 +341,137 @@
         .info-tooltip-icon:hover { color: var(--accent-color); }
         #global-tooltip { position: fixed; background-color: var(--value-color); color: var(--card-bg); padding: 0.5rem 0.8rem; border-radius: var(--radius-control); font-size: 0.9rem; font-weight: 500; white-space: nowrap; z-index: 10001; opacity: 0; visibility: hidden; transition: opacity 0.2s ease; pointer-events: none; max-width: 300px; white-space: normal; line-height: 1.5; }
         #global-tooltip.active { opacity: 1; visibility: visible; }
-
-        /* MODIFICATION START: Styles for log capture section to fix to light theme */
+        
+        /* 保持日志区域为固定亮色主题 */
         .log-capture-section { 
-            margin-top: 1.5rem;
-            width: 100%;
-            max-width: 1800px;
-            /* Define local CSS variables for light theme colors */
-            --log-text-color: #2c3e50; 
-            --log-card-bg: #ffffff;
-            --log-border-color: #e0e6ec;
-            --log-accent-color: #4a90e2;
-            --log-label-color: #7f8c8d;
-            --log-value-color: #34495e; 
-            --log-control-bg: #f0f4f7;
-            --log-error-color: #e74c3c; 
+            margin-top: 2rem; width: 100%; max-width: 1800px;
+            --log-text-color: #2c3e50; --log-card-bg: #ffffff;
+            --log-border-color: #e0e6ec; --log-accent-color: #4a90e2;
+            --log-label-color: #7f8c8d; --log-value-color: #34495e; 
+            --log-control-bg: #f0f4f7; --log-error-color: #e74c3c; 
             --log-success-color: #2ecc71; 
-
-            --log-timeline-matcher-ok-bg: #e6f4ea;
-            --log-timeline-matcher-ok-text: #1e4620;
-            --log-timeline-matcher-fail-bg: #fbe9e7;
-            --log-timeline-matcher-fail-text: #e74c3c; /* Fixed to light theme error color */
-            --log-timeline-plugin-bg: #e3f2fd;
-            --log-timeline-plugin-text: #0d47a1;
+            --log-timeline-matcher-ok-bg: #e6f4ea; --log-timeline-matcher-ok-text: #1e4620;
+            --log-timeline-matcher-fail-bg: #fbe9e7; --log-timeline-matcher-fail-text: #e74c3c; /* 固定为亮色错误色 */
+            --log-timeline-plugin-bg: #e3f2fd; --log-timeline-plugin-text: #0d47a1;
         }
 
         #log-analysis-container {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 1.2rem;
-            height: 70vh;
-            max-height: 800px;
-            /* Apply fixed light theme colors to the main container */
+            display: grid; grid-template-columns: 350px 1fr;
+            gap: 1.5rem; height: 70vh; max-height: 800px;
             background-color: var(--log-card-bg); 
             border: 1px solid var(--log-border-color);
             border-radius: var(--radius-main);
         }
         #log-request-list {
-            border: none; /* Remove individual border as parent has it */
-            overflow-y: auto;
-            background-color: transparent; /* Use transparent to show parent's background */
-            padding: 0.5rem;
+            border: none; overflow-y: auto; background-color: transparent; padding: 0.5rem;
         }
         .log-request-item {
-            padding: 0.8rem 1rem;
-            border-bottom: 1px solid var(--log-border-color); /* Use fixed border color */
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            color: var(--log-text-color); /* Default text color */
+            padding: 0.8rem 1rem; border-bottom: 1px solid var(--log-border-color);
+            cursor: pointer; transition: background-color 0.2s ease;
+            color: var(--log-text-color);
         }
-        .log-request-item:last-child {
-            border-bottom: none;
-        }
-        .log-request-item:hover {
-            background-color: var(--log-control-bg); /* Use fixed hover background */
-        }
+        .log-request-item:last-child { border-bottom: none; }
+        .log-request-item:hover { background-color: var(--log-control-bg); }
         .log-request-item.active {
-            background-color: color-mix(in srgb, var(--log-accent-color) 15%, transparent); /* Use fixed accent color */
-            font-weight: 600;
-            color: var(--log-accent-color); /* Use fixed accent color */
+            background-color: color-mix(in srgb, var(--log-accent-color) 15%, transparent);
+            font-weight: 600; color: var(--log-accent-color);
         }
         .log-request-item .domain {
-            font-weight: 600;
-            color: var(--log-text-color); /* Use fixed text color */
-            display: block;
-            margin-bottom: 0.2rem;
+            font-weight: 600; color: var(--log-text-color);
+            display: block; margin-bottom: 0.2rem;
         }
         .log-request-item .details {
-            font-size: 0.85rem;
-            color: var(--log-label-color); /* Use fixed label color */
-            display: flex;
-            justify-content: space-between;
+            font-size: 0.85rem; color: var(--log-label-color);
+            display: flex; justify-content: space-between;
         }
         #log-flowchart-container {
-            border: none; /* Remove individual border as parent has it */
-            overflow: auto;
-            background-color: transparent; /* Use transparent to show parent's background */
-            padding: 1.5rem;
+            border: none; overflow: auto; background-color: transparent; padding: 1.5rem;
         }
-        #log-flowchart-container p { /* For the initial "select a request" message */
-            color: var(--log-label-color); /* Use fixed label color */
-        }
+        #log-flowchart-container p { color: var(--log-label-color); }
         
-        /* Styles for Log Visualization elements */
         .timeline-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            padding-bottom: 0.8rem;
-            border-bottom: 1px solid var(--log-border-color); /* Use fixed border color */
-            color: var(--log-text-color); /* Use fixed text color */
+            font-size: 1.2rem; font-weight: 600; margin-bottom: 1rem;
+            padding-bottom: 0.8rem; border-bottom: 1px solid var(--log-border-color);
+            color: var(--log-text-color);
         }
-        .structured-log-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+        .structured-log-list { display: flex; flex-direction: column; gap: 0.5rem; }
         .log-section-header {
-            font-weight: bold;
-            color: var(--log-accent-color); /* Use fixed accent color */
-            margin-top: 1rem;
-            padding: 0.5rem;
-            background-color: var(--log-control-bg); /* Use fixed control background */
-            border-radius: var(--radius-control);
-            border-left: 3px solid var(--log-accent-color); /* Use fixed accent color */
+            font-weight: bold; color: var(--log-accent-color); margin-top: 1rem;
+            padding: 0.5rem; background-color: var(--log-control-bg);
+            border-radius: var(--radius-control); border-left: 3px solid var(--log-accent-color);
         }
         .log-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0.8rem;
-            border-radius: var(--radius-control);
-            transition: background-color 0.2s;
-            border: 1px solid transparent;
-            border-left-width: 3px;
-            color: var(--log-text-color); /* Ensure item text color is fixed */
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 0.8rem; border-radius: var(--radius-control);
+            transition: background-color 0.2s; border: 1px solid transparent;
+            border-left-width: 3px; color: var(--log-text-color);
         }
-        .log-item.result-ok {
-            background-color: var(--log-timeline-matcher-ok-bg); /* Use fixed color */
-            border-color: var(--log-timeline-matcher-ok-text); /* Use fixed color */
-        }
-        .log-item.result-fail {
-            background-color: var(--log-timeline-matcher-fail-bg); /* Use fixed color */
-            border-color: var(--log-timeline-matcher-fail-text); /* Use fixed color */
-        }
-        .log-item.type-plugin {
-            background-color: var(--log-timeline-plugin-bg); /* Use fixed color */
-            border-color: var(--log-timeline-plugin-text); /* Use fixed color */
-        }
-        .log-item-main {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-        }
-        .log-item .icon {
-            font-size: 1.1em;
-            width: 20px;
-            text-align: center;
-        }
-        .log-item.type-matcher .icon { color: var(--log-label-color); } /* Use fixed label color */
-        .log-item.result-ok .icon { color: var(--log-timeline-matcher-ok-text); } /* Use fixed color */
-        .log-item.result-fail .icon { color: var(--log-timeline-matcher-fail-text); } /* Use fixed color */
-        .log-item.type-plugin .icon { color: var(--log-timeline-plugin-text); } /* Use fixed color */
+        .log-item.result-ok { background-color: var(--log-timeline-matcher-ok-bg); border-color: var(--log-timeline-matcher-ok-text); }
+        .log-item.result-fail { background-color: var(--log-timeline-matcher-fail-bg); border-color: var(--log-timeline-matcher-fail-text); }
+        .log-item.type-plugin { background-color: var(--log-timeline-plugin-bg); border-color: var(--log-timeline-plugin-text); }
+        .log-item-main { display: flex; align-items: center; gap: 0.8rem; }
+        .log-item .icon { font-size: 1.1em; width: 20px; text-align: center; }
+        .log-item.type-matcher .icon { color: var(--log-label-color); }
+        .log-item.result-ok .icon { color: var(--log-timeline-matcher-ok-text); }
+        .log-item.result-fail .icon { color: var(--log-timeline-matcher-fail-text); }
+        .log-item.type-plugin .icon { color: var(--log-timeline-plugin-text); }
         .log-item .name {
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 0.9rem;
-            word-break: break-all;
-            color: var(--log-text-color); /* Explicitly set text color */
+            font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.9rem;
+            word-break: break-all; color: var(--log-text-color);
         }
         .log-item-meta {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            font-size: 0.85rem;
-            flex-shrink: 0;
-            margin-left: 1rem;
-            color: var(--log-text-color); /* Fixed text color for meta data */
+            display: flex; align-items: center; gap: 1rem;
+            font-size: 0.85rem; flex-shrink: 0; margin-left: 1rem;
+            color: var(--log-text-color);
         }
-        .log-item-meta .result {
-            font-weight: bold;
-        }
-        .log-item-meta .result.ok { color: var(--log-timeline-matcher-ok-text); } /* Use fixed color */
-        .log-item-meta .result.fail { color: var(--log-timeline-matcher-fail-text); } /* Use fixed color */
-        .log-item-meta .time {
-            color: var(--log-label-color); /* Use fixed label color */
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* Fixed table styling for raw logs inside log-flowchart-container */
-        #log-flowchart-container .data-table {
-            color: var(--log-text-color); /* Ensure table text color is fixed */
-        }
-        #log-flowchart-container .data-table th,
-        #log-flowchart-container .data-table td {
-            border-bottom: 1px solid var(--log-border-color); /* Use fixed border color */
-        }
-        #log-flowchart-container .data-table thead th {
-            background-color: var(--log-control-bg); /* Use fixed control background */
-            color: var(--log-text-color); /* Fixed text color for table headers */
-        }
-        #log-flowchart-container .data-table tbody tr:hover {
-            background-color: var(--log-control-bg); /* Use fixed control background for hover */
-        }
-        #log-flowchart-container .data-table td:first-child {
-            color: var(--log-label-color); /* Fixed color for first column */
-        }
-        #log-flowchart-container .data-table .result.ok {
-            color: var(--log-timeline-matcher-ok-text); /* Fixed color */
-        }
-        #log-flowchart-container .data-table .result.fail {
-            color: var(--log-timeline-matcher-fail-text); /* Fixed color */
-        }
-        /* MODIFICATION END */
+        .log-item-meta .result { font-weight: bold; }
+        .log-item-meta .result.ok { color: var(--log-timeline-matcher-ok-text); }
+        .log-item-meta .result.fail { color: var(--log-timeline-matcher-fail-text); }
+        .log-item-meta .time { color: var(--log-label-color); font-variant-numeric: tabular-nums; }
+        #log-flowchart-container .data-table { color: var(--log-text-color); }
+        #log-flowchart-container .data-table th, #log-flowchart-container .data-table td { border-bottom: 1px solid var(--log-border-color); }
+        #log-flowchart-container .data-table thead th { background-color: var(--log-control-bg); color: var(--log-text-color); }
+        #log-flowchart-container .data-table tbody tr:hover { background-color: var(--log-control-bg); }
+        #log-flowchart-container .data-table td:first-child { color: var(--log-label-color); }
+        #log-flowchart-container .data-table .result.ok { color: var(--log-timeline-matcher-ok-text); }
+        #log-flowchart-container .data-table .result.fail { color: var(--log-timeline-matcher-fail-text); }
 
         @media (max-width: 1200px) { .control-panel { grid-template-columns: 1fr; } }
         
         @media (max-width: 768px) { 
-            html { font-size: 14.5px; }
+            /* 手机端基准字体调整，确保可读性 */
+            html { font-size: 14.5px; } 
             body { padding: 1rem; }
             .header h1 { font-size: 1.8rem; }
             .card { padding: 1.2rem; }
             h2 { font-size: 1.3rem; }
-            .chart-container { width: 90px; height: 90px; }
+            .charts { padding-top: 0.8rem; margin-top: 0.8rem; } /* 调整图表间距 */
+            .chart-container { width: 100px; height: 100px; } /* 调整图表大小 */
             .control-panel { gap: 1.5rem; }
             .left-column { gap: 1.5rem; }
+
+            /* 优化日志抓取按钮在手机端的布局 */
+            .refresh-action-bar {
+                flex-direction: column; /* 让两大组垂直堆叠 */
+                align-items: flex-start; /* 左对齐 */
+                gap: 1rem; /* 调整组间距 */
+            }
+            .control-group {
+                flex-wrap: wrap; /* 允许组内元素换行 */
+                justify-content: flex-start; /* 组内元素左对齐 */
+                width: 100%; /* 占据可用宽度 */
+                gap: 0.6rem; /* 组内元素间距更紧凑 */
+            }
+            /* 确保时长输入和单位在一个逻辑块内，不被轻易拆散 */
+            .control-group #capture-duration-input, 
+            .control-group .duration-unit {
+                flex-shrink: 0; /* 防止被挤压 */
+            }
+            .control-separator {
+                display: none; /* 手机端不再需要分隔符 */
+            }
+
+            /* 手机端 tab 按钮样式调整 */
             .info-panel-tabs { flex-wrap: wrap; overflow-x: auto; border-bottom: none; margin: 0; padding-bottom: 0.5rem; gap: 0.5rem; scrollbar-width: none; }
             .info-panel-tabs::-webkit-scrollbar { display: none; }
             .tab-button { flex: 1 1 auto; min-width: 90px; background-color: var(--control-bg); border: 1px solid var(--control-border); color: var(--control-text); border-radius: var(--radius-control); text-align: center; justify-content: center; padding: 0.6rem 0.5rem; font-size: 0.9rem; }
@@ -695,15 +485,28 @@
             
             #appearance-container { display: flex; flex-direction: column; gap: 1.5rem; }
             #appearance-container .subsection-title { margin-bottom: 0.5rem; }
-            #appearance-container .theme-selector, #appearance-container .card-toggle-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.8rem; }
+            /* 手机端缩放和主题按钮调整 */
+            #appearance-container .theme-selector, 
+            #appearance-container .resolution-selector-group, /* 新增分辨率选择器的手机端布局 */
+            #appearance-container .card-toggle-group { 
+                display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.8rem; 
+            }
             
             .switch-card { grid-template-columns: auto 1fr auto; align-items: center; gap: 0 1.2rem; padding: 1rem 1.2rem; }
             .switch-card .switch-control { grid-column: auto; justify-self: auto; margin-top: 0; }
 
+            /* 手机端名单管理布局调整 */
             .list-mgmt-layout { flex-direction: column; } 
-            .list-submenu { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 0.5rem; border-right: none; border-bottom: 1px solid var(--border-color); margin: 0; padding: 0.8rem 0; } 
-            
-            .list-submenu-item { flex: 0 1 auto; text-align: center; justify-content: center; border-left: none; border-bottom: none; padding: 0.5rem 1rem; border-radius: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--control-border); background-color: var(--control-bg); }
+            .list-submenu { 
+                flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 0.5rem; 
+                border-right: none; border-bottom: 1px solid var(--border-color); margin: 0; padding: 0.8rem 0; 
+            } 
+            .list-submenu-item { 
+                flex: 0 1 auto; text-align: center; justify-content: center; 
+                border-left: none; border-bottom: none; padding: 0.5rem 1rem; border-radius: 20px; 
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+                border: 1px solid var(--control-border); background-color: var(--control-bg); 
+            }
             .list-submenu-item:hover { border-color: var(--accent-color); background-color: var(--control-hover-bg); }
             .list-submenu-item.active { background-color: var(--accent-color); color: var(--control-active-text); border-color: var(--accent-color); font-weight: 600; } 
             
@@ -711,22 +514,9 @@
             footer .footer-content { flex-direction: column; gap: 0.8rem; }
             footer .footer-separator { display: none; }
 
-            /* MODIFICATION START: Responsive styles for log capture - ensure it uses fixed colors */
-            #log-analysis-container { 
-                grid-template-columns: 1fr; 
-                height: auto; 
-                /* Fixed background/border remain from parent log-capture-section */
-            }
+            #log-analysis-container { grid-template-columns: 1fr; height: auto; }
             #log-request-list { max-height: 40vh; }
             #log-flowchart-container { min-height: 50vh; }
-
-            /* Remove mobile-specific overrides that would re-apply global theme colors */
-            /* e.g., NO .log-request-item { color: var(--text-color); } etc. */
-            /* All relevant log-section styles should already use --log- prefix */
-            /* The only thing to consider is if global media query styling impacts them unexpectedly, but direct --log- var usage should prevent this */
-            /* For instance, if .data-table was affected by a global mobile rule, we'd need to re-assert its --log- var colors */
-            /* Re-checked and confirmed that existing rules correctly point to --log- vars within this section. */
-            /* So no specific mobile overrides are needed here for colors, as they're already fixed. */
         }
     </style>
 </head>
@@ -740,7 +530,6 @@
                 <div class="control-section-body">
                     <h4 class="section-title"><i class="fas fa-cogs"></i> 控制中心</h4>
                     
-                    <!-- MODIFICATION START: Combined control bar and style alignment -->
                     <div class="refresh-action-bar">
                         <div class="control-group">
                             <label for="auto-refresh-toggle" class="auto-refresh-control">
@@ -765,9 +554,8 @@
                             </button>
                         </div>
                     </div>
-                    <!-- MODIFICATION END -->
 
-                    <div class="rule-actions-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <div class="rule-actions-group" style="margin-top: 1.2rem; border-top: 1px solid var(--border-color); padding-top: 1.2rem;">
                         <div class="button-group-inline"><button id="save-rules-btn" class="btn"><i class="fas fa-save"></i> 保存分流规则</button><button id="flush-cache-btn" class="btn"><i class="fas fa-broom"></i> 清空全部缓存</button></div>
                         <div class="button-group-inline" style="margin-top:0.8rem"><button id="flush-rules-btn" class="btn danger"><i class="fas fa-trash-alt"></i> 清空分流规则</button><button id="restart-mosdns-btn" class="btn danger"><i class="fas fa-redo"></i> 重启 MosDNS</button></div>
                     </div>
@@ -797,6 +585,11 @@
                     </div>
                     <div id="tab-appearance" class="tab-content">
                         <div id="appearance-container">
+                            <!-- 迁移: 分辨率缩放选项 -->
+                            <h5 class="subsection-title">分辨率缩放</h5>
+                            <div class="resolution-selector-group" id="resolution-selector">
+                                <!-- Resolution buttons will be generated by JS -->
+                            </div>
                             <h5 class="subsection-title">主题切换</h5>
                             <div class="theme-selector" id="theme-selector"></div>
                             <h5 class="subsection-title">自定义背景</h5>
@@ -827,7 +620,7 @@
         </div>
     </div>
 
-    <!-- MODIFICATION START: Log capture section now has fixed light theme styling -->
+    <!-- Log Capture Section -->
     <div class="log-capture-section">
         <div id="log-analysis-container" style="display: none;">
             <div id="log-request-list"></div>
@@ -836,11 +629,11 @@
             </div>
         </div>
     </div>
-    <!-- MODIFICATION END -->
-
+    
     <footer>
         <div class="footer-content">
-            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.3.1 FINAL</span></div>
+            <!-- 更新 UI 版本号 -->
+            <div class="footer-item"><i class="fas fa-code-branch footer-icon"></i><span>UI 版本: Core-Max v2.4.0 (Enhanced)</span></div>
             <div class="footer-separator"></div>
             <div class="footer-item"><i class="fas fa-users-cog footer-icon"></i><span>技术支持: P佬 & 熊佬 & Jimmy</span></div>
         </div>
@@ -880,11 +673,6 @@
     </div>
     
     <script>
-        // --- MODIFICATION START ---
-        // I have reviewed and refactored the entire script block for clarity, 
-        // bug fixes, and new features. The logic is preserved but improved.
-        // --- MODIFICATION END ---
-        
         const REFRESH_INTERVAL = 5000;
         const MAX_LINES_TO_DISPLAY = 500;
         const D = document; 
@@ -948,7 +736,7 @@
             'light': { name: '默认亮色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f7f9fd', '--text-color': '#2c3e50', '--card-bg': '#ffffff', '--card-shadow': '0 6px 18px rgba(0, 0, 0, 0.08)', '--border-color': '#e0e6ec', '--accent-color': '#4a90e2', '--label-color': '#7f8c8d', '--value-color': '#34495e', '--control-bg': '#f0f4f7', '--control-border': '#d5dce2', '--control-text': '#5e727e', '--control-hover-bg': '#e5edf3', '--control-active-bg': '#4a90e2', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#4a90e2', '--gradient-mid': '#2e86de', '--gradient-end': '#4a90e2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(74, 144, 226, 0.7)', miss: 'rgba(189, 195, 199, 0.3)', text: '#2c3e50' } },
             'dark': { name: '默认暗色', icon: 'fas fa-moon', cssVars: { '--bg-color': '#1a1a1a', '--text-color': '#e0e0e0', '--card-bg': '#282828', '--card-shadow': '0 8px 25px rgba(0, 0, 0, 0.5)', '--border-color': '#3a3a3a', '--accent-color': '#5096ff', '--label-color': '#bbbbbb', '--value-color': '#ffffff', '--control-bg': '#353535', '--control-border': '#4a4a4a', '--control-text': '#e0e0e0', '--control-hover-bg': '#404040', '--control-active-bg': '#5096ff', '--control-active-text': '#ffffff', '--status-green': '#2ecc71', '--gradient-start': '#5096ff', '--gradient-mid': '#3a7ce0', '--gradient-end': '#5096ff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(80, 150, 255, 0.7)', miss: 'rgba(100, 100, 100, 0.3)', text: '#e0e0e0' }, extraStyles: { 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 3px rgba(0,0,0,0.5);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));' } },
             'glass': { name: '高光琉璃', icon: 'fas fa-gem', cssVars: { '--bg-color': 'transparent', '--text-color': '#ffffff', '--card-bg': 'rgba(255, 255, 255, 0.1)', '--card-shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)', '--border-color': 'rgba(255, 255, 255, 0.2)', '--accent-color': '#90b8ff', '--label-color': '#d0d0d0', '--value-color': '#ffffff', '--control-bg': 'rgba(255, 255, 255, 0.15)', '--control-border': 'rgba(255, 255, 255, 0.2)', '--control-text': '#f0f0f0', '--control-hover-bg': 'rgba(255, 255, 255, 0.25)', '--control-active-bg': '#90b8ff', '--control-active-text': '#1a1a1a', '--status-green': '#2ecc71', '--gradient-start': '#82aaff', '--gradient-mid': '#c792ea', '--gradient-end': '#82aaff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(130, 170, 255, 0.7)', miss: 'rgba(255, 255, 255, 0.15)', text: '#ffffff' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(var(--glass-blur-strength)); -webkit-backdrop-filter: blur(var(--glass-blur-strength)); background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 60%); box-shadow: inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.1), var(--card-shadow); border: none; transition: all 0.3s ease, backdrop-filter 0.2s ease-out, -webkit-backdrop-filter 0.2s ease-out;', 'h1, h2, h4, .section-title, .metric-label, .metric-value, .switch-label-text, .tab-button, footer, .control-base-label, .data-view-group button': 'text-shadow: 0 1px 4px rgba(0,0,0,0.6);', '.fas, .fa-brands': 'filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));' } },
-            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } }, 
+            'material': { name: '谷歌设计', icon: 'fa-brands fa-google', cssVars: { '--bg-color': '#f8f9fa', '--text-color': '#202124', '--card-bg': '#ffffff', '--card-shadow': '0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)', '--border-color': '#dadce0', '--accent-color': '#4285f4', '--label-color': '#5f6368', '--value-color': '#202124', '--control-bg': '#f1f3f4', '--control-border': '#dadce0', '--control-text': '#3c4043', '--control-hover-bg': '#e8eaed', '--control-active-bg': '#4285f4', '--control-active-text': '#ffffff', '--status-green': '#34a853', '--gradient-start': '#4285f4', '--gradient-mid': '#fbbc05', '--gradient-end': '#34a853', '--font-family-main': "'Product Sans', 'Roboto', sans-serif" }, chartColors: { hit: 'rgba(52, 168, 83, 0.8)', miss: 'rgba(234, 67, 53, 0.8)', text: '#202124' }, extraStyles: { 'body': 'background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Cg fill-rule=\'evenodd\'%3E%3Cg fill=\'%23e8eaed\' fill-opacity=\'0.4\'%3E%3Cpath opacity=\'.5\' d=\'M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15v-9H0v-1h15V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h9V0h1v15h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9zm-1 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm9-10v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-10 0v-9h-9v9h9zm-9-10h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9zm10 0h9v-9h-9v9z\'/%3E%3Cpath d=\'M6 5V0h1v5h5v1H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");', '.card, .control-section': 'border-radius: 8px;', '.control-base-label, #refresh-now-btn, .data-view-group button': 'border-radius: 20px;', '.card-title-gradient-bar': 'background-image: linear-gradient(to right, #4285f4, #ea4335, #fbbc05, #34a853); animation: none;', '.fas, .fa-brands': 'text-shadow: 1px 1px 2px rgba(0,0,0,0.1);' } }, 
             'cupertino_light': { name: '苹果浅色', icon: 'fas fa-sun', cssVars: { '--bg-color': '#f5f5f7', '--text-color': '#1d1d1f', '--card-bg': '#ffffff', '--card-shadow': '0 4px 15px rgba(0,0,0,0.08)', '--border-color': '#d2d2d7', '--accent-color': '#007aff', '--label-color': '#6e6e73', '--value-color': '#1d1d1f', '--control-bg': '#e9e9eb', '--control-border': '#d2d2d7', '--control-text': '#3a3a3c', '--control-hover-bg': '#e1e1e3', '--control-active-bg': '#007aff', '--control-active-text': '#ffffff', '--status-green': '#34c759', '--gradient-start': '#007aff', '--gradient-mid': '#007aff', '--gradient-end': '#007aff', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(0, 122, 255, 0.8)', miss: 'rgba(142, 142, 147, 0.6)', text: '#1d1d1f' }, extraStyles: { '.card, .control-section': 'border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;', '.card-title-gradient-bar': 'background-image: none;' } },
             'cupertino_dark': { name: '苹果暗色', icon: 'fa-brands fa-apple', cssVars: { '--bg-color': '#1d1d1f', '--text-color': 'rgba(255, 255, 255, 0.9)', '--card-bg': 'rgba(50, 50, 52, 0.7)', '--card-shadow': '0 12px 30px rgba(0,0,0,0.6)', '--border-color': 'rgba(84, 84, 88, 0.65)', '--accent-color': '#0a84ff', '--label-color': 'rgba(235, 235, 245, 0.6)', '--value-color': '#ffffff', '--control-bg': 'rgba(60, 60, 62, 0.8)', '--control-border': 'rgba(84, 84, 88, 0.65)', '--control-text': 'rgba(255, 255, 255, 0.9)', '--control-hover-bg': 'rgba(80, 80, 82, 0.9)', '--control-active-bg': '#0a84ff', '--control-active-text': '#ffffff', '--status-green': '#32d74b', '--gradient-start': '#0a84ff', '--gradient-mid': '#5e5ce6', '--gradient-end': '#bf5af2', '--font-family-main': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif" }, chartColors: { hit: 'rgba(10, 132, 255, 0.8)', miss: 'rgba(94, 92, 230, 0.5)', text: 'rgba(255, 255, 255, 0.9)' }, extraStyles: { '.card, .control-section': 'backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 12px;', 'h1, h2, h4': 'font-weight: 600;', '.metric-value': 'font-weight: 500;' } },
             'cyberpunk': { name: '赛博朋克', icon: 'fas fa-bolt', cssVars: { '--bg-color': '#1a0933', '--text-color': '#e0d8f0', '--card-bg': 'rgba(26, 9, 51, 0.6)', '--card-shadow': '0 0 15px rgba(255, 0, 234, 0.3), 0 0 30px rgba(0, 255, 255, 0.3)', '--border-color': 'rgba(0, 255, 255, 0.5)', '--accent-color': '#ff00ea', '--label-color': '#9085a6', '--value-color': '#f8f8f2', '--control-bg': 'rgba(52, 18, 104, 0.5)', '--control-border': 'rgba(255, 0, 234, 0.6)', '--control-text': '#e0d8f0', '--control-hover-bg': 'rgba(255, 0, 234, 0.25)', '--control-active-bg': '#ff00ea', '--control-active-text': '#f8f8f2', '--status-green': '#00ffff', '--gradient-start': '#ff00ea', '--gradient-mid': '#00ffff', '--gradient-end': '#ff00ea', '--font-family-main': "'Orbitron', 'Turret Road', 'Michroma', sans-serif" }, chartColors: { hit: 'rgba(255, 0, 234, 0.8)', miss: 'rgba(0, 255, 255, 0.6)', text: '#f8f8f2' }, extraStyles: { 'body': 'background: #1a0933 linear-gradient(180deg, rgba(26, 9, 51, 0) 0%, #341268 100%);', 'h1, h2, h4, .section-title, .metric-value, button': 'text-shadow: 0 0 5px var(--accent-color);', '.card, .control-section': 'border-image: linear-gradient(to bottom right, var(--accent-color), #00ffff) 1; border-image-slice: 1; border-style: solid; border-width: 1px;' } },
@@ -967,6 +755,41 @@
         };
         const cacheOrder = ['cache_all', 'cache_cn', 'cache_google', 'cache_node']; 
         let visibleCards = JSON.parse(localStorage.getItem('visibleMosdnsCards')) || cacheOrder;
+
+        /**
+         * 迁移: 设置基础分辨率缩放
+         * @param {string} scale - 缩放比例字符串 (e.g., '1', '1.25', '1.5')
+         */
+        function setResolution(scale) {
+            const baseFontSize = 16; // CSS 中设置的 100% 缩放时的基准字体大小
+            document.documentElement.style.fontSize = `${baseFontSize / parseFloat(scale)}px`;
+            
+            const buttons = document.querySelectorAll('.resolution-selector-group button');
+            buttons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.scale === String(scale));
+            });
+            localStorage.setItem('resolutionScale', scale);
+        }
+
+        /**
+         * 迁移: 初始化分辨率选择器
+         */
+        function initializeResolutionSelector() {
+            const container = getById('resolution-selector');
+            if (!container) return;
+            const scales = { "1": "100%", "1.25": "125%", "1.5": "150%" };
+            
+            Object.entries(scales).forEach(([scale, text]) => {
+                const btn = createElement('button', 'control-base-label');
+                btn.textContent = text;
+                btn.dataset.scale = scale;
+                btn.onclick = () => setResolution(scale);
+                container.appendChild(btn);
+            });
+
+            const savedScale = localStorage.getItem('resolutionScale') || '1';
+            setResolution(savedScale);
+        }
 
         function setTheme(mode) {
             currentTheme = mode; const theme = themeMap[mode] || themeMap.light;
@@ -1059,7 +882,7 @@
             metricsData.forEach(m => {
                 const itemWrapper = createElement('div', 'metric-item');
                 const labelEl = createElement('div', 'metric-label');
-                labelEl.innerHTML = `<i class="fas ${iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}</span>`;
+                labelEl.innerHTML = `<i class="fas ${iconMap[m.label] || 'fa-question-circle'}"></i> <span>${m.label}:</span>`;
                 const valueEl = createElement('div', `metric-value${m.accent ? ' accent' : ''}`);
                 valueEl.innerText = (m.numericValue !== undefined) ? formatNumber(m.numericValue) : m.value;
 
@@ -1706,11 +1529,11 @@
             startCaptureBtn.addEventListener('click', () => {
                 const duration = parseInt(captureDurationInput.value, 10);
                 if (isNaN(duration) || duration < 1 || duration > 600) { alert('请输入 1 到 600 之间的秒数。'); return; }
-                startCaptureBtn.disabled = true; startCaptureBtn.classList.add('active'); startCaptureBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 采集中...`;
+                startCaptureBtn.disabled = true; startCaptureBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 采集中...`;
                 fetch(`${mosdnsHost}/api/v1/capture/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ duration_seconds: duration }) })
                 .then(response => { if (!response.ok) throw new Error('启动采集失败'); return response.text(); })
-                .then(text => { showToast(text, 'success'); setTimeout(() => { startCaptureBtn.disabled = false; startCaptureBtn.classList.remove('active'); startCaptureBtn.innerHTML = `<i class="fas fa-bug"></i> 日志抓取`; }, duration * 1000); })
-                .catch(err => { showToast('启动采集失败', 'error'); startCaptureBtn.disabled = false; startCaptureBtn.classList.remove('active'); startCaptureBtn.innerHTML = `<i class="fas fa-bug"></i> 日志抓取`; });
+                .then(text => { showToast(text, 'success'); setTimeout(() => { startCaptureBtn.disabled = false; startCaptureBtn.innerHTML = `<i class="fas fa-bug"></i> 日志抓取`; }, duration * 1000); })
+                .catch(err => { showToast('启动采集失败', 'error'); startCaptureBtn.disabled = false; startCaptureBtn.innerHTML = `<i class="fas fa-bug"></i> 日志抓取`; });
             });
 
             getLogsBtn.addEventListener('click', () => {
@@ -1734,13 +1557,6 @@
             });
         }
         
-        // --- START OF REVISED LOG RENDERING LOGIC ---
-        function sanitizeForMermaid(str) {
-            if (typeof str !== 'string') return '';
-            const replacements = { ':': '&#58;', '(': '&#40;', ')': '&#41;', '{': '&#123;', '}': '&#125;', '"': '&quot;', "'": '&#39;',  '@': '&#64;', '<': '&lt;', '>': '&gt;' };
-            return str.replace(/[:(){}"'@<>]/g, char => replacements[char]);
-        }
-
         function processAndRenderLogs(allLogs) {
             const requests = new Map();
             for (const log of allLogs) {
@@ -1888,13 +1704,12 @@
             container.appendChild(list);
         }
 
-        // --- END OF REVISED LOG RENDERING LOGIC ---
-
         document.addEventListener('DOMContentLoaded', async () => {
-            // No need to initialize Mermaid here anymore
+            // 不需要初始化 Mermaid，因为日志渲染不是通过它完成的
             dataModalSearchInput = getById('data-modal-search'); 
 
             setupEventListeners();
+            initializeResolutionSelector(); // 迁移: 初始化分辨率选择器
             setupCardToggles();
             
             const savedTheme = localStorage.getItem('theme') || 'light';
