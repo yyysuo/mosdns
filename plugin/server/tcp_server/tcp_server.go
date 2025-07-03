@@ -46,6 +46,7 @@ type Args struct {
 	Cert        string `yaml:"cert"`
 	Key         string `yaml:"key"`
 	IdleTimeout int    `yaml:"idle_timeout"`
+	EnableAudit bool   `yaml:"enable_audit"` // ADDED: Optional config to enable logging for this server instance.
 }
 
 func (a *Args) init() {
@@ -64,11 +65,14 @@ func (s *TcpServer) Close() error {
 }
 
 func Init(bp *coremain.BP, args any) (any, error) {
-	return StartServer(bp, args.(*Args))
+	a := args.(*Args)
+	a.init()
+	return StartServer(bp, a)
 }
 
 func StartServer(bp *coremain.BP, args *Args) (*TcpServer, error) {
-	dh, err := server_utils.NewHandler(bp, args.Entry)
+	// MODIFIED: Pass the EnableAudit flag to the handler constructor.
+	dh, err := server_utils.NewHandler(bp, args.Entry, args.EnableAudit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init dns handler, %w", err)
 	}
