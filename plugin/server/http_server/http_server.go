@@ -17,7 +17,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package tcp_server
+package http_server
 
 import (
 	"context"
@@ -51,6 +51,7 @@ type Args struct {
 	Cert        string `yaml:"cert"`
 	Key         string `yaml:"key"`
 	IdleTimeout int    `yaml:"idle_timeout"`
+	EnableAudit bool   `yaml:"enable_audit"` // ADDED: Flag to enable audit logging for this server instance.
 }
 
 func (a *Args) init() {
@@ -68,15 +69,19 @@ func (s *HttpServer) Close() error {
 }
 
 func Init(bp *coremain.BP, args any) (any, error) {
-	return StartServer(bp, args.(*Args))
+	a := args.(*Args) // Cast to pointer type for init()
+	a.init()
+	return StartServer(bp, a)
 }
 
 func StartServer(bp *coremain.BP, args *Args) (*HttpServer, error) {
 	mux := http.NewServeMux()
 	for _, entry := range args.Entries {
-		dh, err := server_utils.NewHandler(bp, entry.Exec)
+		// MODIFIED: Pass the EnableAudit flag from HTTP server args.
+		// Note: HTTP server args contain a list of entries, so we pass the main EnableAudit flag for all sub-entries.
+		dh, err := server_utils.NewHandler(bp, entry.Exec, args.EnableAudit) 
 		if err != nil {
-			return nil, fmt.Errorf("failed to init dns handler, %w", err)
+			return nil, fmt.Errorf("failed to init dns handler for path %s, %w", entry.Path, err)
 		}
 		hhOpts := server.HttpHandlerOpts{
 			GetSrcIPFromHeader: args.SrcIPHeader,
