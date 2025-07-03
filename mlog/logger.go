@@ -41,10 +41,12 @@ type LogConfig struct {
 var (
 	stderr = zapcore.Lock(os.Stderr)
 	// MODIFIED: Export Lvl to be accessible from other packages.
+	// This is now the single point of control for the log level.
 	Lvl = zap.NewAtomicLevelAt(zap.InfoLevel)
+
+	// This global logger `l` and `s` will now also be controlled by `Lvl`.
 	l   = zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig()), stderr, Lvl))
 	s   = l.Sugar()
-
 	nop = zap.NewNop()
 )
 
@@ -53,7 +55,10 @@ func NewLogger(lc LogConfig) (*zap.Logger, error) {
 	// The initial level is set from the config just once.
 	initialLevel, err := zapcore.ParseLevel(lc.Level)
 	if err != nil {
-		return nil, fmt.Errorf("invalid log level: %w", err)
+		// Fallback to InfoLevel if parsing fails but don't return an error,
+		// so the program can start with a default log level.
+		initialLevel = zap.InfoLevel
+		S().Warnf("invalid log level '%s' in config, falling back to 'info'", lc.Level)
 	}
 	Lvl.SetLevel(initialLevel) // Set initial level for the global controller.
 
@@ -68,11 +73,10 @@ func NewLogger(lc LogConfig) (*zap.Logger, error) {
 		out = stderr
 	}
 
+	// All created loggers will now respect the global `Lvl`.
 	if lc.Production {
-		// ALWAYS use the global Lvl for the new logger.
 		return zap.New(zapcore.NewCore(zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()), out, Lvl)), nil
 	}
-	// ALWAYS use the global Lvl for the new logger.
 	return zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig()), out, Lvl)), nil
 }
 
