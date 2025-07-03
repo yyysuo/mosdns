@@ -1,4 +1,3 @@
-// /root/mosdns/coremain/capture.go
 package coremain
 
 import (
@@ -8,6 +7,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+// MODIFIED: Exported LogMarkKey to be accessible from other packages.
+const LogMarkKey = 0xFEEDBEEF // ADDED: A globally accessible key for marking contexts.
 
 // InMemoryLogCollector is a thread-safe in-memory log collector.
 type InMemoryLogCollector struct {
@@ -65,7 +67,7 @@ func (c *InMemoryLogCollector) AddLog(entry zapcore.Entry, fields []zapcore.Fiel
 	if !c.capturing {
 		return
 	}
-
+    
     // Only capture debug level logs into memory.
     if entry.Level != zap.DebugLevel {
         return
