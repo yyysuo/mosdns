@@ -37,8 +37,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// [修改] 增加 www/mosdnsp.html 到 embed 列表
-//go:embed www/mosdns.html www/mosdnsp.html
+//go:embed www/mosdns.html www/mosdnsp.html www/log.html
 var content embed.FS
 
 type Mosdns struct {
@@ -60,12 +59,14 @@ func NewMosdns(cfg *Config) (*Mosdns, error) {
 		return nil, fmt.Errorf("failed to init logger: %w", err)
 	}
 
-	// Create our TeeCore to also write to the in-memory collector.
+	// Create our TeeCore to also write to the in-memory collector for detailed process logs.
 	teeCore := NewTeeCore(baseLogger.Core(), GlobalLogCollector)
 	
 	// Create the final logger with our TeeCore.
-	// It will automatically use the global atomic level from mlog.Lvl.
 	lg := zap.New(teeCore, zap.AddCaller(), zap.AddStacktrace(zap.ErrorLevel))
+	
+    // Start the audit log collector's background worker.
+    GlobalAuditCollector.StartWorker()
 
 	m := &Mosdns{
 		logger:     lg,
@@ -78,8 +79,9 @@ func NewMosdns(cfg *Config) (*Mosdns, error) {
 	// This must be called after m.httpMux and m.metricsReg been set.
 	m.initHttpMux()
 
-	// Register our new capture API.
-	RegisterCaptureAPI(m.httpMux)
+	// Register our new APIs.
+	RegisterCaptureAPI(m.httpMux) // For process logs
+	RegisterAuditAPI(m.httpMux)   // For audit logs
 
 	// Start http api server
 	if httpAddr := cfg.API.HTTP; len(httpAddr) > 0 {
@@ -106,11 +108,14 @@ func NewMosdns(cfg *Config) (*Mosdns, error) {
 	// Load plugins.
 
 	// Close all plugins on signal.
-	// From here, call m.sc.SendCloseSignal() if any plugin failed to load.
 	m.sc.Attach(func(done func(), closeSignal <-chan struct{}) {
 		go func() {
 			defer done()
 			<-closeSignal
+
+            // Stop the audit worker gracefully.
+            GlobalAuditCollector.StopWorker()
+
 			m.logger.Info("starting shutdown sequences")
 			for tag, p := range m.plugins {
 				if closer, _ := p.(io.Closer); closer != nil {
@@ -247,10 +252,25 @@ func (m *Mosdns) initHttpMux() {
             m.logger.Error("Error writing response", zap.Error(err))
         }
     }
+
+    // [新增] log 路由 ("/log") 的 handler, 指向 /www/log.html
+    logHandler := func(w http.ResponseWriter, r *http.Request) {
+        data, err := content.ReadFile("www/log.html") // 读取 /www/log.html
+        if err != nil {
+            m.logger.Error("Error reading embedded file", zap.String("file", "www/log.html"), zap.Error(err))
+            http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+            return
+        }
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        if _, err := w.Write(data); err != nil {
+            m.logger.Error("Error writing response", zap.Error(err))
+        }
+    }
     
     // [修改] 为每个路由注册对应的 handler
     m.httpMux.Get("/", rootHandler)
     m.httpMux.Get("/graphic", graphicHandler)
+    m.httpMux.Get("/log", logHandler) // [新增] 注册 /log 路由
 
     // Register pprof.
     m.httpMux.Route("/debug/pprof", func(r chi.Router) {
