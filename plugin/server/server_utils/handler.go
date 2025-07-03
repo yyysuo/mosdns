@@ -28,7 +28,8 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 )
 
-func NewHandler(bp *coremain.BP, entry string) (server.Handler, error) {
+// MODIFIED: Function signature now accepts the enableAudit flag.
+func NewHandler(bp *coremain.BP, entry string, enableAudit bool) (server.Handler, error) {
 	p := bp.M().GetPlugin(entry)
 	exec := sequence.ToExecutable(p)
 	if exec == nil {
@@ -38,6 +39,8 @@ func NewHandler(bp *coremain.BP, entry string) (server.Handler, error) {
 	handlerOpts := server_handler.EntryHandlerOpts{
 		Logger: bp.L(),
 		Entry:  exec,
+		// ADDED: Pass the enableAudit flag to the handler options.
+		EnableAudit: enableAudit,
 	}
 	return server_handler.NewEntryHandler(handlerOpts), nil
 }
