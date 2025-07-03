@@ -115,6 +115,7 @@
         }
 
         /* NEW/MODIFIED: Apply consistent button styling to all relevant buttons */
+        #dns-log-page-btn,
         #refresh-now-btn,
         #start-capture-btn, 
         #get-logs-btn { 
@@ -133,8 +134,9 @@
             height: 38px; /* Ensure consistent height */
             box-sizing: border-box; /* Include padding and border in height calculation */
         }
-
+        
         /* NEW/MODIFIED: Hover styles for all consistent buttons */
+        #dns-log-page-btn:hover,
         #refresh-now-btn:hover,
         #start-capture-btn:hover, 
         #get-logs-btn:hover { 
@@ -142,7 +144,7 @@
             border-color: var(--accent-color);
             transform: translateY(-2px);
         }
-
+        
         /* NEW/MODIFIED: Styles for input and span to match button style */
         #capture-duration-input,
         .duration-unit {
@@ -176,8 +178,9 @@
             border-color: var(--accent-color);
             /* Focus-visible box-shadow is handled globally for inputs/textareas */
         }
-
+        
         /* NEW: Ensure icons within these buttons are consistently sized */
+        #dns-log-page-btn .fas,
         #refresh-now-btn .fas,
         #start-capture-btn .fas,
         #get-logs-btn .fas {
@@ -761,7 +764,10 @@
                             <span class="duration-unit">秒</span>
                             <i class="fas fa-info-circle info-tooltip-icon" data-tooltip="点击开始抓取。到期后debug会自动关闭，日志在获取一次后自动清空。"></i>
                             <button id="get-logs-btn" class="btn">
-                                <i class="fas fa-search"></i> 获取日志
+                                <i class="fas fa-search"></i> 分析日志
+                            </button>
+                            <button id="dns-log-page-btn" class="btn">
+                                <i class="fas fa-list-alt"></i> DNS请求记录
                             </button>
                         </div>
                     </div>
@@ -1671,7 +1677,7 @@
             getById('save-rules-btn').addEventListener('click', () => { if (confirm('确定保存所有分流规则吗?')) { saveAllRulesAndNotify(); } });
             createApiAction('flush-rules-btn', ruleListPaths, '【危险操作】确定清空所有分流规则吗?', '分流规则已清空。');
             getById('flush-cache-btn').addEventListener('click', async () => { if (!confirm('确定清空全部缓存吗? 此操作将根据当前核心运行模式清空对应的缓存。')) { return; } const cacheToFlush = coreMode === 'B' ? 'cache_all_noleak' : 'cache_all'; const path = `/plugins/${cacheToFlush}/flush`; try { const response = await fetch(path); if (!response.ok) { const errorText = await response.text(); throw new Error(`清空缓存失败于 ${path}: ${errorText || response.statusText}`); } showToast('全部缓存已清空，正在刷新数据...', 'success'); await refreshData(false, true); } catch (e) { showToast('清空缓存操作失败！', 'error'); showErrorModal(e.message); } });
-            getById('restart-mosdns-btn').onclick = async () => { if (confirm('【危险操作】此操作将首先保存所有分流规则，然后重启 MosDNS。确定要继续吗?')) { const saveSuccess = await saveAllRulesAndNotify(); if (saveSuccess) { showToast('规则已保存，正在发送重启命令...', 'success'); try { const response = await fetch('/plugins/my_fakeiplist/restartall'); if (!response.ok) { const errorText = await response.text(); throw new Error(errorText || `重启命令请求失败，状态码: ${response.status}`); } showToast('MosDNS 正在重启，页面即将刷新...'); setTimeout(() => location.reload(), 2000); } catch (e) { showToast('重启命令发送失败', 'error'); showErrorModal(e.message); } } else { showToast('由于规则保存失败，重启操作已取消。', 'error'); } } };
+            getById('restart-mosdns-btn').onclick = async () => { if (confirm('【危险操作】此操作将首先保存所有分流规则，然后重启 MosDNS。确定要继续吗?')) { const saveSuccess = await saveAllRulesAndNotify(); if (saveSuccess) { showToast('规则已保存，正在发送重启命令...', 'success'); try { const response = await fetch('/plugins/my_fakeiplist/restartall'); if (!response.ok) { const errorText = await response.text(); throw new Error(errorText || `重启命令请求失败，状态码: ${response.status}`); } showToast('MosDNS 正在重启，页面即将刷新...'); setTimeout(() => location.reload(), 2000); } catch (e) { showToast('重启命令发送失败', 'error'); showErrorModal(e.message); } } else { showToast('由于规则保存失败，重启操作已取消。', 'error'); } } };getById('dns-log-page-btn').onclick = () => { const url = `http://${window.location.hostname}:${window.location.port}/log`; window.open(url, '_blank'); };
             
             const showEndpoints = { '请求排行': 'top_domains','fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '全部缓存（兼容）': 'cache_all', '全部缓存（安全）': 'cache_all_noleak','国内缓存': 'cache_cn', '国外缓存（兼容）': 'cache_google', '国外缓存（安全）': 'cache_google_node','节点缓存': 'cache_node' };
             const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; 
