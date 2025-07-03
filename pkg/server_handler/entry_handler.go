@@ -23,6 +23,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/IrineSistiana/mosdns/v5/coremain" // ADDED: Import coremain for audit collector
 	"github.com/IrineSistiana/mosdns/v5/mlog"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/pkg/server"
@@ -60,6 +61,9 @@ type EntryHandlerOpts struct {
 	// QueryTimeout limits the timeout value of each query.
 	// Default is defaultQueryTimeout.
 	QueryTimeout time.Duration
+
+	// ADDED: Flag to enable audit and process logging for this handler instance.
+	EnableAudit bool
 }
 
 func (opts *EntryHandlerOpts) init() {
@@ -80,7 +84,7 @@ func NewEntryHandler(opts EntryHandlerOpts) *EntryHandler {
 	return &EntryHandler{opts: opts}
 }
 
-// ServeDNS implements server.Handler.
+// Handle implements server.Handler.
 // If entry returns an error, a SERVFAIL response will be returned.
 // If entry returns without a response, a REFUSED response will be returned.
 func (h *EntryHandler) Handle(ctx context.Context, q *dns.Msg, serverMeta server.QueryMeta, packMsgPayload func(m *dns.Msg) (*[]byte, error)) *[]byte {
@@ -95,6 +99,16 @@ func (h *EntryHandler) Handle(ctx context.Context, q *dns.Msg, serverMeta server
 
 	qCtx := query_context.NewContext(q)
 	qCtx.ServerMeta = serverMeta
+
+	// --- FINAL MODIFICATION: The definitive logic to avoid double logging ---
+	// This single flag, passed from the server config, now controls both logging systems.
+	if h.opts.EnableAudit {
+		// Mark this context so that downstream sequence loggers know to capture it.
+		qCtx.StoreValue(coremain.LogMarkKey, true)
+		// Defer the final audit log collection.
+		defer coremain.GlobalAuditCollector.Collect(qCtx)
+	}
+	// --- END OF MODIFICATION ---
 
 	// exec entry
 	err := h.opts.Entry.Exec(ctx, qCtx)
