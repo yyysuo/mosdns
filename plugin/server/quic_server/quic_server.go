@@ -46,10 +46,14 @@ type Args struct {
 	Cert        string `yaml:"cert"`
 	Key         string `yaml:"key"`
 	IdleTimeout int    `yaml:"idle_timeout"`
+	MaxStreamData   int    `yaml:"max_stream_data"` // original field
+	MaxConnectionData int  `yaml:"max_connection_data"` // original field
+	EnableAudit bool   `yaml:"enable_audit"` // ADDED: Flag to enable audit logging for this server instance.
 }
 
 func (a *Args) init() {
 	utils.SetDefaultNum(&a.IdleTimeout, 30)
+	// No defaults for MaxStreamData/MaxConnectionData based on provided original init()
 }
 
 type QuicServer struct {
@@ -63,13 +67,16 @@ func (s *QuicServer) Close() error {
 }
 
 func Init(bp *coremain.BP, args any) (any, error) {
-	return StartServer(bp, args.(*Args))
+	a := args.(*Args) // Cast to pointer type for init()
+	a.init()
+	return StartServer(bp, a)
 }
 
 func StartServer(bp *coremain.BP, args *Args) (*QuicServer, error) {
 	logger := bp.L()
 
-	dh, err := server_utils.NewHandler(bp, args.Entry)
+	// MODIFIED: Pass the EnableAudit flag to the handler constructor.
+	dh, err := server_utils.NewHandler(bp, args.Entry, args.EnableAudit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init dns handler, %w", err)
 	}
