@@ -11,7 +11,6 @@
             --pico-font-size: 87.5%; /* 14px base */
         }
         body {
-            /* 3. 为页面主体添加柔和的底色，以突出内容板块 */
             background-color: var(--pico-muted-background-color);
         }
         .container {
@@ -27,7 +26,7 @@
             border-bottom: 1px solid var(--pico-muted-border-color);
         }
 
-        /* 4. 优化顶部导航链接，使其看起来像标签页 */
+        /* 优化顶部导航链接，使其看起来像标签页 */
         nav a.tab-link {
             --pico-nav-link-padding: 0.75rem 1rem;
             --pico-nav-link-background-color: transparent;
@@ -45,7 +44,7 @@
             font-weight: bold;
         }
         
-        /* 3. & 5. 为各板块添加统一样式，合并板块 */
+        /* 为各板块添加统一样式 */
         article {
             background-color: var(--pico-card-background-color);
             border: 1px solid var(--pico-muted-border-color);
@@ -70,7 +69,7 @@
             gap: var(--pico-spacing);
         }
         
-        /* 5. 状态与控制板块新布局 */
+        /* 状态与控制板块新布局 */
         .status-control-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -93,7 +92,7 @@
         }
         .controls-area p { margin-bottom: 0.5rem; }
 
-        /* 5. 缩小控制按钮 */
+        /* 缩小控制按钮 */
         .control-buttons .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -111,7 +110,7 @@
             margin-top: 1rem;
         }
         
-        /* 3. 为查询日志表格区域添加边框和内边距 */
+        /* 为查询日志表格区域添加边框和内边距 */
         #log-query-tab figure {
             border: 1px solid var(--pico-muted-border-color);
             border-radius: var(--pico-border-radius);
@@ -137,7 +136,8 @@
         .tooltip-container:hover .answers-tooltip { visibility: visible; opacity: 1; }
         .answers-tooltip h5 { margin: 0 0 0.5rem 0; font-size: 1em; }
         .answers-tooltip ul { margin: 0; padding-left: 1.2rem; }
-        .answers-tooltip li { font-family: var(--pico-font-family-monospace); }
+        .answers-tooltip li { font-family: var(--pico-font-family-monospace); font-size: 0.9em; }
+        .answers-tooltip li small { font-family: var(--pico-font-family-monospace); }
         #toast { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 6px; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; transform: translateY(-20px); }
         #toast.show { opacity: 1; visibility: visible; transform: translateY(0); }
         #toast.success { background-color: var(--pico-card-background-color); border-left: 5px solid var(--pico-color-green-500); }
@@ -191,7 +191,6 @@
                     </button>
                 </header>
                 <div class="status-control-grid">
-                    <!-- 5. 合并后的统计板块 -->
                     <div class="stats-area">
                         <div class="stat-item">
                             <h3>总查询数</h3>
@@ -202,7 +201,6 @@
                             <p id="avg-duration" class="text-purple">0</p>
                         </div>
                     </div>
-                    <!-- 5. 调整后的控制板块 -->
                     <div class="controls-area">
                         <p><strong>审计日志状态:</strong> <mark id="audit-status">查询中...</mark></p>
                         <p><strong>日志容量:</strong> <span id="audit-capacity">查询中...</span> 条</p>
@@ -236,7 +234,7 @@
             <article>
                 <header><h2>最慢查询</h2></header>
                 <div class="scrollable-table-container">
-                    <table role="grid"><thead><tr><th>时间</th><th>域名</th><th>耗时 (ms)</th><th>客户端</th></tr></thead><tbody id="slowest-queries-body"></tbody></table>
+                    <table role="grid"><thead><tr><th>时间</th><th>域名</th><th>耗时 (ms)</th><th>客户端</th><th>响应</th></tr></thead><tbody id="slowest-queries-body"></tbody></table>
                 </div>
             </article>
         </section>
@@ -250,7 +248,7 @@
                         <button id="refresh-logs-btn" aria-busy="false">刷新日志</button>
                     </div>
                 </header>
-                <input type="search" id="log-search" placeholder="实时搜索域名、IP、别名..." style="margin-bottom: 1rem;">
+                <input type="search" id="log-search" placeholder="实时搜索域名、IP、别名、响应..." style="margin-bottom: 1rem;">
                 <figure>
                      <table role="grid">
                         <thead><tr><th>时间</th><th>域名</th><th>查询类型</th><th>耗时(ms)</th><th>客户端</th><th>响应 (悬停看全部)</th></tr></thead>
@@ -267,8 +265,6 @@
         // --- 配置与状态 ---
         const mosdnsApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:9099`;
         const LOGS_PER_PAGE = 50;
-        const MAX_CAPACITY = 100000;
-        const IP_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^((([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])))$/;
         let state = { allLogs: [], filteredLogs: [], isCapturing: false, currentPage: 0, isLoadingMore: false, clientAliases: {} };
 
         // --- API ---
@@ -340,12 +336,32 @@
             },
             updateCapacity(capacity) { document.getElementById('audit-capacity').textContent = capacity ? capacity.toLocaleString() : '查询失败'; },
             updateOverviewStats(logs) { const total = logs.length; document.getElementById('total-queries').textContent = total.toLocaleString(); document.getElementById('avg-duration').textContent = total > 0 ? (logs.reduce((sum, log) => sum + log.duration_ms, 0) / total).toFixed(2) : '0.00'; },
-            renderLogTable(logs, append = false) { const tbody = document.getElementById('log-table-body'); if (!append) tbody.innerHTML = ''; if (logs.length === 0 && !append) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">没有匹配的日志记录</td></tr>'; return; } const rows = logs.map(log => { const tr = document.createElement('tr'); tr.innerHTML = ` <td>${formatDate(log.query_time)}</td> <td>${log.query_name}</td> <td>${log.query_type}</td> <td>${log.duration_ms.toFixed(2)}</td> <td>${aliasManager.getDisplayName(log.client_ip)}</td> <td>${formatAnswersCell(log.answers || [])}</td> `; return tr; }); tbody.append(...rows); }
+            renderLogTable(logs, append = false) { 
+                const tbody = document.getElementById('log-table-body');
+                if (!append) tbody.innerHTML = '';
+                if (logs.length === 0 && !append) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">没有匹配的日志记录</td></tr>';
+                    return;
+                }
+                const rows = logs.map(log => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${formatDate(log.query_time)}</td>
+                        <td>${log.query_name}</td>
+                        <td>${log.query_type}</td>
+                        <td>${log.duration_ms.toFixed(2)}</td>
+                        <td>${aliasManager.getDisplayName(log.client_ip)}</td>
+                        <td>${formatResponseCell(log)}</td>
+                    `;
+                    return tr;
+                });
+                tbody.append(...rows);
+            }
         };
         const renderTable = (tbodyId, data, renderRow) => { const tbody = document.getElementById(tbodyId); tbody.innerHTML = ''; if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${tbody.previousElementSibling.rows[0].cells.length}" style="text-align:center;">无数据</td></tr>`; return; } data.forEach(item => tbody.appendChild(renderRow(item))); };
         const renderTopDomains = (data) => renderTable('top-domains-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${item.name}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.name}">${item.count}</a></td>`; return tr; });
         const renderTopClients = (data) => renderTable('top-clients-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${aliasManager.getDisplayName(item.ip)}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.ip}">${item.count}</a></td>`; return tr; });
-        const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${formatDate(item.query_time)}</td><td>${item.query_name}</td><td>${item.duration_ms.toFixed(2)}</td><td>${aliasManager.getDisplayName(item.client_ip)}</td>`; return tr; });
+        const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${formatDate(item.query_time)}</td><td>${item.query_name}</td><td>${item.duration_ms.toFixed(2)}</td><td>${aliasManager.getDisplayName(item.client_ip)}</td><td>${formatResponseCell(item)}</td>`; return tr; });
         function processLogsForOverview(logs) { if (!logs) return { topDomains: [], topClients: [], slowestQueries: [] }; const domainCounts = logs.reduce((acc, log) => { acc[log.query_name] = (acc[log.query_name] || 0) + 1; return acc; }, {}); const topDomains = Object.entries(domainCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 50); const clientCounts = logs.reduce((acc, log) => { acc[log.client_ip] = (acc[log.client_ip] || 0) + 1; return acc; }, {}); const topClients = Object.entries(clientCounts).map(([ip, count]) => ({ ip, count })).sort((a, b) => b.count - a.count).slice(0, 50); const slowestQueries = [...logs].sort((a, b) => b.duration_ms - a.duration_ms).slice(0, 50); return { topDomains, topClients, slowestQueries };}
         
         // --- 核心逻辑与数据流 ---
@@ -383,10 +399,98 @@
         }
         
         function rerenderAllViews() { const { topDomains, topClients, slowestQueries } = processLogsForOverview(state.allLogs); ui.updateOverviewStats(state.allLogs); renderTopDomains(topDomains); renderTopClients(topClients); renderSlowestQueries(slowestQueries); if (window.location.hash.startsWith('#log-query')) { applyLogFilterAndRender(); } }
-        function applyLogFilterAndRender() { const searchTerm = document.getElementById('log-search').value.toLowerCase(); state.filteredLogs = searchTerm ? state.allLogs.filter(log => { const alias = (state.clientAliases[log.client_ip] || '').toLowerCase(); return log.query_name.toLowerCase().includes(searchTerm) || log.client_ip.toLowerCase().includes(searchTerm) || (alias && alias.includes(searchTerm)); }) : state.allLogs; state.currentPage = 0; ui.renderLogTable([], false); loadMoreLogs(); }
-	function loadMoreLogs() { if (state.isLoadingMore) return; const logLoader = document.getElementById('log-loader'); const start = state.currentPage * LOGS_PER_PAGE; if (start >= state.filteredLogs.length) { if (state.currentPage === 0) { ui.renderLogTable([], false); } return; } state.isLoadingMore = true; logLoader.style.display = 'block'; const logsToRender = state.filteredLogs.slice(start, start + LOGS_PER_PAGE); setTimeout(() => { ui.renderLogTable(logsToRender, true); state.currentPage++; state.isLoadingMore = false; logLoader.style.display = 'none'; }, 50); }
+        
+        // BUGFIX: Reworked this function again to be more robust.
+        function applyLogFilterAndRender() { 
+            const searchTerm = document.getElementById('log-search').value.toLowerCase();
+            
+            state.filteredLogs = searchTerm 
+                ? state.allLogs.filter(log => {
+                    const alias = (state.clientAliases[log.client_ip] || '').toLowerCase();
+                    const responseMatch = log.answers && log.answers.some(answer => 
+                        answer.data.toLowerCase().includes(searchTerm)
+                    );
+                    return log.query_name.toLowerCase().includes(searchTerm) || 
+                           log.client_ip.toLowerCase().includes(searchTerm) || 
+                           (alias && alias.includes(searchTerm)) ||
+                           responseMatch;
+                }) 
+                : state.allLogs;
+
+            // Reset pagination and render the first page of the new results.
+            state.currentPage = 0;
+            const logsToRender = state.filteredLogs.slice(0, LOGS_PER_PAGE);
+            ui.renderLogTable(logsToRender, false); // `false` to replace content.
+            
+            // Increment page for the next `loadMoreLogs` call.
+            if (logsToRender.length > 0) {
+                state.currentPage = 1;
+            }
+        }
+        
+	    function loadMoreLogs() { 
+            if (state.isLoadingMore) return;
+            const logLoader = document.getElementById('log-loader'); 
+            const start = state.currentPage * LOGS_PER_PAGE; 
+
+            if (start >= state.filteredLogs.length) {
+                return; 
+            }
+
+            state.isLoadingMore = true; 
+            logLoader.style.display = 'block'; 
+            const logsToRender = state.filteredLogs.slice(start, start + LOGS_PER_PAGE); 
+            
+            setTimeout(() => { 
+                ui.renderLogTable(logsToRender, true); // `true` to append content.
+                state.currentPage++; 
+                state.isLoadingMore = false; 
+                logLoader.style.display = 'none'; 
+            }, 50); 
+        }
+
         function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : 'N/A'; }
-	function formatAnswersCell(answers) { if (!answers || answers.length === 0) { return 'N/A'; } const ips = []; const cnames = []; answers.forEach(a => { if (IP_REGEX.test(a)) { ips.push(a); } else { cnames.push(a); } }); let firstAnswer; if (ips.length > 0) { firstAnswer = ips[0]; } else if (cnames.length > 0) { firstAnswer = cnames[0]; } else { firstAnswer = answers[0] || 'N/A'; } let tooltipHTML = ''; if (cnames.length > 0) { tooltipHTML += `<h5>CNAME</h5><ul>${cnames.map(c => `<li>${c}</li>`).join('')}</ul>`; } if (ips.length > 0) { const style = tooltipHTML ? 'style="margin-top:0.5rem;"' : ''; tooltipHTML += `<h5 ${style}>IP 地址</h5><ul>${ips.map(i => `<li>${i}</li>`).join('')}</ul>`; } if (!tooltipHTML) { tooltipHTML = '<p>无有效应答记录</p>'; } const hiddenCount = answers.length - 1; return `<div class="tooltip-container">${firstAnswer}${hiddenCount > 0 ? ` (+${hiddenCount})` : ''}<div class="answers-tooltip">${tooltipHTML}</div></div>`; }
+
+        function formatResponseCell(log) {
+            const answers = log.answers || [];
+            let mainText;
+
+            if (log.response_code !== 'NOERROR') {
+                mainText = log.response_code;
+            } else if (answers.length > 0) {
+                const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA');
+                const firstCname = answers.find(a => a.type === 'CNAME');
+                mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data);
+                if (answers.length > 1) {
+                    mainText += ` (+${answers.length - 1})`;
+                }
+            } else {
+                mainText = 'NOERROR';
+            }
+
+            const flags = log.response_flags || {};
+            const flagItems = [];
+            if (flags.ra) flagItems.push('ra');
+            if (flags.aa) flagItems.push('aa');
+            if (flags.tc) flagItems.push('tc');
+
+            let tooltipHTML = `<h5>查询详情</h5>
+                <ul>
+                    <li><strong>状态:</strong> ${log.response_code}</li>
+                    ${flagItems.length > 0 ? `<li><strong>标志:</strong> ${flagItems.join(', ')}</li>` : ''}
+                    <li><strong>类别:</strong> ${log.query_class}</li>
+                    ${log.trace_id ? `<li><strong>Trace ID:</strong> <small>${log.trace_id}</small></li>` : ''}
+                </ul>`;
+
+            if (answers.length > 0) {
+                tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5>
+                    <ul>
+                        ${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}
+                    </ul>`;
+            }
+
+            return `<div class="tooltip-container">${mainText}<div class="answers-tooltip">${tooltipHTML}</div></div>`;
+        }
 
         function handleRouteChange() {
             const hash = window.location.hash || '#overview';
@@ -424,14 +528,30 @@
             await updatePageData();
         });
 
-        document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { const btn = e.target; btn.disabled = true; ui.setLoading(btn, true, '处理中...'); await api.clear(); await updatePageData(); } });
+        document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { 
+            if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { 
+                const btn = e.target;
+                btn.disabled = true;
+                ui.setLoading(btn, true, '处理中...');
+                try {
+                    await api.clear(); 
+                    await updatePageData();
+                    ui.showToast('审计日志已清空', 'success');
+                } catch (error) {
+                    console.error("Failed to clear logs:", error);
+                } finally {
+                    ui.setLoading(btn, false, '清空日志');
+                    btn.disabled = false;
+                }
+            } 
+        });
+
         document.getElementById('capacity-form').addEventListener('submit', async (e) => { e.preventDefault(); const capacityInput = document.getElementById('new-capacity'); const newCapacity = parseInt(capacityInput.value, 10); if (!newCapacity || newCapacity <= 0) return; if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { const btn = e.target.querySelector('button'); btn.disabled = true; ui.setLoading(btn, true, '处理中...'); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); capacityInput.value = ''; } catch (error) { console.error("设置容量失败:", error); } finally { await updatePageData(); ui.setLoading(btn, false, '设置'); btn.disabled = false; } } });
         document.getElementById('overview-tab').addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); document.getElementById('log-search').value = link.dataset.filterValue; window.location.hash = '#log-query'; } });
         document.getElementById('refresh-logs-btn').addEventListener('click', updatePageData);
         document.getElementById('log-search').addEventListener('input', applyLogFilterAndRender);
         
-        // ** 关键语法错误修复 **
-	window.addEventListener('scroll', () => { if (window.location.hash.startsWith('#log-query')) { const { scrollTop, scrollHeight, clientHeight } = document.documentElement; if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) { loadMoreLogs(); } } });
+	    window.addEventListener('scroll', () => { if (window.location.hash.startsWith('#log-query')) { const { scrollTop, scrollHeight, clientHeight } = document.documentElement; if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) { loadMoreLogs(); } } });
 
         const aliasModal = document.getElementById('alias-modal');
         document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
@@ -444,7 +564,7 @@
         // --- 初始化 ---
         function init() {
             aliasManager.load();
-            handleRouteChange(); // 修复白屏的关键
+            handleRouteChange(); 
             updatePageData();
         }
 
