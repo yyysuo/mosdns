@@ -1,4 +1,3 @@
-// /root/mosdns/coremain/audit.go
 package coremain
 
 import (
@@ -10,17 +9,36 @@ import (
 	"github.com/miekg/dns"
 )
 
+// ADDED: A new struct to hold detailed answer info, including TTL.
+type AnswerDetail struct {
+	Type string `json:"type"` // e.g., "A", "AAAA", "CNAME"
+	TTL  uint32 `json:"ttl"`
+	Data string `json:"data"` // e.g., "1.2.3.4", "example.com."
+}
+
+// MODIFIED: AuditLog struct is enhanced with more details.
 type AuditLog struct {
 	ClientIP   string    `json:"client_ip"`
 	QueryType  string    `json:"query_type"`
 	QueryName  string    `json:"query_name"`
-	Answers    []string  `json:"answers"`
+	QueryClass string    `json:"query_class"` // ADDED
 	QueryTime  time.Time `json:"query_time"`
 	DurationMs float64   `json:"duration_ms"`
 	TraceID    string    `json:"trace_id"`
+
+	// --- Response Details ---
+	ResponseCode  string         `json:"response_code"`  // ADDED: e.g., "NOERROR", "NXDOMAIN"
+	ResponseFlags ResponseFlags  `json:"response_flags"` // ADDED: Struct for flags
+	Answers       []AnswerDetail `json:"answers"`        // MODIFIED: Now a slice of structs
 }
 
-// MODIFIED: Default capacity is now 10000.
+// ADDED: A struct to group response flags for clarity in JSON.
+type ResponseFlags struct {
+	AA bool `json:"aa"` // Authoritative Answer
+	TC bool `json:"tc"` // Truncated
+	RA bool `json:"ra"` // Recursion Available
+}
+
 const (
 	defaultAuditLogCapacity = 10000
 	auditChannelCapacity    = 1024
@@ -48,6 +66,7 @@ func NewAuditCollector(capacity int) *AuditCollector {
 	}
 }
 
+// ... (StartWorker, StopWorker, worker functions remain unchanged) ...
 func (c *AuditCollector) StartWorker() {
 	go c.worker()
 }
@@ -66,6 +85,8 @@ func (c *AuditCollector) worker() {
 	}
 }
 
+
+// MODIFIED: Completely rewritten to extract and populate the new fields.
 func (c *AuditCollector) processContext(qCtx *query_context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -74,44 +95,74 @@ func (c *AuditCollector) processContext(qCtx *query_context.Context) {
 		return
 	}
 
-	answers := []string{}
-	if resp := qCtx.R(); resp != nil {
-		for _, ans := range resp.Answer {
-			switch ans.Header().Rrtype {
-			case dns.TypeA:
-				if a, ok := ans.(*dns.A); ok {
-					answers = append(answers, a.A.String())
-				}
-			case dns.TypeAAAA:
-				if aaaa, ok := ans.(*dns.AAAA); ok {
-					answers = append(answers, aaaa.AAAA.String())
-				}
-			case dns.TypeCNAME:
-				if cname, ok := ans.(*dns.CNAME); ok {
-					answers = append(answers, cname.Target)
-				}
-			}
-		}
-	}
-
+	qQuestion := qCtx.QQuestion()
 	log := AuditLog{
 		ClientIP:   qCtx.ServerMeta.ClientAddr.String(),
-		QueryType:  dns.TypeToString[qCtx.QQuestion().Qtype],
-		QueryName:  strings.TrimSuffix(qCtx.QQuestion().Name, "."),
-		Answers:    answers,
+		QueryType:  dns.TypeToString[qQuestion.Qtype],
+		QueryName:  strings.TrimSuffix(qQuestion.Name, "."),
+		QueryClass: dns.ClassToString[qQuestion.Qclass], // Populate QueryClass
 		QueryTime:  qCtx.StartTime(),
 		DurationMs: float64(time.Since(qCtx.StartTime()).Microseconds()) / 1000.0,
 		TraceID:    qCtx.TraceID,
+		// Initialize slices/maps
+		Answers: []AnswerDetail{},
 	}
+
+	if resp := qCtx.R(); resp != nil {
+		// Populate Response Code and Flags
+		log.ResponseCode = dns.RcodeToString[resp.Rcode]
+		log.ResponseFlags = ResponseFlags{
+			AA: resp.Authoritative,
+			TC: resp.Truncated,
+			RA: resp.RecursionAvailable,
+		}
+
+		// Populate detailed answers
+		for _, ans := range resp.Answer {
+			header := ans.Header()
+			detail := AnswerDetail{
+				Type: dns.TypeToString[header.Rrtype],
+				TTL:  header.Ttl,
+			}
+
+			switch record := ans.(type) {
+			case *dns.A:
+				detail.Data = record.A.String()
+			case *dns.AAAA:
+				detail.Data = record.AAAA.String()
+			case *dns.CNAME:
+				detail.Data = record.Target
+			case *dns.PTR:
+				detail.Data = record.Ptr
+			case *dns.NS:
+				detail.Data = record.Ns
+			case *dns.MX:
+				detail.Data = record.Mx
+			case *dns.TXT:
+				detail.Data = strings.Join(record.Txt, " ") // Join TXT strings
+			default:
+				// For other types, use the generic string representation.
+				detail.Data = ans.String()
+			}
+			log.Answers = append(log.Answers, detail)
+		}
+	} else {
+		// If there is no response message, set a default error code.
+		log.ResponseCode = "NO_RESPONSE"
+	}
+
 
 	if len(c.logs) < c.capacity {
 		c.logs = append(c.logs, log)
 	} else {
-		if c.capacity == 0 { return } // Avoid division by zero if capacity is set to 0
+		if c.capacity == 0 { return }
 		c.logs[c.head] = log
 		c.head = (c.head + 1) % c.capacity
 	}
 }
+
+
+// ... (The rest of the file: Collect, Start, Stop, IsCapturing, GetLogs, ClearLogs, GetCapacity, SetCapacity remains unchanged) ...
 
 func (c *AuditCollector) Collect(qCtx *query_context.Context) {
 	if c.IsCapturing() {
@@ -153,24 +204,20 @@ func (c *AuditCollector) ClearLogs() {
 	c.head = 0
 }
 
-// ADDED: GetCapacity returns the current capacity of the log buffer.
 func (c *AuditCollector) GetCapacity() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.capacity
 }
 
-// ADDED: SetCapacity changes the size of the log buffer.
-// This will also clear all existing logs.
 func (c *AuditCollector) SetCapacity(newCapacity int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Add reasonable limits for capacity
 	if newCapacity < 0 {
 		newCapacity = 0
 	}
-	if newCapacity > 100000 { // Prevent setting excessively large capacity
+	if newCapacity > 100000 {
 		newCapacity = 100000
 	}
 
