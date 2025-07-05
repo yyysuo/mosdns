@@ -1,278 +1,456 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="light" data-color-scheme="indigo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 日志面板</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <title>Mosdns 仪表盘 - 终极移动重构版 v7.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- 基本和布局调整 --- */
-        :root {
-            --pico-font-size: 87.5%; /* 14px base */
-        }
-        body {
-            background-color: var(--pico-muted-background-color);
-        }
-        .container {
-            max-width: 1280px;
-        }
-        main > header h1 {
-            text-align: center;
-            margin-bottom: 0;
-        }
-        main > header nav {
-            justify-content: center;
-            margin-bottom: var(--pico-spacing);
-            border-bottom: 1px solid var(--pico-muted-border-color);
+        /* --- 优化版UI的CSS --- */
+        :root { 
+            --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            --font-family-mono: "SF Mono", "Fira Code", "Consolas", monospace; 
+            --border-radius-lg: 16px; 
+            --border-radius-md: 12px; 
+            --border-radius-sm: 8px; 
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05); 
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1); 
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.1); 
+            --transition-fast: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); 
+            --transition-slow: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); 
         }
 
-        /* 优化顶部导航链接，使其看起来像标签页 */
-        nav a.tab-link {
-            --pico-nav-link-padding: 0.75rem 1rem;
-            --pico-nav-link-background-color: transparent;
-            border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0;
-            border: 1px solid transparent;
-            border-bottom: none;
-            position: relative;
-            top: 1px;
-            color: var(--pico-secondary);
-        }
-        nav a.tab-link.active {
-            background-color: var(--pico-card-background-color);
-            border-color: var(--pico-muted-border-color);
-            color: var(--pico-contrast);
-            font-weight: bold;
-        }
+        /* 主题色系统 */
+        [data-color-scheme="indigo"] { --color-accent-primary: #4f46e5; --color-accent-primary-hover: #4338ca; --glow-color: rgba(79, 70, 229, 0.2); }
+        [data-color-scheme="pink"] { --color-accent-primary: #ec4899; --color-accent-primary-hover: #db2777; --glow-color: rgba(236, 72, 153, 0.2); }
+        [data-color-scheme="teal"] { --color-accent-primary: #14b8a6; --color-accent-primary-hover: #0d9488; --glow-color: rgba(20, 184, 166, 0.15); }
+        [data-color-scheme="orange"] { --color-accent-primary: #f97316; --color-accent-primary-hover: #ea580c; --glow-color: rgba(249, 115, 22, 0.2); }
         
-        /* 为各板块添加统一样式 */
-        article {
-            background-color: var(--pico-card-background-color);
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: var(--pico-card-border-radius);
-            box-shadow: 0 4px 12px -4px rgba(0,0,0,0.05);
-            padding: 1.5rem;
-            margin-bottom: var(--pico-spacing);
-        }
-        article > header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: -1.5rem -1.5rem 1rem -1.5rem; /* 让头部背景延伸到边框 */
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--pico-muted-border-color);
-        }
-        article > header h2 { margin: 0; font-size: 1.2rem; }
+        [data-theme="dark"][data-color-scheme="indigo"] { --color-accent-primary: #58a6ff; --color-accent-primary-hover: #80b6f8; --glow-color: rgba(88, 166, 255, 0.15); }
+        [data-theme="dark"][data-color-scheme="pink"] { --color-accent-primary: #f778ba; --color-accent-primary-hover: #f599ce; --glow-color: rgba(247, 120, 186, 0.15); }
+        [data-theme="dark"][data-color-scheme="teal"] { --color-accent-primary: #2dd4bf; --color-accent-primary-hover: #5eead4; --glow-color: rgba(45, 212, 191, 0.15); }
+        [data-theme="dark"][data-color-scheme="orange"] { --color-accent-primary: #fb923c; --color-accent-primary-hover: #fdba74; --glow-color: rgba(251, 146, 60, 0.15); }
 
-        .overview-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: var(--pico-spacing);
-        }
+        /* 基础明暗主题变量 */
+        [data-theme="light"] { --color-bg: #f5f8ff; --color-bg-card: #ffffff; --color-bg-alt: #f8fafc; --color-text-primary: #0f172a; --color-text-secondary: #64748b; --color-border: #eef2f9; --color-accent-secondary: #ec4899; --color-accent-text: #ffffff; --color-danger: #ef4444; --color-danger-hover: #dc2626; --color-success: #22c55e; }
+        [data-theme="dark"] { --color-bg: #0d1117; --color-bg-card: #161b22; --color-bg-alt: #21262d; --color-text-primary: #c9d1d9; --color-text-secondary: #8b949e; --color-border: #38424d; --color-accent-secondary: #f778ba; --color-accent-text: #0d1117; --color-danger: #f87171; --color-danger-hover: #ff9191; --color-success: #56d364; }
         
-        /* 状态与控制板块新布局 */
-        .status-control-grid {
+        /* 美化滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--color-accent-primary) 40%, transparent); border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--color-accent-primary) 60%, transparent); }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        html { font-size: 16px; scroll-behavior: smooth; }
+        body { font-family: var(--font-family-sans); background-color: var(--color-bg); color: var(--color-text-primary); margin: 0; position: relative; overflow-x: hidden; transition: background-color var(--transition-slow), color var(--transition-slow); }
+        body::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 400px; background: radial-gradient(ellipse at top, var(--glow-color), transparent 70%); z-index: 0; pointer-events: none; transition: var(--transition-slow); }
+        .container { max-width: 1300px; margin: 0 auto; padding: 2rem; position: relative; z-index: 1;}
+        h1, h2, h3, p { margin: 0; }
+        h1 { font-size: 2.25rem; font-weight: 800; }
+        h2 { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 0.6rem; }
+        h3 { font-size: 0.9rem; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.8px;}
+        a { color: var(--color-accent-primary); text-decoration: none; font-weight: 600; transition: var(--transition-fast); }
+        a:hover { color: var(--color-accent-primary-hover); }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;}
+        .header-controls { display: flex; align-items: center; gap: 0.75rem; }
+        .color-palette { display: flex; gap: 0.5rem; }
+        .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: var(--transition-fast); }
+        .color-swatch:hover { transform: scale(1.15); }
+        .color-swatch.active { border-color: var(--color-accent-primary); }
+        .theme-switcher { background: transparent; border: 1px solid var(--color-border); border-radius: var(--border-radius-sm); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--color-text-secondary); transition: var(--transition-fast); flex-shrink: 0; }
+        .theme-switcher:hover { border-color: var(--color-accent-primary); color: var(--color-accent-primary); transform: rotate(15deg) scale(1.1); box-shadow: 0 0 15px var(--glow-color); }
+        .theme-switcher svg { width: 22px; height: 22px; }
+        .main-nav { border-bottom: 1px solid var(--color-border); margin-bottom: 2.5rem; }
+        .main-nav ul {
+            list-style: none; padding: 0; margin: 0; display: flex; gap: 0.5rem; overflow-x: auto;
+            -ms-overflow-style: none; scrollbar-width: none;
+        }
+        .main-nav ul::-webkit-scrollbar { display: none; }
+        
+        .main-nav a { 
+            padding: 0.75rem 1.5rem; 
+            color: var(--color-text-secondary); 
+            font-weight: 600; 
+            position: relative; 
+            transition: var(--transition-slow); 
+            white-space: nowrap; 
+            border: none;
+            border-radius: var(--border-radius-sm);
+        }
+        .main-nav a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 3px;
+            background-color: var(--color-accent-primary);
+            border-radius: 3px;
+            transition: width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        .main-nav a:hover { 
+            color: var(--color-text-primary); 
+            background-color: color-mix(in srgb, var(--color-accent-primary) 8%, transparent);
+        }
+        .main-nav a.active { 
+            color: var(--color-accent-primary);
+            font-weight: 700;
+            background-color: transparent;
+        }
+        .main-nav a.active::after {
+            width: 50%;
+        }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .stat-card { padding: 2rem; border-radius: var(--border-radius-lg); position: relative; overflow: hidden; color: var(--color-accent-text); box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1); transition: var(--transition-slow); }
+        
+        .stat-card.default-gradient-1 { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+        .stat-card.default-gradient-2 { background: linear-gradient(135deg, #ec4899, #f59e0b); }
+        .stat-card.theme-gradient { background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%); }
+
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 25px -10px rgba(0,0,0,0.15); }
+        .stat-card h3 { color: var(--color-accent-text); opacity: 0.8; text-transform: none; font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 0.75rem;}
+        .stat-card .value { font-size: 3.5rem; font-weight: 800; line-height: 1; margin-top: 1rem; }
+        .stat-card .icon-bg { position: absolute; right: -20px; bottom: -20px; font-size: 120px; opacity: 0.1; transform: rotate(-15deg); }
+        .card { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 2rem; transition: var(--transition-fast); position: relative; }
+        .card::before { content: ""; position: absolute; top: var(--glow-y, 50%); left: var(--glow-x, 50%); transform: translate(-50%, -50%); width: 250px; height: 250px; background: radial-gradient(circle, var(--glow-color), transparent 70%); opacity: 0; transition: opacity 0.4s ease-out; pointer-events: none; z-index: 0; }
+        .card:hover::before { opacity: 1; }
+        .card > * { position: relative; z-index: 1; }
+        .card-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; background-color: color-mix(in srgb, var(--color-bg-card) 50%, transparent); }
+        .card-body { padding: 1.75rem; }
+        .controls-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: start; }
+        .control-group { display: flex; flex-direction: column; gap: 1rem; }
+        .control-item { display: flex; align-items: center; gap: 1rem; font-size: 1rem; }
+        .control-item strong { color: var(--color-text-secondary); font-weight: 500; min-width: 80px; }
+        #audit-status { padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 600; font-size: 0.9rem; color: #fff; }
+        #audit-status.text-success { background-color: var(--color-success); }
+        #audit-status.text-danger { background-color: var(--color-danger); }
+        #audit-status.text-unknown { background-color: var(--color-text-secondary); }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem; }
+        #capacity-form { display: grid; grid-template-columns: 1fr auto; gap: 1rem; }
+        .button { display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.75rem 1.5rem; font-size: 0.95rem; font-weight: 600; border-radius: var(--border-radius-sm); border: 1px solid transparent; cursor: pointer; transition: var(--transition-fast); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.05); }
+        .button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .button.primary { background-color: var(--color-accent-primary); color: var(--color-accent-text); }
+        .button.primary:hover:not(:disabled) { background-color: var(--color-accent-primary-hover); }
+        .button.secondary { background-color: var(--color-bg-card); color: var(--color-text-primary); border-color: var(--color-border); }
+        .button.secondary:hover:not(:disabled) { border-color: var(--color-accent-primary); color: var(--color-accent-primary); }
+        .button.danger { background-color: var(--color-danger); color: #fff; }
+        .button.danger:hover:not(:disabled) { background-color: var(--color-danger-hover); }
+        .button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .button svg { width: 1.2em; height: 1.2em; }
+        input[type="search"], input[type="text"], input[type="number"] { width: 100%; padding: 0.8rem 1.2rem; font-size: 1rem; background-color: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: var(--border-radius-sm); color: var(--color-text-primary); transition: var(--transition-fast); }
+        input:focus { outline: none; border-color: var(--color-accent-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 25%, transparent); }
+        .rankings-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.5rem;
-            align-items: start;
-        }
-        .stats-area .stat-item {
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-        .stats-area .stat-item h3 {
-            font-size: 1rem;
-            margin-bottom: 0.25rem;
-            color: var(--pico-secondary);
-        }
-        .stats-area .stat-item p {
-            font-size: 1.8em;
-            margin: 0;
-            font-weight: bold;
-        }
-        .controls-area p { margin-bottom: 0.5rem; }
-
-        /* 缩小控制按钮 */
-        .control-buttons .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        .control-buttons button, .control-buttons input[type="submit"] {
-            font-size: 0.85em;
-            padding: 0.4rem 0.8rem;
-        }
-        #capacity-form {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 0.5rem;
-            margin-top: 1rem;
+            margin-bottom: 2rem;
         }
         
-        /* 为查询日志表格区域添加边框和内边距 */
-        #log-query-tab figure {
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: var(--pico-border-radius);
-            padding: 0.5rem;
-            background-color: var(--pico-table-background-color);
-        }
-        .scrollable-table-container { max-height: 400px; overflow-y: auto; }
-        .scrollable-table-container table, #log-query-tab figure table { margin-bottom: 0; }
+        .scrollable-table-container { max-height: 400px; overflow: auto; }
+        #log-query-table-container { max-height: calc(100vh - 350px); min-height: 200px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+        th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+        th.text-right, td.text-right { text-align: right; }
+        th.text-left, td.text-left { text-align: left; }
+        
+        thead th { background-color: var(--color-bg-alt); position: sticky; top: 0; z-index: 2; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-text-secondary); }
+        tbody tr { background-color: var(--color-bg-card); }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:nth-child(even) { background-color: var(--color-bg-alt); }
+        tbody tr:hover { background-color: color-mix(in srgb, var(--color-accent-primary) 10%, transparent); }
 
         .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        .text-green { color: var(--pico-color-green-500); }
-        .text-red { color: var(--pico-color-red-500); }
-        .text-blue { color: var(--pico-color-blue-500); }
-        .text-purple { color: var(--pico-color-purple-500); }
+        .tab-content.active { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .client-alias { font-weight: 600; } .client-ip-tag { font-size: 0.85em; color: var(--color-text-secondary); margin-left: 0.5em; opacity: 0.8;} 
         
-        /* --- 其他UI组件样式 --- */
-        .client-alias { font-weight: bold; }
-        .client-ip-tag { font-size: 0.8em; color: var(--pico-secondary); margin-left: 0.5em; opacity: 0.7; }
-        .tooltip-container { position: relative; cursor: help; display: inline-block; }
-        .answers-tooltip { visibility: hidden; position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); padding: 0.75rem; border-radius: var(--pico-border-radius); background: var(--pico-card-background-color); border: 1px solid var(--pico-muted-border-color); box-shadow: var(--pico-card-box-shadow); width: max-content; max-width: 400px; z-index: 10; opacity: 0; transition: opacity 0.2s, visibility 0.2s; text-align: left; }
-        .tooltip-container:hover .answers-tooltip { visibility: visible; opacity: 1; }
-        .answers-tooltip h5 { margin: 0 0 0.5rem 0; font-size: 1em; }
-        .answers-tooltip ul { margin: 0; padding-left: 1.2rem; }
-        .answers-tooltip li { font-family: var(--pico-font-family-monospace); font-size: 0.9em; }
-        .answers-tooltip li small { font-family: var(--pico-font-family-monospace); }
-        #toast { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 6px; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; transform: translateY(-20px); }
-        #toast.show { opacity: 1; visibility: visible; transform: translateY(0); }
-        #toast.success { background-color: var(--pico-card-background-color); border-left: 5px solid var(--pico-color-green-500); }
-        #toast.error { background-color: var(--pico-card-background-color); border-left: 5px solid var(--pico-color-red-500); }
-        #alias-modal .modal-body { max-height: 60vh; overflow-y: auto; }
-        .alias-item { display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; align-items: center; padding: 0.5rem; }
-        .alias-item:nth-child(odd) { background-color: var(--pico-muted-background-color); }
+        .tooltip-trigger { 
+            cursor: help; 
+            border-bottom: 1px dashed var(--color-text-secondary);
+            padding-bottom: 2px;
+        } 
+        
+        .answers-tooltip { 
+            visibility: hidden; 
+            opacity: 0; 
+            position: fixed;
+            padding: 0.75rem 1rem; 
+            border-radius: var(--border-radius-md);
+            background: var(--color-bg-alt); 
+            border: 1px solid var(--color-border); 
+            box-shadow: var(--shadow-lg); 
+            width: max-content; 
+            max-width: 400px; 
+            z-index: 9999;
+            transition: opacity 0.2s, visibility 0.2s; 
+            text-align: left; 
+            pointer-events: none; 
+            font-size: 0.9rem;
+        } 
+        .answers-tooltip.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+        .answers-tooltip h5 { 
+            margin: 0 0 0.75rem 0; 
+            font-size: 0.8rem; 
+            color: var(--color-text-secondary); 
+            text-transform: uppercase; 
+            letter-spacing: 0.8px;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0.5rem;
+        } 
+        .answers-tooltip ul { 
+            margin: 0; 
+            padding: 0;
+            list-style-type: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        } 
+        .answers-tooltip li { 
+            font-family: var(--font-family-mono);
+            white-space: normal;
+            word-break: break-all;
+        } 
+        .answers-tooltip small { font-size: 0.85em; opacity: 0.8; } 
+
+        #toast { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: var(--border-radius-sm); z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); transform: translateY(-20px); box-shadow: var(--shadow-lg); color: var(--color-accent-text); font-weight: 500; } #toast.show { opacity: 1; visibility: visible; transform: translateY(0); } #toast.success { background-color: var(--color-success); } #toast.error { background-color: var(--color-danger); } dialog { border: none; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-lg); padding: 0; max-width: 600px; width: 90%; background-color: var(--color-bg-card); color: var(--color-text-primary); } dialog::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); } .modal-header { padding: 1.25rem 1.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); } .modal-body { padding: 1.75rem; max-height: 60vh; overflow-y: auto; } .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 0.75rem; background-color: var(--color-bg-alt); } .alias-item { display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } .alias-item:nth-child(even) { background-color: var(--color-bg-alt); }
+        [aria-busy="true"] { position: relative; } [aria-busy="true"] > *:not(svg) { color: transparent !important; } [aria-busy="true"]::before { content: ""; position: absolute; z-index: 2; top: 50%; left: 50%; width: 1.25rem; height: 1.25rem; margin: -0.625rem 0 0 -0.625rem; border: 3px solid var(--color-border); border-top-color: var(--color-accent-primary); border-radius: 50%; animation: spin 0.8s linear infinite; } #log-loader[aria-busy="true"] { display: block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* 关键修复：移动端响应式布局 */
+        @media (max-width: 992px) {
+            .rankings-grid, .controls-grid {
+                grid-template-columns: 1fr; 
+            }
+            .rankings-grid > .card {
+                margin-bottom: 2rem;
+            }
+            td {
+                /* 在移动端让内容可以换行，以更好地适应小屏幕 */
+                white-space: normal;
+                word-break: break-all;
+            }
+            th, td {
+                padding: 0.75rem; /* 减小内边距 */
+            }
+        }
+        
+        @media (max-width: 768px) {
+            html { font-size: 15px; } 
+            .container { padding: 1.5rem 1rem; }
+            h1 { font-size: 1.8rem; }
+            .page-header { flex-wrap: wrap; }
+            .card-header h2 { flex-grow: 1; }
+            #capacity-form { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
     <main class="container">
-        <header>
-            <h1>Mosdns 日志面板</h1>
-            <nav>
-                <ul>
-                    <li><a href="#overview" class="tab-link" data-tab="overview" role="tab">概览</a></li>
-                    <li><a href="#log-query" class="tab-link" data-tab="log-query" role="tab">查询日志</a></li>
-                </ul>
-            </nav>
+        <header class="page-header">
+            <h1>Mosdns 仪表盘</h1>
+            <div class="header-controls">
+                <div class="color-palette">
+                    <button class="color-swatch" data-color="indigo" style="background-color: #4f46e5;" title="靛蓝"></button>
+                    <button class="color-swatch" data-color="pink" style="background-color: #ec4899;" title="粉色"></button>
+                    <button class="color-swatch" data-color="teal" style="background-color: #14b8a6;" title="青色"></button>
+                    <button class="color-swatch" data-color="orange" style="background-color: #f97316;" title="橙色"></button>
+                </div>
+                <button id="theme-switcher" class="theme-switcher" title="切换主题"></button>
+            </div>
         </header>
+        
+        <nav class="main-nav">
+            <ul>
+                <li><a href="#overview" class="tab-link active" data-tab="overview" role="tab">概览</a></li>
+                <li><a href="#log-query" class="tab-link" data-tab="log-query" role="tab">查询日志</a></li>
+            </ul>
+        </nav>
 
         <div id="toast"></div>
 
         <dialog id="alias-modal">
-            <article>
-                <header>
-                    <h2>管理客户端别名</h2>
-                    <a href="#close" aria-label="Close" class="close" id="close-alias-modal"></a>
-                </header>
-                <div class="modal-body">
-                    <p>为日志中的客户端 IP 设置别名，方便识别。</p>
-                    <div id="alias-list-container"></div>
-                </div>
-                <footer>
-                    <div class="grid">
-                        <button id="import-aliases-btn" class="secondary outline">导入配置</button>
-                        <button id="export-aliases-btn" class="secondary outline">导出配置</button>
-                    </div>
-                </footer>
-            </article>
+            <header class="modal-header">
+                <h2>管理客户端别名</h2>
+                <button class="button secondary" id="close-alias-modal" aria-label="Close" style="min-width:auto; padding:0.3rem 0.5rem;">✕</button>
+            </header>
+            <div class="modal-body">
+                <p>为客户端 IP 设置别名，方便在日志中快速识别。</p>
+                <div id="alias-list-container"></div>
+            </div>
+            <footer class="modal-footer">
+                <button id="import-aliases-btn" class="button secondary"><span>导入配置</span></button>
+                <button id="export-aliases-btn" class="button secondary"><span>导出配置</span></button>
+            </footer>
         </dialog>
         <input type="file" id="import-alias-file-input" accept=".json" style="display: none;">
 
-        <section id="overview-tab" class="tab-content" role="tabpanel">
-            <article>
-                <header>
-                    <h2>状态、统计与控制</h2>
-                    <button id="refresh-overview-btn" class="outline" aria-busy="false">
-                        <svg style="width:1em;height:1em;vertical-align: text-bottom;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C16.1333 2 19.536 4.30641 21.1009 7.82362L18.3294 8.76801C17.1523 6.22352 14.7951 4.5 12 4.5C7.85786 4.5 4.5 7.85786 4.5 12C4.5 16.1421 7.85786 19.5 12 19.5C15.2443 19.5 17.9739 17.4478 18.9472 14.5H16.5V12.5H22V18.5H20V15.118C18.6468 19.068 15.5849 22 12 22Z"></path></svg>
-                        刷新
-                    </button>
-                </header>
-                <div class="status-control-grid">
-                    <div class="stats-area">
-                        <div class="stat-item">
-                            <h3>总查询数</h3>
-                            <p id="total-queries" class="text-blue">0</p>
-                        </div>
-                        <div class="stat-item">
-                            <h3>平均处理时间 (ms)</h3>
-                            <p id="avg-duration" class="text-purple">0</p>
-                        </div>
-                    </div>
-                    <div class="controls-area">
-                        <p><strong>审计日志状态:</strong> <mark id="audit-status">查询中...</mark></p>
-                        <p><strong>日志容量:</strong> <span id="audit-capacity">查询中...</span> 条</p>
-                        <div class="control-buttons">
-                            <div class="grid">
-                                <button id="toggle-audit-btn" disabled>请稍后</button>
-                                <button id="clear-audit-btn" class="secondary">清空日志</button>
-                            </div>
-                            <form id="capacity-form">
-                                <input type="number" id="new-capacity" placeholder="设置新容量" required min="1" max="100000">
-                                <button type="submit">设置</button>
-                            </form>
-                        </div>
-                    </div>
+        <section id="overview-tab" class="tab-content active" role="tabpanel">
+            <div class="stats-grid">
+                <div class="stat-card" id="stat-card-1">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.25 4.53335C11.6642 4.44457 12.0858 4.44457 12.5 4.53335C17.1524 5.54133 21 9.80443 21 14.6465C21 19.9806 16.9706 22 12 22C7.02944 22 3 19.9806 3 14.6465C3 9.80443 6.84759 5.54133 11.25 4.53335ZM12 2C6.47715 2 2 7.02165 2 14.6465C2 21.4939 6.27609 24 12 24C17.7239 24 22 21.4939 22 14.6465C22 7.02165 17.5228 2 12 2Z"></path></svg><span>总查询数</span></h3>
+                    <div id="total-queries" class="value">0</div>
+                    <div class="icon-bg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V4C20 2.89543 19.1046 2 18 2ZM11 14H8V12H11V14ZM16 10H8V8H16V10Z"></path></svg></div>
                 </div>
-            </article>
-            <div class="overview-grid">
-                <article>
-                    <header><h2>域名请求排行</h2></header>
-                    <div class="scrollable-table-container">
-                        <table role="grid"><thead><tr><th>域名</th><th>请求数</th></tr></thead><tbody id="top-domains-body"></tbody></table>
-                    </div>
-                </article>
-                <article>
-                    <header><h2>客户端请求排行</h2></header>
-                    <div class="scrollable-table-container">
-                        <table role="grid"><thead><tr><th>客户端</th><th>请求数</th></tr></thead><tbody id="top-clients-body"></tbody></table>
-                    </div>
-                </article>
+                <div class="stat-card" id="stat-card-2">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM11 6V11H16V13H11V18H9V11H4V9H9V6H11Z"></path></svg><span>平均处理时间 (ms)</span></h3>
+                    <div id="avg-duration" class="value">0.00</div>
+                    <div class="icon-bg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 11.0711L14.1213 13.1924L15.5355 11.7782L12.7071 9L12 9.70711V11.0711ZM13 13H11V17H13V13Z"></path></svg></div>
+                </div>
             </div>
-            <article>
-                <header><h2>最慢查询</h2></header>
-                <div class="scrollable-table-container">
-                    <table role="grid"><thead><tr><th>时间</th><th>域名</th><th>耗时 (ms)</th><th>客户端</th><th>响应</th></tr></thead><tbody id="slowest-queries-body"></tbody></table>
+            
+            <div class="card" id="control-card">
+                <header class="card-header">
+                    <h2>系统控制</h2>
+                    <button id="refresh-overview-btn" class="button secondary" aria-busy="false" data-default-text="刷新"><span>刷新</span></button>
+                </header>
+                <div class="card-body controls-grid">
+                    <div class="control-group">
+                        <div class="control-item"><strong>运行状态:</strong> <span id="audit-status">查询中...</span></div>
+                        <div class="control-item"><strong>日志容量:</strong> <span id="audit-capacity">查询中...</span></div>
+                    </div>
+                    <div class="control-group">
+                        <div class="button-group">
+                            <button id="toggle-audit-btn" class="button primary" disabled data-default-text="请稍后"><span>请稍后</span></button>
+                            <button id="clear-audit-btn" class="button danger" data-default-text="清空日志"><span>清空日志</span></button>
+                        </div>
+                        <form id="capacity-form">
+                            <input type="number" id="new-capacity" placeholder="新容量 (将清空日志)" required min="1" max="100000">
+                            <button type="submit" class="button primary" data-default-text="设置"><span>设置</span></button>
+                        </form>
+                    </div>
                 </div>
-            </article>
+            </div>
+            
+            <div class="rankings-grid">
+                <div class="card" id="top-domains-card">
+                    <header class="card-header"><h2>域名请求排行</h2></header>
+                    <div class="card-body scrollable-table-container">
+                        <table>
+                            <thead><tr><th class="text-left">域名</th><th class="text-right">请求数</th></tr></thead>
+                            <tbody id="top-domains-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="card" id="top-clients-card">
+                    <header class="card-header"><h2>客户端请求排行</h2></header>
+                    <div class="card-body scrollable-table-container">
+                        <table>
+                            <thead><tr><th class="text-left">客户端</th><th class="text-right">请求数</th></tr></thead>
+                            <tbody id="top-clients-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+                
+            <div class="card" id="slowest-queries-card">
+                <header class="card-header"><h2>最慢查询</h2></header>
+                <div class="card-body scrollable-table-container">
+                    <table>
+                        <thead><tr><th class="text-left">时间</th><th class="text-left">域名</th><th class="text-right">耗时 (ms)</th><th class="text-left">客户端</th><th>响应</th></tr></thead>
+                        <tbody id="slowest-queries-body"></tbody>
+                    </table>
+                </div>
+            </div>
         </section>
 
-        <section id="log-query-tab" class="tab-content" role="tabpanel">
-            <article>
-                <header>
+        <section id="log-query-tab" class="tab-content">
+            <div class="card">
+                <header class="card-header">
                     <h2>查询与过滤日志</h2>
-                    <div>
-                        <button id="manage-aliases-btn" class="outline">管理别名</button>
-                        <button id="refresh-logs-btn" aria-busy="false">刷新日志</button>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button id="manage-aliases-btn" class="button secondary"><span>管理别名</span></button>
+                        <button id="refresh-logs-btn" class="button secondary" aria-busy="false" data-default-text="刷新日志"><span>刷新日志</span></button>
                     </div>
                 </header>
-                <input type="search" id="log-search" placeholder="实时搜索域名、IP、别名、响应..." style="margin-bottom: 1rem;">
-                <figure>
-                     <table role="grid">
-                        <thead><tr><th>时间</th><th>域名</th><th>查询类型</th><th>耗时(ms)</th><th>客户端</th><th>响应 (悬停看全部)</th></tr></thead>
-                        <tbody id="log-table-body"></tbody>
-                    </table>
-                </figure>
-                <p id="log-loader" style="text-align: center; display: none;" aria-busy="true">正在加载更多日志...</p>
-            </article>
+                <div class="card-body">
+                    <input type="search" id="log-search" placeholder="实时搜索域名、IP、别名、响应..." style="margin-bottom: 1rem;">
+                    <div class="scrollable-table-container" id="log-query-table-container">
+                        <table>
+                            <thead><tr><th class="text-left">时间</th><th class="text-left">域名</th><th class="text-right">类型</th><th class="text-right">耗时(ms)</th><th class="text-left">客户端</th><th class="text-left">响应</th></tr></thead>
+                            <tbody id="log-table-body"></tbody>
+                        </table>
+                    </div>
+                    <p id="log-loader" style="text-align: center; display: none; padding-top: 1rem;" aria-busy="true">正在加载更多日志...</p>
+                </div>
+            </div>
         </section>
     </main>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- 配置与状态 ---
+        // --- 核心JS逻辑 (与v5.6完全相同) ---
+        const animateValue = (element, start, end, duration) => { if (!element) return; if(start === end) { element.textContent = (element.id === 'avg-duration' ? parseFloat(end).toFixed(2) : Math.floor(end).toLocaleString()); return; } let startTimestamp = null; const step = (timestamp) => { if (!startTimestamp) startTimestamp = timestamp; const progress = Math.min((timestamp - startTimestamp) / duration, 1); const current = start + progress * (end - start); element.textContent = (element.id === 'avg-duration' ? parseFloat(current).toFixed(2) : Math.floor(current).toLocaleString()); if (progress < 1) window.requestAnimationFrame(step); }; window.requestAnimationFrame(step); };
+        const setupGlowEffect = () => { const container = document.querySelector('.container'); if(container) container.addEventListener('mousemove', (e) => { const card = e.target.closest('.card'); if (card) { const rect = card.getBoundingClientRect(); card.style.setProperty('--glow-x', `${e.clientX - rect.left}px`); card.style.setProperty('--glow-y', `${e.clientY - rect.top}px`); } }); };
+        
+        const themeManager = {
+            htmlEl: document.documentElement,
+            themeSwitcher: document.getElementById('theme-switcher'),
+            colorSwatches: document.querySelectorAll('.color-swatch'),
+            statCard1: document.getElementById('stat-card-1'),
+            statCard2: document.getElementById('stat-card-2'),
+            
+            iconSun: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 18C15.3137 18 18 15.3137 18 12C18 8.68629 15.3137 6 12 6C8.68629 6 6 8.68629 6 12C6 15.3137 8.68629 18 12 18ZM11 1H13V4H11V1ZM11 20H13V23H11V20ZM3.51472 4.92893L4.92893 3.51472L7.05025 5.63604L5.63604 7.05025L3.51472 4.92893ZM16.9497 18.364L18.364 16.9497L20.4853 19.0711L19.0711 20.4853L16.9497 18.364ZM1 11H4V13H1V11ZM20 11H23V13H20V11ZM5.63604 16.9497L7.05025 18.364L4.92893 20.4853L3.51472 19.0711L5.63604 16.9497ZM19.0711 3.51472L20.4853 4.92893L18.364 7.05025L16.9497 5.63604L19.0711 3.51472Z"></path></svg>`,
+            iconMoon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.3807 2.01947C9.91573 1.96117 8.43543 2.39943 7.19949 3.24278C4.40988 5.20436 3.19363 8.94828 4.75549 12.1856C6.31734 15.4229 9.87907 17.4398 13.5732 16.8924C17.2673 16.345 20.1733 13.2505 20.4981 9.53733C20.6724 7.50843 19.9997 5.53321 18.6601 4.19362C16.6692 2.20272 13.8427 1.87522 11.3807 2.01947Z"></path></svg>`,
+            
+            init() {
+                const savedTheme = localStorage.getItem('mosdns-theme') || 'dark';
+                const savedColor = localStorage.getItem('mosdns-color') || 'indigo';
+                this.setTheme(savedTheme, false);
+                this.setColor(savedColor, false);
+                
+                this.themeSwitcher.addEventListener('click', () => {
+                    const currentTheme = this.htmlEl.getAttribute('data-theme');
+                    this.setTheme(currentTheme === 'light' ? 'dark' : 'light');
+                });
+                
+                this.colorSwatches.forEach(swatch => {
+                    swatch.addEventListener('click', () => {
+                        this.setColor(swatch.dataset.color);
+                    });
+                });
+            },
+            
+            setTheme(theme, save = true) {
+                this.htmlEl.setAttribute('data-theme', theme);
+                this.themeSwitcher.innerHTML = theme === 'light' ? this.iconMoon : this.iconSun;
+                if(save) localStorage.setItem('mosdns-theme', theme);
+            },
+            
+            setColor(color, save = true) {
+                this.htmlEl.setAttribute('data-color-scheme', color);
+                this.colorSwatches.forEach(s => s.classList.remove('active'));
+                const activeSwatch = document.querySelector(`.color-swatch[data-color="${color}"]`);
+                if(activeSwatch) activeSwatch.classList.add('active');
+                if(save) localStorage.setItem('mosdns-color', color);
+
+                if (color === 'indigo') {
+                    this.statCard1.className = 'stat-card default-gradient-1';
+                    this.statCard2.className = 'stat-card default-gradient-2';
+                } else {
+                    this.statCard1.className = 'stat-card theme-gradient';
+                    this.statCard2.className = 'stat-card theme-gradient';
+                }
+            }
+        };
+
         const mosdnsApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:9099`;
         const LOGS_PER_PAGE = 50;
-        let state = { allLogs: [], filteredLogs: [], isCapturing: false, currentPage: 0, isLoadingMore: false, clientAliases: {} };
-
-        // --- API ---
+        let state = { allLogs: [], filteredLogs: [], isCapturing: false, currentPage: 0, isLoadingMore: false, clientAliases: {}, slowestQueries: [] };
         const api = {
             fetch: async (url, options = {}) => {
                 try {
                     const response = await fetch(url, options);
-                    if (!response.ok) throw new Error(`API 请求失败: ${response.status} ${response.statusText}`);
+                    if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
                     const contentType = response.headers.get('content-type');
                     if (contentType && contentType.includes('application/json')) return response.json();
                     return { success: true, message: await response.text() };
@@ -282,133 +460,138 @@
                     throw error;
                 }
             },
-            getStatus: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/status`); },
-            getLogs: async function() {
-                try {
-                    const logs = await this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/logs`);
-                    return Array.isArray(logs) ? logs.sort((a, b) => new Date(b.query_time) - new Date(a.query_time)) : [];
-                } catch { return []; }
-            },
-            getCapacity: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/capacity`); },
-            start: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/start`, { method: 'POST' }); },
-            stop: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/stop`, { method: 'POST' }); },
-            clear: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/clear`, { method: 'POST' }); },
-            setCapacity: function(capacity) {
-                return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/capacity`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ capacity: parseInt(capacity, 10) })
-                });
-            },
+            getStatus: () => api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/status`),
+            getLogs: async () => { try { const logs = await api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/logs`); return Array.isArray(logs) ? logs.sort((a, b) => new Date(b.query_time) - new Date(a.query_time)) : []; } catch { return []; } },
+            getCapacity: () => api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/capacity`),
+            start: () => api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/start`, { method: 'POST' }),
+            stop: () => api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/stop`, { method: 'POST' }),
+            clear: () => api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/clear`, { method: 'POST' }),
+            setCapacity: (capacity) => api.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }),
         };
-
         const aliasManager = {
             load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; },
             save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); },
             getDisplayName: (ip) => { const alias = state.clientAliases[ip]; return alias ? `<span class="client-alias">${alias}</span><span class="client-ip-tag">${ip}</span>` : ip; },
             set: function(ip, name) { if (name) state.clientAliases[ip] = name; else delete state.clientAliases[ip]; this.save(); rerenderAllViews(); },
-            renderEditableList: function() { const container = document.getElementById('alias-list-container'); container.innerHTML = ''; const uniqueIps = [...new Set(state.allLogs.map(log => log.client_ip))].sort(); if (uniqueIps.length === 0) { container.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.innerHTML = ` <span class="client-ip-tag" style="opacity:1; font-weight:bold;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="outline">保存</button> `; item.querySelector('button').addEventListener('click', () => { const newName = item.querySelector('input').value.trim(); this.set(ip, newName); ui.showToast(`已保存 ${ip} 的别名`, 'success'); }); container.appendChild(item); }); },
-            export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出'); },
-            import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); rerenderAllViews(); ui.showToast('配置已成功导入并合并'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
+            renderEditableList: function() { const container = document.getElementById('alias-list-container'); if(!container) return; container.innerHTML = ''; const uniqueIps = [...new Set(state.allLogs.map(log => log.client_ip))].sort(); if (uniqueIps.length === 0) { container.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.innerHTML = ` <span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="button primary">保存</button> `; item.querySelector('button').addEventListener('click', () => { const newName = item.querySelector('input').value.trim(); this.set(ip, newName); ui.showToast(`已保存 ${ip} 的别名`, 'success'); }); container.appendChild(item); }); },
+            export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); },
+            import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); rerenderAllViews(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
         };
-        
-        // --- UI & 渲染函数 ---
         const ui = {
-            showToast(message, type = 'success') { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = `show ${type}`; setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000); },
-            setLoading(button, isLoading, text = '') { button.setAttribute('aria-busy', isLoading ? 'true' : 'false'); if (text) button.innerHTML = text; },
+            showToast(message, type = 'success') { const toast = document.getElementById('toast'); if(!toast) return; toast.textContent = message; toast.className = `show ${type}`; setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000); },
+            setLoading(button, isLoading) {
+                if (!button) return;
+                button.disabled = isLoading;
+                button.setAttribute('aria-busy', String(isLoading));
+                const textSpan = button.querySelector('span');
+                if (textSpan) {
+                    const defaultText = button.dataset.defaultText || textSpan.textContent;
+                    textSpan.textContent = isLoading ? '处理中...' : defaultText;
+                }
+            },
             updateStatus(isCapturing) {
                 const toggleBtn = document.getElementById('toggle-audit-btn');
                 const statusElem = document.getElementById('audit-status');
-                
-                toggleBtn.disabled = false;
+                if(!toggleBtn || !statusElem) return;
                 this.setLoading(toggleBtn, false);
-
                 if (typeof isCapturing === 'boolean') {
                     state.isCapturing = isCapturing;
                     statusElem.textContent = isCapturing ? '运行中' : '已停止';
-                    statusElem.className = isCapturing ? 'text-green' : 'text-red';
-                    toggleBtn.textContent = isCapturing ? '关闭审计日志' : '开启审计日志';
+                    statusElem.className = isCapturing ? 'text-success' : 'text-danger';
+                    const actionText = isCapturing ? '关闭审计' : '开启审计';
+                    toggleBtn.querySelector('span').textContent = actionText;
+                    toggleBtn.dataset.defaultText = actionText;
+                    toggleBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`;
                 } else {
-                    statusElem.textContent = '未知 (查询失败)';
-                    statusElem.className = '';
-                    toggleBtn.textContent = '刷新状态';
+                    statusElem.textContent = '未知';
+                    statusElem.className = 'text-unknown';
+                    toggleBtn.querySelector('span').textContent = '刷新状态';
+                    toggleBtn.dataset.defaultText = '刷新状态';
                 }
             },
-            updateCapacity(capacity) { document.getElementById('audit-capacity').textContent = capacity ? capacity.toLocaleString() : '查询失败'; },
-            updateOverviewStats(logs) { const total = logs.length; document.getElementById('total-queries').textContent = total.toLocaleString(); document.getElementById('avg-duration').textContent = total > 0 ? (logs.reduce((sum, log) => sum + log.duration_ms, 0) / total).toFixed(2) : '0.00'; },
+            updateCapacity(capacity) { const el = document.getElementById('audit-capacity'); if(el) el.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; },
+            updateOverviewStats(logs) { const totalQueriesEl = document.getElementById('total-queries'); const avgDurationEl = document.getElementById('avg-duration'); if (!totalQueriesEl || !avgDurationEl) return; const oldTotal = parseInt(totalQueriesEl.textContent.replace(/,/g, ''), 10) || 0; const oldAvg = parseFloat(avgDurationEl.textContent) || 0; const total = logs.length; const newAvg = total > 0 ? (logs.reduce((sum, log) => sum + log.duration_ms, 0) / total) : 0; animateValue(totalQueriesEl, oldTotal, total, 1000); animateValue(avgDurationEl, oldAvg, newAvg, 1000); },
             renderLogTable(logs, append = false) { 
                 const tbody = document.getElementById('log-table-body');
+                if (!tbody) return;
                 if (!append) tbody.innerHTML = '';
                 if (logs.length === 0 && !append) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">没有匹配的日志记录</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; white-space: normal;">没有匹配的日志记录</td></tr>';
                     return;
                 }
                 const rows = logs.map(log => {
                     const tr = document.createElement('tr');
+                    const globalIndex = state.filteredLogs.indexOf(log);
                     tr.innerHTML = `
-                        <td>${formatDate(log.query_time)}</td>
-                        <td>${log.query_name}</td>
-                        <td>${log.query_type}</td>
-                        <td>${log.duration_ms.toFixed(2)}</td>
-                        <td>${aliasManager.getDisplayName(log.client_ip)}</td>
-                        <td>${formatResponseCell(log)}</td>
+                        <td class="text-left">${formatDate(log.query_time)}</td>
+                        <td class="text-left">${log.query_name}</td>
+                        <td class="text-right">${log.query_type}</td>
+                        <td class="text-right">${log.duration_ms.toFixed(2)}</td>
+                        <td class="text-left">${aliasManager.getDisplayName(log.client_ip)}</td>
+                        <td class="text-left" data-log-index="${globalIndex}">
+                            <span class="tooltip-trigger">${getResponseSummary(log)}</span>
+                        </td>
                     `;
                     return tr;
                 });
                 tbody.append(...rows);
             }
         };
-        const renderTable = (tbodyId, data, renderRow) => { const tbody = document.getElementById(tbodyId); tbody.innerHTML = ''; if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${tbody.previousElementSibling.rows[0].cells.length}" style="text-align:center;">无数据</td></tr>`; return; } data.forEach(item => tbody.appendChild(renderRow(item))); };
-        const renderTopDomains = (data) => renderTable('top-domains-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${item.name}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.name}">${item.count}</a></td>`; return tr; });
-        const renderTopClients = (data) => renderTable('top-clients-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${aliasManager.getDisplayName(item.ip)}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.ip}">${item.count}</a></td>`; return tr; });
-        const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${formatDate(item.query_time)}</td><td>${item.query_name}</td><td>${item.duration_ms.toFixed(2)}</td><td>${aliasManager.getDisplayName(item.client_ip)}</td><td>${formatResponseCell(item)}</td>`; return tr; });
-        function processLogsForOverview(logs) { if (!logs) return { topDomains: [], topClients: [], slowestQueries: [] }; const domainCounts = logs.reduce((acc, log) => { acc[log.query_name] = (acc[log.query_name] || 0) + 1; return acc; }, {}); const topDomains = Object.entries(domainCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 50); const clientCounts = logs.reduce((acc, log) => { acc[log.client_ip] = (acc[log.client_ip] || 0) + 1; return acc; }, {}); const topClients = Object.entries(clientCounts).map(([ip, count]) => ({ ip, count })).sort((a, b) => b.count - a.count).slice(0, 50); const slowestQueries = [...logs].sort((a, b) => b.duration_ms - a.duration_ms).slice(0, 50); return { topDomains, topClients, slowestQueries };}
+        const renderTable = (tbodyId, data, renderRow) => { const tbody = document.getElementById(tbodyId); if(!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const colspan = tbody.previousElementSibling?.rows[0]?.cells.length || 2; tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;">无数据</td></tr>`; return; } data.forEach((item, index) => tbody.appendChild(renderRow(item, index))); };
+        const renderTopDomains = (data) => renderTable('top-domains-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td class="text-left">${item.name}</td><td class="text-right"><a href="#log-query" class="clickable-link" data-filter-value="${item.name}">${item.count}</a></td>`; return tr; });
+        const renderTopClients = (data) => renderTable('top-clients-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td class="text-left">${aliasManager.getDisplayName(item.ip)}</td><td class="text-right"><a href="#log-query" class="clickable-link" data-filter-value="${item.ip}">${item.count}</a></td>`; return tr; });
         
-        // --- 核心逻辑与数据流 ---
+        const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, (item, index) => { 
+            const tr = document.createElement('tr'); 
+            tr.innerHTML = `<td class="text-left">${formatDate(item.query_time)}</td><td class="text-left">${item.query_name}</td><td class="text-right">${item.duration_ms.toFixed(2)}</td><td class="text-left">${aliasManager.getDisplayName(item.client_ip)}</td><td class="text-left" data-log-index="${index}" data-log-source="slowest"><span class="tooltip-trigger">${getResponseSummary(item)}</span></td>`; 
+            return tr; 
+        });
+        
+        function processLogsForOverview(logs) { if (!logs) return { topDomains: [], topClients: [], slowestQueries: [] }; const domainCounts = logs.reduce((acc, log) => { acc[log.query_name] = (acc[log.query_name] || 0) + 1; return acc; }, {}); const topDomains = Object.entries(domainCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 50); const clientCounts = logs.reduce((acc, log) => { acc[log.client_ip] = (acc[log.client_ip] || 0) + 1; return acc; }, {}); const topClients = Object.entries(clientCounts).map(([ip, count]) => ({ ip, count })).sort((a, b) => b.count - a.count).slice(0, 50); state.slowestQueries = [...logs].sort((a, b) => b.duration_ms - a.duration_ms).slice(0, 50); return { topDomains, topClients, slowestQueries: state.slowestQueries };}
+        
         async function updatePageData() {
-            const refreshBtn = document.getElementById('refresh-overview-btn');
-            ui.setLoading(refreshBtn, true, '处理中...');
-
+            const refreshBtns = Array.from(document.querySelectorAll('#refresh-overview-btn, #refresh-logs-btn'));
+            refreshBtns.forEach(btn => ui.setLoading(btn, true));
             try {
-                const [statusResponse, logs, capacityResponse] = await Promise.allSettled([
-                    api.getStatus(),
-                    api.getLogs(),
-                    api.getCapacity()
+                const [statusResponse, logsResponse, capacityResponse] = await Promise.allSettled([
+                    api.getStatus(), api.getLogs(), api.getCapacity()
                 ]);
-
-                if (statusResponse.status === 'fulfilled') {
-                    ui.updateStatus(statusResponse.value.capturing);
-                } else {
-                    ui.updateStatus(null);
-                }
-
-                state.allLogs = (logs.status === 'fulfilled') ? logs.value : [];
+                ui.updateStatus(statusResponse.status === 'fulfilled' ? statusResponse.value.capturing : null);
+                state.allLogs = (logsResponse.status === 'fulfilled') ? logsResponse.value : [];
+                ui.updateCapacity(capacityResponse.status === 'fulfilled' ? capacityResponse.value.capacity : null);
                 rerenderAllViews();
-
-                if (capacityResponse.status === 'fulfilled') {
-                    ui.updateCapacity(capacityResponse.value.capacity);
-                } else {
-                    ui.updateCapacity(null);
-                }
-
             } catch (error) {
-                console.error("页面更新时发生意外错误:", error);
+                console.error("Page update failed:", error);
             } finally {
-                ui.setLoading(refreshBtn, false, '刷新');
+                refreshBtns.forEach(btn => ui.setLoading(btn, false));
             }
         }
         
-        function rerenderAllViews() { const { topDomains, topClients, slowestQueries } = processLogsForOverview(state.allLogs); ui.updateOverviewStats(state.allLogs); renderTopDomains(topDomains); renderTopClients(topClients); renderSlowestQueries(slowestQueries); if (window.location.hash.startsWith('#log-query')) { applyLogFilterAndRender(); } }
+        function rerenderAllViews() {
+            const activeTab = document.querySelector('.tab-content.active');
+            if (!activeTab) return;
+
+            if (activeTab.id === 'overview-tab') {
+                const { topDomains, topClients, slowestQueries } = processLogsForOverview(state.allLogs);
+                ui.updateOverviewStats(state.allLogs);
+                renderTopDomains(topDomains);
+                renderTopClients(topClients);
+                renderSlowestQueries(slowestQueries);
+            } else if (activeTab.id === 'log-query-tab') {
+                applyLogFilterAndRender();
+            }
+        }
         
-        // BUGFIX: Reworked this function again to be more robust.
         function applyLogFilterAndRender() { 
-            const searchTerm = document.getElementById('log-search').value.toLowerCase();
+            const searchInput = document.getElementById('log-search');
+            if (!searchInput) return;
+            const searchTerm = searchInput.value.toLowerCase();
             
             state.filteredLogs = searchTerm 
                 ? state.allLogs.filter(log => {
                     const alias = (state.clientAliases[log.client_ip] || '').toLowerCase();
                     const responseMatch = log.answers && log.answers.some(answer => 
-                        answer.data.toLowerCase().includes(searchTerm)
+                        answer.data && answer.data.toLowerCase().includes(searchTerm)
                     );
                     return log.query_name.toLowerCase().includes(searchTerm) || 
                            log.client_ip.toLowerCase().includes(searchTerm) || 
@@ -417,15 +600,9 @@
                 }) 
                 : state.allLogs;
 
-            // Reset pagination and render the first page of the new results.
             state.currentPage = 0;
-            const logsToRender = state.filteredLogs.slice(0, LOGS_PER_PAGE);
-            ui.renderLogTable(logsToRender, false); // `false` to replace content.
-            
-            // Increment page for the next `loadMoreLogs` call.
-            if (logsToRender.length > 0) {
-                state.currentPage = 1;
-            }
+            ui.renderLogTable([], false);
+            loadMoreLogs();
         }
         
 	    function loadMoreLogs() { 
@@ -434,40 +611,128 @@
             const start = state.currentPage * LOGS_PER_PAGE; 
 
             if (start >= state.filteredLogs.length) {
+                if (state.currentPage === 0) {
+                    ui.renderLogTable([], false);
+                }
                 return; 
             }
 
             state.isLoadingMore = true; 
-            logLoader.style.display = 'block'; 
+            if(logLoader) logLoader.style.display = 'block'; 
             const logsToRender = state.filteredLogs.slice(start, start + LOGS_PER_PAGE); 
             
             setTimeout(() => { 
-                ui.renderLogTable(logsToRender, true); // `true` to append content.
+                ui.renderLogTable(logsToRender, true);
                 state.currentPage++; 
                 state.isLoadingMore = false; 
-                logLoader.style.display = 'none'; 
+                if(logLoader) logLoader.style.display = 'none'; 
             }, 50); 
         }
 
-        function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : 'N/A'; }
+        function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-') : 'N/A'; }
+        
+        let activeTooltip = null;
+        let hideTooltipTimeout = null;
 
-        function formatResponseCell(log) {
+        function showTooltip(targetElement) {
+            clearTimeout(hideTooltipTimeout);
+            
+            const targetId = targetElement.dataset.logIndex + (targetElement.dataset.logSource || '');
+            if (activeTooltip && activeTooltip.dataset.targetId === targetId) return;
+            
+            hideTooltip(true);
+            
+            const logIndex = parseInt(targetElement.dataset.logIndex, 10);
+            const logSource = targetElement.dataset.logSource;
+            
+            let log;
+            if (logSource === 'slowest') {
+                log = state.slowestQueries[logIndex];
+            } else {
+                log = state.filteredLogs[logIndex];
+            }
+            
+            if (!log) return;
+            
+            activeTooltip = document.createElement('div');
+            activeTooltip.className = 'answers-tooltip';
+            activeTooltip.innerHTML = getTooltipHTML(log);
+            activeTooltip.dataset.targetId = targetId;
+            
+            activeTooltip.addEventListener('mouseenter', () => clearTimeout(hideTooltipTimeout));
+            activeTooltip.addEventListener('mouseleave', () => hideTooltip());
+            
+            document.body.appendChild(activeTooltip);
+
+            const targetRect = targetElement.getBoundingClientRect();
+            const tooltipRect = activeTooltip.getBoundingClientRect();
+
+            let top = targetRect.top - tooltipRect.height - 10;
+            let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+
+            if (top < 10) { top = targetRect.bottom + 10; }
+            if (left < 10) { left = 10; } 
+            else if (left + tooltipRect.width > window.innerWidth - 10) { left = window.innerWidth - tooltipRect.width - 10; }
+
+            activeTooltip.style.top = `${top}px`;
+            activeTooltip.style.left = `${left}px`;
+            
+            setTimeout(() => activeTooltip.classList.add('visible'), 10);
+        }
+
+        function hideTooltip(immediate = false) {
+            clearTimeout(hideTooltipTimeout);
+            if (immediate) {
+                activeTooltip?.remove();
+                activeTooltip = null;
+            } else {
+                hideTooltipTimeout = setTimeout(() => {
+                    if (activeTooltip) {
+                        activeTooltip.classList.remove('visible');
+                        setTimeout(() => {
+                            activeTooltip?.remove();
+                            activeTooltip = null;
+                        }, 200);
+                    }
+                }, 100);
+            }
+        }
+        
+        document.body.addEventListener('mouseover', e => {
+            const trigger = e.target.closest('.tooltip-trigger');
+            if (trigger) {
+                showTooltip(trigger.parentElement);
+            }
+        });
+
+        document.body.addEventListener('mouseout', e => {
+            const trigger = e.target.closest('.tooltip-trigger');
+            if (trigger) {
+                hideTooltip();
+            }
+        });
+
+        function getResponseSummary(log) {
+            if (!log) return 'N/A';
             const answers = log.answers || [];
-            let mainText;
-
             if (log.response_code !== 'NOERROR') {
-                mainText = log.response_code;
-            } else if (answers.length > 0) {
+                return log.response_code;
+            }
+            if (answers.length > 0) {
                 const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA');
                 const firstCname = answers.find(a => a.type === 'CNAME');
-                mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data);
+                let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data);
                 if (answers.length > 1) {
                     mainText += ` (+${answers.length - 1})`;
                 }
-            } else {
-                mainText = 'NOERROR';
+                return mainText;
             }
+            return 'NOERROR';
+        }
 
+        function getTooltipHTML(log) {
+            if (!log) return '';
+            const answers = log.answers || [];
             const flags = log.response_flags || {};
             const flagItems = [];
             if (flags.ra) flagItems.push('ra');
@@ -476,9 +741,9 @@
 
             let tooltipHTML = `<h5>查询详情</h5>
                 <ul>
-                    <li><strong>状态:</strong> ${log.response_code}</li>
+                    <li><strong>状态:</strong> ${log.response_code || 'N/A'}</li>
                     ${flagItems.length > 0 ? `<li><strong>标志:</strong> ${flagItems.join(', ')}</li>` : ''}
-                    <li><strong>类别:</strong> ${log.query_class}</li>
+                    ${log.query_class ? `<li><strong>类别:</strong> ${log.query_class}</li>` : ''}
                     ${log.trace_id ? `<li><strong>Trace ID:</strong> <small>${log.trace_id}</small></li>` : ''}
                 </ul>`;
 
@@ -488,86 +753,88 @@
                         ${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}
                     </ul>`;
             }
-
-            return `<div class="tooltip-container">${mainText}<div class="answers-tooltip">${tooltipHTML}</div></div>`;
+            return tooltipHTML;
         }
 
+        let searchTimeout;
         function handleRouteChange() {
-            const hash = window.location.hash || '#overview';
+            const hash = window.location.hash.split('?')[0] || '#overview';
             document.querySelectorAll('.tab-link').forEach(el => el.classList.toggle('active', el.getAttribute('href') === hash));
             document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', `#${el.id.replace('-tab', '')}` === hash));
-            if (hash.startsWith('#log-query')) {
-                applyLogFilterAndRender();
-            }
+            rerenderAllViews();
         }
         
-        // --- 事件监听器 ---
         window.addEventListener('hashchange', handleRouteChange);
-        document.getElementById('refresh-overview-btn').addEventListener('click', updatePageData);
-        
-        document.getElementById('toggle-audit-btn').addEventListener('click', async (e) => {
-            const btn = e.target;
-            btn.disabled = true;
-            ui.setLoading(btn, true, '处理中...');
-
+        document.querySelectorAll('[data-default-text]').forEach(btn => { const span = btn.querySelector('span'); if (span) btn.dataset.defaultText = span.textContent; });
+        document.getElementById('refresh-overview-btn')?.addEventListener('click', updatePageData);
+        document.getElementById('refresh-logs-btn')?.addEventListener('click', updatePageData);
+        document.querySelector('.container').addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); document.getElementById('log-search').value = link.dataset.filterValue; window.location.hash = '#log-query'; } });
+        document.getElementById('toggle-audit-btn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget; ui.setLoading(btn, true);
             try {
                 if (state.isCapturing) {
                     if (confirm('确定要关闭并清空所有审计日志吗？此操作不可恢复。')) {
-                        await api.stop();
-                        await api.clear();
-                    } else {
-                        ui.updateStatus(state.isCapturing);
-                        return;
-                    }
-                } else {
-                    await api.start();
-                }
-            } catch (error) {
-                console.error("操作失败:", error);
-            }
+                        await api.stop(); await api.clear();
+                    } else { ui.setLoading(btn, false); return; }
+                } else { await api.start(); }
+            } catch (error) { console.error("操作失败:", error); }
             await updatePageData();
         });
-
-        document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { 
-            if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { 
-                const btn = e.target;
-                btn.disabled = true;
-                ui.setLoading(btn, true, '处理中...');
-                try {
-                    await api.clear(); 
-                    await updatePageData();
-                    ui.showToast('审计日志已清空', 'success');
-                } catch (error) {
-                    console.error("Failed to clear logs:", error);
-                } finally {
-                    ui.setLoading(btn, false, '清空日志');
-                    btn.disabled = false;
-                }
+        document.getElementById('clear-audit-btn')?.addEventListener('click', async (e) => { if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { const btn = e.currentTarget; ui.setLoading(btn, true); await api.clear(); await updatePageData(); } });
+        
+        document.getElementById('capacity-form')?.addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            const capacityInput = document.getElementById('new-capacity'); 
+            const newCapacity = parseInt(capacityInput.value, 10); 
+            if (!newCapacity || newCapacity <= 0 || newCapacity > 100000) { 
+                ui.showToast('请输入1到100000之间的有效容量', 'error'); 
+                return; 
+            } 
+            if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { 
+                const btn = e.currentTarget.querySelector('button'); 
+                ui.setLoading(btn, true); 
+                try { 
+                    await api.setCapacity(newCapacity); 
+                    ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); 
+                    capacityInput.value = ''; 
+                } catch (error) { 
+                    console.error("Set capacity failed:", error); 
+                } finally { 
+                    await updatePageData(); 
+                    ui.setLoading(btn, false);
+                } 
             } 
         });
 
-        document.getElementById('capacity-form').addEventListener('submit', async (e) => { e.preventDefault(); const capacityInput = document.getElementById('new-capacity'); const newCapacity = parseInt(capacityInput.value, 10); if (!newCapacity || newCapacity <= 0) return; if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { const btn = e.target.querySelector('button'); btn.disabled = true; ui.setLoading(btn, true, '处理中...'); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); capacityInput.value = ''; } catch (error) { console.error("设置容量失败:", error); } finally { await updatePageData(); ui.setLoading(btn, false, '设置'); btn.disabled = false; } } });
-        document.getElementById('overview-tab').addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); document.getElementById('log-search').value = link.dataset.filterValue; window.location.hash = '#log-query'; } });
-        document.getElementById('refresh-logs-btn').addEventListener('click', updatePageData);
-        document.getElementById('log-search').addEventListener('input', applyLogFilterAndRender);
+        document.getElementById('log-search')?.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(applyLogFilterAndRender, 300); });
         
-	    window.addEventListener('scroll', () => { if (window.location.hash.startsWith('#log-query')) { const { scrollTop, scrollHeight, clientHeight } = document.documentElement; if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) { loadMoreLogs(); } } });
-
-        const aliasModal = document.getElementById('alias-modal');
-        document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
-        document.getElementById('close-alias-modal').addEventListener('click', (e) => { e.preventDefault(); aliasModal.close(); });
-        document.getElementById('export-aliases-btn').addEventListener('click', () => aliasManager.export());
-        const fileInput = document.getElementById('import-alias-file-input');
-        document.getElementById('import-aliases-btn').addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
-        
-        // --- 初始化 ---
-        function init() {
-            aliasManager.load();
-            handleRouteChange(); 
-            updatePageData();
+        const logTableContainer = document.querySelector('#log-query-table-container');
+        if (logTableContainer) {
+            logTableContainer.addEventListener('scroll', () => { 
+                const { scrollTop, scrollHeight, clientHeight } = logTableContainer;
+                if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) {
+                    loadMoreLogs();
+                }
+            });
         }
-
+        
+        const aliasModal = document.getElementById('alias-modal');
+        if(aliasModal) {
+            document.getElementById('manage-aliases-btn')?.addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
+            document.getElementById('close-alias-modal')?.addEventListener('click', () => aliasModal.close());
+            document.getElementById('export-aliases-btn')?.addEventListener('click', () => aliasManager.export());
+            const fileInput = document.getElementById('import-alias-file-input');
+            document.getElementById('import-aliases-btn')?.addEventListener('click', () => fileInput?.click());
+            fileInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
+        }
+        
+        function init() {
+            themeManager.init();
+            aliasManager.load();
+            handleRouteChange();
+            updatePageData();
+            setupGlowEffect();
+        }
         init();
     });
     </script>
