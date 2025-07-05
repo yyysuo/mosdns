@@ -37,7 +37,7 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:embed www/mosdns.html www/mosdnsp.html www/log.html
+//go:embed www/mosdns.html www/mosdnsp.html www/log.html www/log_plain.html
 var content embed.FS
 
 type Mosdns struct {
@@ -266,11 +266,26 @@ func (m *Mosdns) initHttpMux() {
             m.logger.Error("Error writing response", zap.Error(err))
         }
     }
+
+    // [新添加] plog 路由 ("/plog") 的 handler, 指向 /www/log_plain.html
+    plainLogHandler := func(w http.ResponseWriter, r *http.Request) {
+        data, err := content.ReadFile("www/log_plain.html") // 读取 /www/log_plain.html
+        if err != nil {
+            m.logger.Error("Error reading embedded file", zap.String("file", "www/log_plain.html"), zap.Error(err))
+            http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+            return
+        }
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        if _, err := w.Write(data); err != nil {
+            m.logger.Error("Error writing response", zap.Error(err))
+        }
+    }
     
     // [修改] 为每个路由注册对应的 handler
     m.httpMux.Get("/", rootHandler)
     m.httpMux.Get("/graphic", graphicHandler)
     m.httpMux.Get("/log", logHandler) // [新增] 注册 /log 路由
+    m.httpMux.Get("/plog", plainLogHandler) // [新添加] 注册 /plog 路由
 
     // Register pprof.
     m.httpMux.Route("/debug/pprof", func(r chi.Router) {
