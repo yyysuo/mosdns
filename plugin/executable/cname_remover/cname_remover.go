@@ -19,7 +19,7 @@
 package cname_remover
 
 import (
-        "context" 
+	"context"
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
@@ -29,18 +29,10 @@ import (
 const PluginType = "cname_remover"
 
 func init() {
-	// Register this plugin type with its initialization funcs. So that, this plugin
-	// can be configured by user from configuration file.
 	coremain.RegNewPluginFunc(PluginType, Init, func() any { return new(Args) })
-
-	// You can also register a plugin object directly. (If plugin do not need to configure)
-	// Then you can directly use "_remove_cname" in configuration file.
 	coremain.RegNewPersetPluginFunc("_remove_cname", func(bp *coremain.BP) (any, error) {
 		return new(cnameRemover), nil
 	})
-
-	// Register a quick setup func for sequence. So that users can
-	// init your plugin in the sequence directly in one string.
 	sequence.MustRegExecQuickSetup(PluginType, QuickSetup)
 }
 
@@ -54,22 +46,46 @@ var _ sequence.Executable = (*cnameRemover)(nil)
 // cnameRemover implements handler.ExecutablePlugin.
 type cnameRemover struct{}
 
-// Exec implements handler.Executable.
+// Exec 实现了核心处理逻辑.
+// 这个版本是经过优化的，并且只处理 A 和 AAAA 查询.
 func (c *cnameRemover) Exec(ctx context.Context, qCtx *query_context.Context) error {
 	r := qCtx.R()
-	if r == nil {
+	if r == nil || len(r.Answer) == 0 {
 		return nil
 	}
 
-	// Filter out CNAME records from the Answer section.
-	var filteredAnswer []dns.RR
+	// ==================== 变更点 1: 限定查询类型 ====================
+	// 检查查询类型，如果不是 A 或 AAAA，则直接返回，不进行任何操作。
+	qType := qCtx.QQuestion().Qtype
+	if qType != dns.TypeA && qType != dns.TypeAAAA {
+		return nil
+	}
+	// =============================================================
+
+	qName := qCtx.QQuestion().Name
+
+	// ==================== 变更点 2: 高效的切片操作 ====================
+	// 创建一个新切片头 `filteredAnswer`，它重用 `r.Answer` 的底层数组。
+	// 这避免了为新切片分配内存，从而提高了性能。
+	filteredAnswer := r.Answer[:0]
+	// =============================================================
+
+	// 遍历响应中的所有记录。这个逻辑不依赖于记录的顺序，非常健壮。
 	for _, rr := range r.Answer {
-		if _, ok := rr.(*dns.CNAME); !ok {
-			filteredAnswer = append(filteredAnswer, rr)
+		// 检查记录类型是否为 CNAME。
+		// 使用 rr.Header().Rrtype 而不是类型断言，可以覆盖所有 CNAME-like 的记录。
+		if rr.Header().Rrtype == dns.TypeCNAME {
+			continue // 如果是 CNAME，则跳过，即“移除”它。
 		}
+
+		// 如果不是 CNAME，说明是我们想要保留的记录 (如 A, AAAA)。
+		// 将其域名头修改为原始查询的域名，以确保响应的逻辑一致性。
+		rr.Header().Name = qName
+		// 将修改后的记录添加到 filteredAnswer 中。
+		filteredAnswer = append(filteredAnswer, rr)
 	}
 
-	// Update the Answer section to remove CNAME records.
+	// 用我们处理过的、不含 CNAME 的记录列表替换原始的 Answer 部分。
 	r.Answer = filteredAnswer
 	return nil
 }
