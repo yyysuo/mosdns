@@ -59,6 +59,7 @@ var GlobalAuditCollector = NewAuditCollector(defaultAuditLogCapacity)
 
 func NewAuditCollector(capacity int) *AuditCollector {
 	return &AuditCollector{
+		capturing:  true, // 默认打开日志开关
 		capacity:   capacity,
 		logs:       make([]AuditLog, 0, capacity),
 		ctxChan:    make(chan *query_context.Context, auditChannelCapacity),
