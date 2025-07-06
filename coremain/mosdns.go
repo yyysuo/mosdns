@@ -37,8 +37,8 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:embed www/mosdns.html www/mosdnsp.html www/log.html www/log_plain.html
-var content embed.FS
+//go:embed www/mosdns.html www/mosdnsp.html www/log.html www/log_plain.html www/rlog.html
+var content embed.FS // --- ADDED: "www/rlog.html" ---
 
 type Mosdns struct {
 	logger *zap.Logger // non-nil logger.
@@ -81,7 +81,8 @@ func NewMosdns(cfg *Config) (*Mosdns, error) {
 
 	// Register our new APIs.
 	RegisterCaptureAPI(m.httpMux) // For process logs
-	RegisterAuditAPI(m.httpMux)   // For audit logs
+	RegisterAuditAPI(m.httpMux)   // For audit logs v1
+	RegisterAuditAPIV2(m.httpMux) // For audit logs v2
 
 	// Start http api server
 	if httpAddr := cfg.API.HTTP; len(httpAddr) > 0 {
@@ -280,12 +281,28 @@ func (m *Mosdns) initHttpMux() {
             m.logger.Error("Error writing response", zap.Error(err))
         }
     }
+
+	// --- ADDED: Handler for the new /rlog route (for v2 API frontend) ---
+	rlogHandler := func(w http.ResponseWriter, r *http.Request) {
+		data, err := content.ReadFile("www/rlog.html") // 读取 /www/rlog.html
+		if err != nil {
+			m.logger.Error("Error reading embedded file", zap.String("file", "www/rlog.html"), zap.Error(err))
+			http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, err := w.Write(data); err != nil {
+			m.logger.Error("Error writing response", zap.Error(err))
+		}
+	}
     
     // [修改] 为每个路由注册对应的 handler
     m.httpMux.Get("/", rootHandler)
     m.httpMux.Get("/graphic", graphicHandler)
-    m.httpMux.Get("/log", logHandler) // [新增] 注册 /log 路由
-    m.httpMux.Get("/plog", plainLogHandler) // [新添加] 注册 /plog 路由
+    m.httpMux.Get("/log", logHandler)
+    m.httpMux.Get("/plog", plainLogHandler)
+	m.httpMux.Get("/rlog", rlogHandler) // --- ADDED: Register the new /rlog route ---
+
 
     // Register pprof.
     m.httpMux.Route("/debug/pprof", func(r chi.Router) {
