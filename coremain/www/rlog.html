@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 仪表盘 - 终极移动重构版 v10.0</title>
+    <title>Mosdns 仪表盘 - v11.0 最终修复版</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- 优化版UI的CSS (v10.0) --- */
+        /* --- 优化版UI的CSS (v11.0) --- */
         :root { 
             --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             --font-family-mono: "SF Mono", "Fira Code", "Consolas", monospace; 
@@ -55,9 +55,10 @@
         a:hover { color: var(--color-accent-primary-hover); }
 
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1.5rem; }
-        .header-main-actions { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; }
+        .header-main-actions { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; max-width: 100%; }
+        .nav-wrapper { position: relative; overflow-x: auto; overflow-y: hidden; }
         
-        .main-nav { display: inline-flex; background-color: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: 0.25rem; position: relative; }
+        .main-nav { display: inline-flex; background-color: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: 0.25rem; }
         .main-nav-slider { position: absolute; top: 0.25rem; bottom: 0.25rem; border-radius: var(--border-radius-sm); background: var(--color-accent-primary); box-shadow: var(--shadow-md); transition: all var(--transition-med); z-index: 0; }
         .main-nav a { display: flex; align-items: center; justify-content: center; gap: 0.6rem; padding: 0.6rem 1.1rem; color: var(--color-text-secondary); font-weight: 600; font-size: 0.95rem; position: relative; z-index: 1; transition: color var(--transition-med); white-space: nowrap; }
         .main-nav a.active { color: var(--color-accent-text) !important; }
@@ -67,7 +68,7 @@
         .main-nav a .status-indicator.stopped { background-color: var(--color-danger); opacity: 1; }
         @keyframes pulse-small { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 40%, transparent); } 70% { box-shadow: 0 0 0 5px transparent; } }
         
-        .refresh-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--border-radius-md); background-color: var(--color-bg-alt); color: var(--color-text-secondary); border: 1px solid var(--color-border); cursor: pointer; transition: all var(--transition-fast); }
+        .refresh-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--border-radius-md); background-color: var(--color-bg-alt); color: var(--color-text-secondary); border: 1px solid var(--color-border); cursor: pointer; transition: all var(--transition-fast); flex-shrink: 0; }
         .refresh-btn svg { transition: transform var(--transition-med); }
         .refresh-btn:hover:not(:disabled):not([aria-busy="true"]) { color: var(--color-accent-primary); border-color: var(--color-accent-primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
         .refresh-btn:hover:not(:disabled):not([aria-busy="true"]) svg { transform: rotate(45deg); }
@@ -140,27 +141,59 @@
         input:focus { outline: none; border-color: var(--color-accent-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 25%, transparent); }
         
         .rankings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
-        .scrollable-table-container { max-height: 400px; overflow: auto; }
+        .scrollable-table-container { max-height: 400px; overflow: auto; position: relative; }
         #log-query-table-container { max-height: calc(100vh - 300px); min-height: 200px; }
         
-        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; table-layout: auto; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; }
         th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--color-border); transition: background-color var(--transition-fast); }
-        .col-time { white-space: nowrap; width: 1%; }
-        .col-domain { max-width: 300px; word-break: break-all; }
-        .truncate-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        th.text-right, td.text-right { text-align: right; }
-        th.text-left, td.text-left { text-align: left; }
-        thead th { background-color: var(--color-bg-alt); position: sticky; top: 0; z-index: 2; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--color-text-secondary); }
+        .text-right { text-align: right !important; }
+
+        thead th { 
+            background-color: var(--color-bg-alt); 
+            font-weight: 600; 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            color: var(--color-text-secondary);
+        }
+        .scrollable-table-container thead th {
+            position: sticky; 
+            top: 0; 
+            z-index: 2;
+        }
+
+        #top-domains-card .card-body,
+        #top-clients-card .card-body,
+        #slowest-queries-card .card-body {
+            padding: 0;
+        }
+        #top-domains-card .scrollable-table-container,
+        #top-clients-card .scrollable-table-container,
+        #slowest-queries-card .scrollable-table-container {
+            padding: 1.75rem;
+        }
+        #top-domains-card thead th,
+        #top-clients-card thead th,
+        #slowest-queries-card thead th {
+            top: -1.75rem;
+        }
+
+        th[data-sortable] { cursor: pointer; }
+        th[data-sortable]:hover { color: var(--color-text-primary); }
+        .sort-indicator { display: inline-block; width: 1em; text-align: center; opacity: 0.5; }
+        th.sorted .sort-indicator { opacity: 1; }
         tbody tr:last-child td { border-bottom: none; }
         tbody tr:nth-child(even) { background-color: var(--color-bg-alt); }
         tbody tr:hover { background-color: color-mix(in srgb, var(--color-accent-primary) 8%, transparent); }
+        .truncate-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
         tbody td a.clickable-link { position: relative; text-decoration: none; }
         tbody td a.clickable-link::after { content: ''; position: absolute; width: 0; height: 1px; bottom: -3px; left: 50%; transform: translateX(-50%); background-color: var(--color-accent-primary); transition: width var(--transition-fast); }
         tbody td a.clickable-link:hover::after { width: 100%; }
 
-        td.details-trigger { cursor: help; }
-        td.details-trigger:hover .truncate-text { color: var(--color-accent-primary); }
-        
+        tbody tr[data-log-index], tbody tr[data-rank-index] { cursor: help; }
+        .touch tbody tr[data-log-index], .touch tbody tr[data-rank-index] { cursor: pointer; }
+
         .empty-state-row td { text-align: center !important; padding: 3rem 1.5rem !important; white-space: normal !important; }
         .empty-state-content { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; color: var(--color-text-secondary); }
         .empty-state-content svg { width: 48px; height: 48px; opacity: 0.5; }
@@ -178,6 +211,7 @@
         .answers-tooltip h5 { margin: 0 0 0.75rem 0; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem; } 
         .answers-tooltip ul { margin: 0; padding: 0; list-style-type: none; display: flex; flex-direction: column; gap: 0.4rem; } 
         .answers-tooltip li { font-family: var(--font-family-mono); white-space: normal; word-break: break-all; } 
+        .answers-tooltip li > strong { font-family: var(--font-family-sans); }
         .answers-tooltip small { font-size: 0.85em; opacity: 0.8; } 
 
         #toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.5rem; border-radius: var(--border-radius-sm); z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); transform: translateY(-20px) scale(0.95); box-shadow: var(--shadow-lg); color: var(--color-accent-text); font-weight: 500; } 
@@ -193,9 +227,11 @@
         .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 0.75rem; background-color: var(--color-bg-alt); } 
         .alias-item { display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } 
         .alias-item:nth-child(even) { background-color: var(--color-bg-alt); }
+        #manual-alias-form { padding: 1.25rem; background: var(--color-bg-alt); border-radius: var(--border-radius-md); margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: center; border: 1px solid var(--color-border); }
         
+        #initial-loader { position: fixed; inset: 0; background: var(--color-bg); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s; }
         #log-loader { text-align: center; padding: 2rem; display: none; }
-        #log-loader .spinner { display: inline-block; width: 1.5rem; height: 1.5rem; border: 3px solid var(--color-border); border-top-color: var(--color-accent-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .spinner { display: inline-block; width: 2.5rem; height: 2.5rem; border: 4px solid var(--color-border); border-top-color: var(--color-accent-primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
         .control-panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
@@ -213,20 +249,49 @@
             html { font-size: 15px; } 
             .container { padding: 1.5rem 1rem; }
             h1 { font-size: 1.8rem; }
-            .card-header h2 { flex-grow: 1; }
+            .card-header { padding: 1rem 1.25rem; }
+            .card-body { padding: 1.25rem; }
             .rankings-grid { grid-template-columns: 1fr; gap: 2rem; }
             
             .hide-on-mobile { display: none !important; }
+
+            .mobile-compact-table th:not(:first-child),
+            .mobile-compact-table td:not(:first-child) {
+                display: none;
+            }
+            .mobile-compact-table th:first-child,
+            .mobile-compact-table td:first-child {
+                width: 100%;
+            }
+
+            #top-domains-card .scrollable-table-container,
+            #top-clients-card .scrollable-table-container,
+            #slowest-queries-card .card-body .scrollable-table-container {
+                padding: 1.25rem; 
+            }
+            #top-domains-card thead th,
+            #top-clients-card thead th,
+            #slowest-queries-card thead th {
+                top: -1.25rem;
+            }
+            #log-query-table-container {
+                padding: 0;
+            }
+            #log-query-table-container thead th {
+                top: 0;
+            }
             
             td, th { white-space: normal; word-break: break-all; }
 
             .control-panel-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+            .control-module { padding: 1.25rem; }
             .control-item { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
             .control-item > div, .control-item > form, .control-item > button { margin-left: 0; width: 100%; }
             .button-group { grid-template-columns: 1fr; gap: 0.75rem; }
             #capacity-form { grid-template-columns: 1fr; gap: 0.75rem; }
             .auto-refresh-form { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
             .color-palette { justify-content: flex-start; }
+            #manual-alias-form { grid-template-columns: 1fr; }
         }
         @media (max-width: 480px) {
             .alias-item { grid-template-columns: 1fr; gap: 0.5rem; text-align: center; }
@@ -236,19 +301,23 @@
     </style>
 </head>
 <body>
+    <div id="initial-loader"><div class="spinner"></div></div>
+
     <main class="container">
         <header class="page-header">
             <h1>Mosdns 仪表盘</h1>
             <div class="header-main-actions">
-                <nav class="main-nav">
-                    <div class="main-nav-slider"></div>
-                    <a href="#overview" class="tab-link active" data-tab="overview" role="tab">概览</a>
-                    <a href="#log-query" class="tab-link" data-tab="log-query" role="tab">查询日志</a>
-                    <a href="#system-control" class="tab-link" data-tab="system-control" role="tab">
-                        <span class="status-indicator"></span>
-                        <span>系统</span>
-                    </a>
-                </nav>
+                <div class="nav-wrapper">
+                    <nav class="main-nav">
+                        <div class="main-nav-slider"></div>
+                        <a href="#overview" class="tab-link active" data-tab="overview" role="tab">概览</a>
+                        <a href="#log-query" class="tab-link" data-tab="log-query" role="tab">查询日志</a>
+                        <a href="#system-control" class="tab-link" data-tab="system-control" role="tab">
+                            <span class="status-indicator"></span>
+                            <span>系统</span>
+                        </a>
+                    </nav>
+                </div>
                 <button id="global-refresh-btn" class="refresh-btn" title="刷新数据" aria-label="刷新数据" aria-busy="false">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
                 </button>
@@ -263,7 +332,12 @@
                 <button class="button secondary" id="close-alias-modal" aria-label="Close" style="min-width:auto; padding:0.3rem 0.5rem;">✕</button>
             </header>
             <div class="modal-body">
-                <p>为客户端 IP 设置别名，方便在日志中快速识别。</p>
+                <form id="manual-alias-form">
+                    <input type="text" id="manual-alias-ip" placeholder="输入 IP 地址" required>
+                    <input type="text" id="manual-alias-name" placeholder="输入别名" required>
+                    <button type="submit" class="button primary"><span>添加</span></button>
+                </form>
+                <p>为客户端 IP 设置别名，方便在日志中快速识别。下面是最近活跃的客户端：</p>
                 <div id="alias-list-container"></div>
             </div>
             <footer class="modal-footer">
@@ -292,32 +366,38 @@
             <div class="rankings-grid" style="margin-top: 2.5rem;">
                 <div class="card" id="top-domains-card">
                     <header class="card-header"><h2>域名请求排行</h2></header>
-                    <div class="card-body scrollable-table-container">
-                        <table>
-                            <thead><tr><th class="col-domain">域名</th><th class="text-right">请求数</th></tr></thead>
-                            <tbody id="top-domains-body"></tbody>
-                        </table>
+                    <div class="card-body">
+                        <div class="scrollable-table-container">
+                            <table class="mobile-compact-table">
+                                <thead><tr><th>域名</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
+                                <tbody id="top-domains-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="card" id="top-clients-card">
                     <header class="card-header"><h2>客户端请求排行</h2></header>
-                    <div class="card-body scrollable-table-container">
-                        <table>
-                            <thead><tr><th class="col-client">客户端</th><th class="text-right">请求数</th></tr></thead>
-                            <tbody id="top-clients-body"></tbody>
-                        </table>
+                    <div class="card-body">
+                        <div class="scrollable-table-container">
+                            <table class="mobile-compact-table">
+                                <thead><tr><th>客户端</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
+                                <tbody id="top-clients-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
                 
             <div class="card" id="slowest-queries-card" style="margin-top: 2.5rem;">
                 <header class="card-header"><h2>最慢查询</h2></header>
-                <div class="card-body scrollable-table-container">
-                    <table>
-                        <thead><tr><th class="col-time hide-on-mobile">时间</th><th class="col-domain details-trigger">域名</th><th class="hide-on-mobile col-duration text-right">耗时 (ms)</th><th class="col-client hide-on-mobile">客户端</th><th class="col-response hide-on-mobile">响应</th></tr></thead>
-                        <tbody id="slowest-queries-body"></tbody>
-                    </table>
+                <div class="card-body">
+                     <div class="scrollable-table-container">
+                        <table>
+                            <thead><tr><th class="hide-on-mobile">时间</th><th>域名</th><th class="hide-on-mobile text-right">耗时 (ms)</th><th class="hide-on-mobile">客户端</th><th class="hide-on-mobile">响应</th></tr></thead>
+                            <tbody id="slowest-queries-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
@@ -334,10 +414,19 @@
                     <input type="search" id="log-search" placeholder="搜索域名、IP、CNAME 或别名..." style="margin-bottom: 1rem;">
                     <div class="scrollable-table-container" id="log-query-table-container">
                         <table>
-                            <thead><tr><th class="col-time">时间</th><th class="col-domain">域名</th><th class="col-type hide-on-mobile">类型</th><th class="col-duration text-right hide-on-mobile">耗时(ms)</th><th class="col-client hide-on-mobile">客户端</th><th class="col-response hide-on-mobile">响应</th></tr></thead>
+                            <thead id="log-table-head">
+                                <tr>
+                                    <th class="hide-on-mobile" data-sortable data-sort-key="query_time">时间 <span class="sort-indicator"></span></th>
+                                    <th data-sortable data-sort-key="query_name">域名 <span class="sort-indicator"></span></th>
+                                    <th class="hide-on-mobile" data-sortable data-sort-key="query_type">类型 <span class="sort-indicator"></span></th>
+                                    <th class="hide-on-mobile text-right" data-sortable data-sort-key="duration_ms">耗时(ms) <span class="sort-indicator"></span></th>
+                                    <th class="hide-on-mobile" data-sortable data-sort-key="client_ip">客户端 <span class="sort-indicator"></span></th>
+                                    <th class="hide-on-mobile">响应</th>
+                                </tr>
+                            </thead>
                             <tbody id="log-table-body"></tbody>
                         </table>
-                        <div id="log-loader"><div class="spinner"></div></div>
+                        <div id="log-loader"><div class="spinner" style="width:1.5rem; height:1.5rem; border-width:3px;"></div></div>
                     </div>
                 </div>
             </div>
@@ -416,19 +505,25 @@
             LOGS_PER_PAGE: 50,
             HISTORY_LENGTH: 30,
             DEFAULT_AUTO_REFRESH_INTERVAL: 15,
-            ANIMATION_DURATION: 1000
+            ANIMATION_DURATION: 1000,
+            MOBILE_BREAKPOINT: 768,
         };
 
         let state = {
             isUpdating: false,
             isCapturing: false,
+            isMobile: false,
+            isTouchDevice: false,
             currentLogPage: 1,
             isLogLoading: false,
             logPaginationInfo: null,
             displayedLogs: [],
             currentLogSearchTerm: '',
             clientAliases: {},
+            topDomains: [],
+            topClients: [],
             slowestQueries: [],
+            logSort: { key: 'query_time', order: 'desc' },
             autoRefresh: {
                 enabled: true,
                 intervalId: null,
@@ -446,11 +541,14 @@
         
         const elements = {
             html: document.documentElement,
+            body: document.body,
             container: document.querySelector('.container'),
+            initialLoader: document.getElementById('initial-loader'),
             lightThemeBtn: document.getElementById('light-theme-btn'),
             darkThemeBtn: document.getElementById('dark-theme-btn'),
             colorSwatches: document.querySelectorAll('.color-swatch'),
-            navContainer: document.querySelector('.main-nav'),
+            navWrapper: document.querySelector('.nav-wrapper'),
+            mainNav: document.querySelector('.main-nav'),
             navSlider: document.querySelector('.main-nav-slider'),
             tabLinks: document.querySelectorAll('.tab-link'),
             tabContents: document.querySelectorAll('.tab-content'),
@@ -474,11 +572,13 @@
             topClientsBody: document.getElementById('top-clients-body'),
             slowestQueriesBody: document.getElementById('slowest-queries-body'),
             logSearch: document.getElementById('log-search'),
+            logTableHead: document.getElementById('log-table-head'),
             logTableBody: document.getElementById('log-table-body'),
             logQueryTableContainer: document.getElementById('log-query-table-container'),
             logLoader: document.getElementById('log-loader'),
             toast: document.getElementById('toast'),
             aliasModal: document.getElementById('alias-modal'),
+            manualAliasForm: document.getElementById('manual-alias-form'),
             aliasListContainer: document.getElementById('alias-list-container'),
             importAliasInput: document.getElementById('import-alias-file-input'),
             systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator')
@@ -498,162 +598,52 @@
                 getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }),
                 getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }),
                 getLogs: (signal, params = {}) => {
-                    const queryParams = new URLSearchParams({
-                        page: 1,
-                        limit: CONSTANTS.LOGS_PER_PAGE,
-                        ...params
-                    });
-                    for(let [key, value] of queryParams.entries()){
-                        if(!value) {
-                            queryParams.delete(key);
-                        }
-                    }
+                    const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params });
+                    for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } }
                     return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal });
                 }
             }
         };
 
         const ui = {
-            showToast(message, type = 'success') {
-                if (!elements.toast) return;
-                const icon = type === 'success' 
-                    ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>`
-                    : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`;
-                elements.toast.innerHTML = `${icon}<span>${message}</span>`;
-                elements.toast.className = `show ${type}`; 
-                setTimeout(() => { elements.toast.className = elements.toast.className.replace('show', ''); }, 3000);
-            },
+            showToast(message, type = 'success') { if (!elements.toast) return; const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; setTimeout(() => { elements.toast.className = elements.toast.className.replace('show', ''); }, 3000); },
             setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
-            updateStatus(isCapturing) {
-                if (!elements.toggleAuditBtn || !elements.auditStatus) return;
-                this.setLoading(elements.toggleAuditBtn, false);
-                const statusIndicator = elements.systemControlTabIndicator;
-                if(statusIndicator) statusIndicator.className = 'status-indicator';
-
-                if (typeof isCapturing === 'boolean') {
-                    state.isCapturing = isCapturing;
-                    elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止';
-                    elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)';
-                    const actionText = isCapturing ? '关闭审计' : '开启审计';
-                    elements.toggleAuditBtn.querySelector('span').textContent = actionText;
-                    elements.toggleAuditBtn.dataset.defaultText = actionText;
-                    elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`;
-                    if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped');
-
-                } else {
-                    elements.auditStatus.textContent = '未知';
-                    elements.auditStatus.style.color = 'var(--color-text-secondary)';
-                    elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态';
-                    elements.toggleAuditBtn.dataset.defaultText = '刷新状态';
-                }
-            },
+            updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } },
             updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; },
-            updateOverviewStats() {
-                animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION);
-                animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION);
-                state.history.totalQueries.push(state.data.totalQueries.current ?? 0);
-                state.history.avgDuration.push(state.data.avgDuration.current ?? 0);
-                if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift();
-                if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift();
-                if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries, 300, 60);
-                if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, 300, 60);
-            },
-            renderLogTable(logs, append = false) { 
-                if (!elements.logTableBody) return;
-                if (!append) elements.logTableBody.innerHTML = ''; 
-                if (logs.length === 0 && !append) { renderTable(elements.logTableBody, [], () => {}, 'log-query'); return; }
-                
-                const rows = logs.map(log => {
-                    const tr = document.createElement('tr');
-                    const globalIndex = state.displayedLogs.indexOf(log);
-                    tr.innerHTML = `
-                        <td class="col-time">${formatDate(log.query_time)}</td>
-                        <td class="col-domain details-trigger" data-log-index="${globalIndex}">
-                            <span class="truncate-text">${log.query_name}</span>
-                        </td>
-                        <td class="col-type hide-on-mobile">${log.query_type}</td>
-                        <td class="col-duration text-right hide-on-mobile">${log.duration_ms.toFixed(2)}</td>
-                        <td class="col-client hide-on-mobile">${aliasManager.getDisplayName(log.client_ip)}</td>
-                        <td class="col-response hide-on-mobile details-trigger" data-log-index="${globalIndex}">
-                            <span class="truncate-text">${getResponseSummary(log)}</span>
-                        </td>
-                    `;
-                    return tr;
-                });
-                elements.logTableBody.append(...rows);
-            }
+            updateOverviewStats() { animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION); animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION); state.history.totalQueries.push(state.data.totalQueries.current ?? 0); state.history.avgDuration.push(state.data.avgDuration.current ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift(); historyManager.save(); if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries); if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, true); },
+            renderLogTable(logs, append = false) { if (!elements.logTableBody) return; if (!append) elements.logTableBody.innerHTML = ''; if (logs.length === 0 && !append) { renderTable(elements.logTableBody, [], () => {}, 'log-query'); return; } const rows = logs.map(log => { const tr = document.createElement('tr'); const globalIndex = state.displayedLogs.indexOf(log); tr.dataset.logIndex = globalIndex; tr.innerHTML = `<td class="hide-on-mobile">${formatDate(log.query_time)}</td><td><span class="truncate-text">${log.query_name}</span></td><td class="hide-on-mobile">${log.query_type}</td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${aliasManager.getDisplayName(log.client_ip)}</td><td class="hide-on-mobile">${getResponseSummary(log)}</td>`; return tr; }); elements.logTableBody.append(...rows); }
         };
         
         const aliasManager = {
             load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; },
             save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); },
             getDisplayName: (ip) => state.clientAliases[ip] ? `<span class="client-alias">${state.clientAliases[ip]}</span><span class="client-ip-tag">${ip}</span>` : ip,
-            getIpByAlias: (alias) => {
-                const searchTerm = alias.toLowerCase();
-                for (const ip in state.clientAliases) {
-                    if (state.clientAliases[ip].toLowerCase() === searchTerm) {
-                        return ip;
-                    }
-                }
-                return null;
-            },
-            async set(ip, name) {
-                if (name) state.clientAliases[ip] = name; else delete state.clientAliases[ip];
-                this.save();
-                await updatePageData();
-             },
-            async renderEditableList() {
-                if (!elements.aliasListContainer) return;
-                elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>';
-                try {
-                    const topClients = await api.v2.getTopClients(null, 200);
-                    const uniqueIps = topClients.map(client => client.key).sort();
-                    if (uniqueIps.length === 0) {
-                        elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>';
-                        return;
-                    }
-                    elements.aliasListContainer.innerHTML = '';
-                    uniqueIps.forEach(ip => {
-                        const item = document.createElement('div');
-                        item.className = 'alias-item';
-                        item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="button primary">保存</button>`;
-                        item.querySelector('button').addEventListener('click', async () => {
-                            const newName = item.querySelector('input').value.trim();
-                            await this.set(ip, newName);
-                            ui.showToast(`已保存 ${ip} 的别名`, 'success');
-                        });
-                        elements.aliasListContainer.appendChild(item);
-                    });
-                } catch (error) {
-                    elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>';
-                    console.error("Failed to fetch clients for alias management:", error);
-                }
-            },
+            getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; },
+            async set(ip, name) { if (name) state.clientAliases[ip] = name; else delete state.clientAliases[ip]; this.save(); await updatePageData(); },
+            async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = topClients.map(client => client.key).sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.innerHTML = `<span style="font-weight:600;" data-ip="${ip}">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="button primary"><span>保存</span></button>`; elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } },
             export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); },
             import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
         };
 
+        const historyManager = {
+            load: () => { const saved = JSON.parse(localStorage.getItem('mosdnsHistory')); if (saved) { state.history.totalQueries = saved.totalQueries || []; state.history.avgDuration = saved.avgDuration || []; } },
+            save: () => { localStorage.setItem('mosdnsHistory', JSON.stringify(state.history)); }
+        };
+
         const themeManager = {
             init() { const savedTheme = localStorage.getItem('mosdns-theme') || 'dark'; const savedColor = localStorage.getItem('mosdns-color') || 'indigo'; this.setTheme(savedTheme, false); this.setColor(savedColor, false); elements.lightThemeBtn?.addEventListener('click', () => this.setTheme('light')); elements.darkThemeBtn?.addEventListener('click', () => this.setTheme('dark')); elements.colorSwatches.forEach(swatch => { swatch.addEventListener('click', () => this.setColor(swatch.dataset.color)); }); },
-            setTheme(theme, save = true) { 
-                elements.html.setAttribute('data-theme', theme);
-                if (elements.lightThemeBtn) {
-                    elements.lightThemeBtn.classList.toggle('active', theme === 'light');
-                    elements.darkThemeBtn.classList.toggle('active', theme === 'dark');
-                }
-                if (save) localStorage.setItem('mosdns-theme', theme); 
-            },
+            setTheme(theme, save = true) { elements.html.setAttribute('data-theme', theme); if (elements.lightThemeBtn) { elements.lightThemeBtn.classList.toggle('active', theme === 'light'); elements.darkThemeBtn.classList.toggle('active', theme === 'dark'); } if (save) localStorage.setItem('mosdns-theme', theme); },
             setColor(color, save = true) { elements.html.setAttribute('data-color-scheme', color); document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active')); document.querySelectorAll(`.color-swatch[data-color="${color}"]`).forEach(s => s.classList.add('active')); if (save) localStorage.setItem('mosdns-color', color); if (color === 'indigo') { if (elements.statCard1) elements.statCard1.className = 'stat-card default-gradient-1'; if (elements.statCard2) elements.statCard2.className = 'stat-card default-gradient-2'; } else { if (elements.statCard1) elements.statCard1.className = 'stat-card theme-gradient'; if (elements.statCard2) elements.statCard2.className = 'stat-card theme-gradient'; } }
         };
 
         const animateValue = (element, start, end, duration) => { if (!element || start === null || end === null) return; if (start === end) { element.textContent = (element.id === 'avg-duration' ? parseFloat(end).toFixed(2) : Math.floor(end).toLocaleString()); return; } let startTimestamp = null; const step = (timestamp) => { if (!startTimestamp) startTimestamp = timestamp; const progress = Math.min((timestamp - startTimestamp) / duration, 1); const current = start + progress * (end - start); element.textContent = (element.id === 'avg-duration' ? parseFloat(current).toFixed(2) : Math.floor(current).toLocaleString()); if (progress < 1) window.requestAnimationFrame(step); }; window.requestAnimationFrame(step); };
         const setupGlowEffect = () => { elements.container?.addEventListener('mousemove', (e) => { const card = e.target.closest('.card'); if (card) { const rect = card.getBoundingClientRect(); card.style.setProperty('--glow-x', `${e.clientX - rect.left}px`); card.style.setProperty('--glow-y', `${e.clientY - rect.top}px`); } }); };
-        const generateSparklineSVG = (data, width = 100, height = 30) => { if (!data || data.length < 2) return ''; const max = Math.max(...data); const min = Math.min(...data); const range = max - min === 0 ? 1 : max - min; const points = data.map((d, i) => { const x = (i / (data.length - 1)) * width; const y = height - ((d - min) / range) * height; return `${x.toFixed(2)},${y.toFixed(2)}`; }); const pathD = `M ${points.join(' L ')}`; const fillPathD = `${pathD} L ${width},${height} L 0,${height} Z`; return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="sparkline-gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0.5" /><stop offset="100%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0" /></linearGradient></defs><path d="${fillPathD}" fill="url(#sparkline-gradient)" /><path d="${pathD}" class="sparkline-path" fill="none" /></svg>`; };
-        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const colspan = tbody.previousElementSibling?.rows[0]?.cells.length || 2; const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; const message = tableType === 'log-query' ? '没有匹配的日志记录，请尝试调整搜索词。' : '请确保审计功能已开启并有DNS查询。'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p></div></td>`; tbody.appendChild(emptyRow); return; } data.forEach((item, index) => tbody.appendChild(renderRow(item, index))); };
+        const generateSparklineSVG = (data, isFloat = false, width = 300, height = 60) => { if (!data || data.length < 2) return ''; const numericData = data.map(Number); const maxVal = Math.max(...numericData); const minVal = Math.min(...numericData); const range = maxVal - minVal === 0 ? 1 : maxVal - minVal; const points = numericData.map((d, i) => { const x = (i / (data.length - 1)) * width; const y = height - ((d - minVal) / range) * height; return `${x.toFixed(2)},${y.toFixed(2)}`; }); const pathD = `M ${points.join(' L ')}`; const fillPathD = `${pathD} L ${width},${height} L 0,${height} Z`; return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="sparkline-gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0.5" /><stop offset="100%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0" /></linearGradient></defs><path d="${fillPathD}" fill="url(#sparkline-gradient)" /><path d="${pathD}" class="sparkline-path" fill="none" /></svg>`; };
+        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const colspan = tbody.previousElementSibling?.rows[0]?.cells.length || 2; const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; const message = tableType === 'log-query' ? '没有匹配的日志记录，请尝试调整搜索词。' : '请确保审计功能已开启。 <a href="#system-control" class="tab-link-action" data-tab="system-control">前往系统控制开启</a>'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p></div></td>`; tbody.appendChild(emptyRow); return; } data.forEach((item, index) => tbody.appendChild(renderRow(item, index))); };
         
-        const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td class="col-domain" title="${item.key}"><span class="truncate-text">${item.key}</span></td><td class="text-right"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-domains');
-        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td class="col-client">${aliasManager.getDisplayName(item.key)}</td><td class="text-right"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
-        const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, (item, index) => { const tr = document.createElement('tr'); tr.innerHTML = `<td class="col-time hide-on-mobile">${formatDate(item.query_time)}</td><td class="col-domain details-trigger" data-log-index="${index}" data-log-source="slowest" title="${item.query_name}"><span class="truncate-text">${item.query_name}</span></td><td class="col-duration text-right hide-on-mobile">${item.duration_ms.toFixed(2)}</td><td class="col-client hide-on-mobile">${aliasManager.getDisplayName(item.client_ip)}</td><td class="col-response hide-on-mobile details-trigger" data-log-index="${index}" data-log-source="slowest"><span class="truncate-text">${getResponseSummary(item)}</span></td>`; return tr; }, 'slowest-queries');
+        const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain'; tr.innerHTML = `<td><span class="truncate-text">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-domains');
+        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getDisplayName(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
+        const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.logIndex = index; tr.dataset.logSource = 'slowest'; tr.innerHTML = `<td class="hide-on-mobile">${formatDate(item.query_time)}</td><td><span class="truncate-text">${item.query_name}</span></td><td class="hide-on-mobile text-right">${item.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${aliasManager.getDisplayName(item.client_ip)}</td><td class="hide-on-mobile">${getResponseSummary(item)}</td>`; return tr; }, 'slowest-queries');
         
         let updateController;
         async function updatePageData() {
@@ -665,12 +655,8 @@
             elements.globalRefreshBtn.setAttribute('aria-busy', 'true');
             try {
                 const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([
-                    api.getStatus(signal),
-                    api.getCapacity(signal),
-                    api.v2.getStats(signal),
-                    api.v2.getTopDomains(signal),
-                    api.v2.getTopClients(signal),
-                    api.v2.getSlowest(signal, 50)
+                    api.getStatus(signal), api.getCapacity(signal), api.v2.getStats(signal),
+                    api.v2.getTopDomains(signal), api.v2.getTopClients(signal), api.v2.getSlowest(signal, 50)
                 ]);
                 
                 ui.updateStatus(statusRes.status === 'fulfilled' ? statusRes.value?.capturing : null);
@@ -678,31 +664,21 @@
 
                 if (statsRes.status === 'fulfilled' && statsRes.value) {
                     const stats = statsRes.value;
-                    state.data.totalQueries.previous = state.data.totalQueries.current ?? 0;
-                    state.data.avgDuration.previous = state.data.avgDuration.current ?? 0.00;
+                    state.data.totalQueries.previous = state.data.totalQueries.current ?? stats.total_queries;
+                    state.data.avgDuration.previous = state.data.avgDuration.current ?? stats.average_duration_ms;
                     state.data.totalQueries.current = stats.total_queries;
                     state.data.avgDuration.current = stats.average_duration_ms;
                     ui.updateOverviewStats();
                 }
 
-                if (topDomainsRes.status === 'fulfilled') renderTopDomains(topDomainsRes.value || []);
-                if (topClientsRes.status === 'fulfilled') renderTopClients(topClientsRes.value || []);
-                if (slowestRes.status === 'fulfilled') {
-                    state.slowestQueries = slowestRes.value || [];
-                    renderSlowestQueries(state.slowestQueries);
-                }
+                if (topDomainsRes.status === 'fulfilled') { state.topDomains = topDomainsRes.value || []; renderTopDomains(state.topDomains); }
+                if (topClientsRes.status === 'fulfilled') { state.topClients = topClientsRes.value || []; renderTopClients(state.topClients); }
+                if (slowestRes.status === 'fulfilled') { state.slowestQueries = slowestRes.value || []; renderSlowestQueries(state.slowestQueries); }
                 
                 const activeTabLink = document.querySelector('.tab-link.active');
-                if (activeTabLink && activeTabLink.dataset.tab === 'log-query') {
-                    fetchAndRenderLogs(1, false);
-                }
-
-            } catch (error) {
-                if (error.name !== 'AbortError') console.error("Page update failed:", error);
-            } finally {
-                elements.globalRefreshBtn.setAttribute('aria-busy', 'false');
-                state.isUpdating = false;
-            }
+                if (activeTabLink && activeTabLink.dataset.tab === 'log-query') { fetchAndRenderLogs(1, false); }
+            } catch (error) { if (error.name !== 'AbortError') console.error("Page update failed:", error); } 
+            finally { elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); state.isUpdating = false; }
         }
         
         let logRequestController;
@@ -710,102 +686,153 @@
             if (state.isLogLoading) return;
             state.isLogLoading = true;
             if (elements.logLoader) elements.logLoader.style.display = 'block';
-
             if (logRequestController) logRequestController.abort();
             logRequestController = new AbortController();
             const signal = logRequestController.signal;
-            
             const searchTerm = state.currentLogSearchTerm;
-
             try {
                 if (searchTerm) {
-                    const searchPromises = [];
-                    const ipFromAlias = aliasManager.getIpByAlias(searchTerm);
-                    const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$|:/.test(searchTerm);
-
-                    if (ipFromAlias) {
-                        searchPromises.push(api.v2.getLogs(signal, { client_ip: ipFromAlias }));
-                    } else {
-                        searchPromises.push(api.v2.getLogs(signal, { domain: searchTerm }));
-                        searchPromises.push(api.v2.getLogs(signal, { cname: searchTerm }));
-                        if (isIpAddress) {
-                            searchPromises.push(api.v2.getLogs(signal, { client_ip: searchTerm }));
-                            searchPromises.push(api.v2.getLogs(signal, { answer_ip: searchTerm }));
-                        }
-                    }
-
+                    const searchPromises = []; const ipFromAlias = aliasManager.getIpByAlias(searchTerm); const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$|:/.test(searchTerm);
+                    if (ipFromAlias) { searchPromises.push(api.v2.getLogs(signal, { client_ip: ipFromAlias })); } 
+                    else { searchPromises.push(api.v2.getLogs(signal, { domain: searchTerm })); searchPromises.push(api.v2.getLogs(signal, { cname: searchTerm })); if (isIpAddress) { searchPromises.push(api.v2.getLogs(signal, { client_ip: searchTerm })); searchPromises.push(api.v2.getLogs(signal, { answer_ip: searchTerm })); } }
                     const results = await Promise.allSettled(searchPromises);
-                    const allLogs = results
-                        .filter(res => res.status === 'fulfilled' && res.value && res.value.logs)
-                        .flatMap(res => res.value.logs);
-
+                    const allLogs = results.filter(res => res.status === 'fulfilled' && res.value && res.value.logs).flatMap(res => res.value.logs);
                     const uniqueLogs = new Map();
-                    allLogs.forEach(log => {
-                        const key = log.trace_id || `${log.query_time}-${log.client_ip}-${log.query_name}`;
-                        if (!uniqueLogs.has(key)) {
-                            uniqueLogs.set(key, log);
-                        }
-                    });
-                    
+                    allLogs.forEach(log => { const key = log.trace_id || `${log.query_time}-${log.client_ip}-${log.query_name}`; if (!uniqueLogs.has(key)) { uniqueLogs.set(key, log); } });
                     const finalLogs = Array.from(uniqueLogs.values());
-                    finalLogs.sort((a, b) => new Date(b.query_time) - new Date(a.query_time));
-                    
                     state.logPaginationInfo = null;
                     state.displayedLogs = finalLogs;
                     elements.logQueryTableContainer.scrollTop = 0;
-                    ui.renderLogTable(finalLogs, false);
-
+                    tableSorter.sortLogs();
                 } else {
                     const response = await api.v2.getLogs(signal, { page });
                     if (!response || !response.pagination) throw new Error("Invalid response from logs API");
                     const { pagination, logs } = response;
-                    
-                    state.logPaginationInfo = pagination;
-                    state.currentLogPage = pagination.current_page;
-                    
-                    if (append) {
-                        state.displayedLogs.push(...logs);
-                    } else {
-                        state.displayedLogs = logs || [];
-                        elements.logQueryTableContainer.scrollTop = 0;
-                    }
-                    
+                    state.logPaginationInfo = pagination; state.currentLogPage = pagination.current_page;
+                    if (append) { state.displayedLogs.push(...logs); } else { state.displayedLogs = logs || []; elements.logQueryTableContainer.scrollTop = 0; }
                     ui.renderLogTable(logs || [], append);
                 }
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error("Failed to fetch logs:", error);
-                    ui.showToast('获取日志失败', 'error');
-                }
-            } finally {
-                state.isLogLoading = false;
-                if (elements.logLoader) elements.logLoader.style.display = 'none';
-            }
+            } catch (error) { if (error.name !== 'AbortError') { console.error("Failed to fetch logs:", error); ui.showToast('获取日志失败', 'error'); }
+            } finally { state.isLogLoading = false; if (elements.logLoader) elements.logLoader.style.display = 'none'; }
         }
         
-        function applyLogFilterAndRender() {
-            if (!elements.logSearch) return;
-            state.currentLogSearchTerm = elements.logSearch.value.trim();
-            fetchAndRenderLogs(1, false);
-        }
+        const tableSorter = {
+            init() { if (elements.logTableHead) elements.logTableHead.addEventListener('click', this.handleSort.bind(this)); this.updateHeaders(); },
+            handleSort(e) { const th = e.target.closest('th[data-sortable]'); if (!th) return; const key = th.dataset.sortKey; if (state.logSort.key === key) { state.logSort.order = state.logSort.order === 'asc' ? 'desc' : 'asc'; } else { state.logSort.key = key; state.logSort.order = 'desc'; } this.sortLogs(); this.updateHeaders(); },
+            sortLogs() { const { key, order } = state.logSort; state.displayedLogs.sort((a, b) => { let valA = a[key]; let valB = b[key]; if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); } const result = valA < valB ? -1 : valA > valB ? 1 : 0; return order === 'asc' ? result : -result; }); ui.renderLogTable(state.displayedLogs, false); },
+            updateHeaders() { document.querySelectorAll('#log-table-head th[data-sortable]').forEach(th => { th.classList.remove('sorted'); const indicator = th.querySelector('.sort-indicator'); if (th.dataset.sortKey === state.logSort.key) { th.classList.add('sorted'); indicator.textContent = state.logSort.order === 'asc' ? '▲' : '▼'; } else { indicator.textContent = ' '; } }); }
+        };
+
+        function applyLogFilterAndRender() { if (!elements.logSearch) return; state.currentLogSearchTerm = elements.logSearch.value.trim(); fetchAndRenderLogs(1, false); }
+        function loadMoreLogs() { if (state.currentLogSearchTerm) return; if (state.isLogLoading || !state.logPaginationInfo || state.currentLogPage >= state.logPaginationInfo.total_pages) { return; } fetchAndRenderLogs(state.currentLogPage + 1, true); }
+        function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-') : 'N/A'; }
         
-        function loadMoreLogs() {
-            if (state.currentLogSearchTerm) return;
-            if (state.isLogLoading || !state.logPaginationInfo || state.currentLogPage >= state.logPaginationInfo.total_pages) {
+        let activeTooltip = null;
+        let hideTooltipTimeout = null;
+
+        function showTooltip(targetElement) {
+            clearTimeout(hideTooltipTimeout);
+            const logIndex = targetElement.dataset.logIndex ? parseInt(targetElement.dataset.logIndex, 10) : null;
+            const rankIndex = targetElement.dataset.rankIndex ? parseInt(targetElement.dataset.rankIndex, 10) : null;
+            const source = targetElement.dataset.logSource || targetElement.dataset.rankSource;
+            const targetId = `${source}-${logIndex ?? rankIndex}`;
+            
+            if (state.isTouchDevice && activeTooltip && activeTooltip.dataset.targetId === targetId) {
+                hideTooltip(true);
                 return;
             }
-            fetchAndRenderLogs(state.currentLogPage + 1, true);
+            hideTooltip(true);
+
+            let data;
+            if(source === 'slowest') data = state.slowestQueries[logIndex];
+            else if(source === 'domain') data = state.topDomains[rankIndex];
+            else if(source === 'client') data = state.topClients[rankIndex];
+            else if(logIndex !== null) data = state.displayedLogs[logIndex];
+            
+            if (!data) return;
+
+            activeTooltip = document.createElement('div');
+            activeTooltip.className = 'answers-tooltip';
+            activeTooltip.innerHTML = getTooltipHTML(data, source);
+            activeTooltip.dataset.targetId = targetId;
+            document.body.appendChild(activeTooltip);
+
+            const targetRect = targetElement.getBoundingClientRect();
+            const tooltipRect = activeTooltip.getBoundingClientRect();
+            
+            let top = targetRect.bottom + 10;
+            let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+
+            if (top + tooltipRect.height > window.innerHeight - 10) { top = targetRect.top - tooltipRect.height - 10; }
+            if (left < 10) { left = 10; } 
+            else if (left + tooltipRect.width > window.innerWidth - 10) { left = window.innerWidth - tooltipRect.width - 10; }
+
+            activeTooltip.style.top = `${top}px`;
+            activeTooltip.style.left = `${left}px`;
+            
+            setTimeout(() => { if (activeTooltip) activeTooltip.classList.add('visible'); }, 10);
         }
 
-        function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-') : 'N/A'; }
-        let activeTooltip = null, hideTooltipTimeout = null;
-        function showTooltip(targetElement) { clearTimeout(hideTooltipTimeout); const targetId = targetElement.dataset.logIndex + (targetElement.dataset.logSource || ''); if (activeTooltip && activeTooltip.dataset.targetId === targetId) return; hideTooltip(true); const logIndex = parseInt(targetElement.dataset.logIndex, 10); const logSource = targetElement.dataset.logSource; let log = logSource === 'slowest' ? state.slowestQueries[logIndex] : state.displayedLogs[logIndex]; if (!log) return; activeTooltip = document.createElement('div'); activeTooltip.className = 'answers-tooltip'; activeTooltip.innerHTML = getTooltipHTML(log); activeTooltip.dataset.targetId = targetId; activeTooltip.addEventListener('mouseenter', () => clearTimeout(hideTooltipTimeout)); activeTooltip.addEventListener('mouseleave', () => hideTooltip()); document.body.appendChild(activeTooltip); const targetRect = targetElement.getBoundingClientRect(); const tooltipRect = activeTooltip.getBoundingClientRect(); let top = targetRect.top - tooltipRect.height - 10; let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2); if (top < 10) { top = targetRect.bottom + 10; } if (left < 10) { left = 10; } else if (left + tooltipRect.width > window.innerWidth - 10) { left = window.innerWidth - tooltipRect.width - 10; } activeTooltip.style.top = `${top}px`; activeTooltip.style.left = `${left}px`; setTimeout(() => activeTooltip.classList.add('visible'), 10); }
-        function hideTooltip(immediate = false) { clearTimeout(hideTooltipTimeout); if (immediate) { activeTooltip?.remove(); activeTooltip = null; } else { hideTooltipTimeout = setTimeout(() => { if (activeTooltip) { activeTooltip.classList.remove('visible'); setTimeout(() => { activeTooltip?.remove(); activeTooltip = null; }, 200); } }, 100); } }
-        function getResponseSummary(log) { if (!log) return 'N/A'; const answers = log.answers || []; if (log.response_code !== 'NOERROR') return log.response_code; if (answers.length > 0) { const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = answers.find(a => a.type === 'CNAME'); let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data); if (answers.length > 1) mainText += ` (+${answers.length - 1})`; return mainText; } return 'NOERROR (empty)'; }
-        function getTooltipHTML(log) { if (!log) return ''; const answers = log.answers || []; const flags = log.response_flags || {}; const flagItems = []; if (flags.ra) flagItems.push('ra'); if (flags.aa) flagItems.push('aa'); if (flags.tc) flagItems.push('tc'); let tooltipHTML = `<h5>查询详情</h5><ul><li><strong>客户端:</strong> ${aliasManager.getDisplayName(log.client_ip)}</li><li><strong>类型:</strong> ${log.query_type || 'N/A'}</li><li><strong>耗时:</strong> ${log.duration_ms.toFixed(2)} ms</li><li><strong>状态:</strong> ${log.response_code || 'N/A'}</li>${flagItems.length > 0 ? `<li><strong>标志:</strong> ${flagItems.join(', ')}</li>` : ''}${log.query_class ? `<li><strong>类别:</strong> ${log.query_class}</li>` : ''}${log.trace_id ? `<li><strong>Trace ID:</strong> <small>${log.trace_id}</small></li>` : ''}</ul>`; if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}</ul>`; } return tooltipHTML; }
+        function hideTooltip(immediate = false) {
+            clearTimeout(hideTooltipTimeout);
+            if (!activeTooltip) return;
+            if (immediate) {
+                activeTooltip.remove();
+                activeTooltip = null;
+            } else {
+                hideTooltipTimeout = setTimeout(() => {
+                    if (activeTooltip) {
+                        activeTooltip.classList.remove('visible');
+                        setTimeout(() => { if (activeTooltip) activeTooltip.remove(); activeTooltip = null; }, 200);
+                    }
+                }, 100);
+            }
+        }
+        
+        function getResponseSummary(log) { if (!log || !log.answers) return 'N/A'; const answers = log.answers; if (log.response_code !== 'NOERROR') return log.response_code; if (answers.length > 0) { const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = answers.find(a => a.type === 'CNAME'); let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data); if (answers.length > 1) mainText += ` (+${answers.length - 1})`; return mainText; } return 'NOERROR (empty)'; }
+        
+        function getTooltipHTML(data, source) {
+            if (!data) return '';
+            
+            let details = {};
+            let answers = [];
+            let title = '详情';
+
+            if (source === 'domain' || source === 'client') {
+                title = '排行详情';
+                details['请求数'] = data.count.toLocaleString();
+            } else { // Log data
+                title = '查询详情';
+                const flags = data.response_flags || {};
+                const flagItems = [];
+                if (flags.ra) flagItems.push('ra'); if (flags.aa) flagItems.push('aa'); if (flags.tc) flagItems.push('tc');
+                
+                if (state.isMobile) {
+                    details['时间'] = formatDate(data.query_time);
+                }
+                details['客户端'] = aliasManager.getDisplayName(data.client_ip);
+                if (state.isMobile) {
+                    details['响应'] = getResponseSummary(data);
+                }
+                details['类型'] = data.query_type || 'N/A';
+                details['耗时'] = `${data.duration_ms.toFixed(2)} ms`;
+                details['状态'] = data.response_code || 'N/A';
+                if (flagItems.length > 0) details['标志'] = flagItems.join(', ');
+                if (data.query_class) details['类别'] = data.query_class;
+                if (data.trace_id) details['Trace ID'] = `<small>${data.trace_id}</small>`;
+                answers = data.answers || [];
+            }
+
+            let detailsHTML = Object.entries(details).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
+            let tooltipHTML = `<h5>${title}</h5><ul>${detailsHTML}</ul>`;
+            
+            if (answers.length > 0) {
+                tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}</ul>`;
+            }
+            return tooltipHTML;
+        }
         
         let searchTimeout;
-        
         const autoRefreshManager = {
             start() { this.stop(); if (state.autoRefresh.enabled && state.autoRefresh.intervalSeconds >= 5) { state.autoRefresh.intervalId = setInterval(updatePageData, state.autoRefresh.intervalSeconds * 1000); } },
             stop() { if (state.autoRefresh.intervalId) { clearInterval(state.autoRefresh.intervalId); state.autoRefresh.intervalId = null; } },
@@ -814,15 +841,12 @@
         };
 
         function handleNavigation(targetLink) {
-            if (!targetLink || !elements.navContainer) return;
-            
+            if (!targetLink || !elements.mainNav) return;
             elements.tabLinks.forEach(link => link.classList.remove('active'));
             targetLink.classList.add('active');
-
-            const targetRect = targetLink.getBoundingClientRect();
-            const navPadding = parseFloat(getComputedStyle(elements.navContainer).paddingLeft);
             
-            elements.navSlider.style.width = `${targetRect.width}px`;
+            const navPadding = parseFloat(getComputedStyle(elements.mainNav).paddingLeft);
+            elements.navSlider.style.width = `${targetLink.offsetWidth}px`;
             elements.navSlider.style.transform = `translateX(${targetLink.offsetLeft - navPadding}px)`;
 
             const newHash = targetLink.getAttribute('href');
@@ -840,102 +864,96 @@
             }
         }
         
-        function setupDetailsInteraction() {
-            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-            
-            if (isTouchDevice) {
-                let lastClickedTarget = null;
-                document.body.addEventListener('click', e => {
-                    const trigger = e.target.closest('td.details-trigger');
-                    if (trigger) {
-                        if (activeTooltip && lastClickedTarget === trigger) {
-                            hideTooltip(true);
-                            lastClickedTarget = null;
-                        } else {
-                            showTooltip(trigger);
-                            lastClickedTarget = trigger;
-                        }
-                    } else if (activeTooltip) {
-                        hideTooltip(true);
-                        lastClickedTarget = null;
-                    }
-                });
-            } else {
-                document.body.addEventListener('mouseover', e => {
-                    const trigger = e.target.closest('td.details-trigger');
-                    if (trigger) showTooltip(trigger);
-                });
-                document.body.addEventListener('mouseout', e => {
-                    const trigger = e.target.closest('td.details-trigger');
-                    if (trigger) hideTooltip();
-                });
+        function handleResize() {
+            state.isMobile = window.innerWidth <= CONSTANTS.MOBILE_BREAKPOINT;
+            if (state.isTouchDevice) { elements.body.classList.add('touch'); } else { elements.body.classList.remove('touch'); }
+            const activeLink = document.querySelector('.tab-link.active');
+            if (activeLink) {
+                setTimeout(() => handleNavigation(activeLink), 50);
             }
         }
 
-        function init() {
+        function setupEventListeners() {
             elements.tabLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); handleNavigation(link); }); });
             window.addEventListener('popstate', () => { const hash = window.location.hash || '#overview'; const targetLink = document.querySelector(`.tab-link[href="${hash}"]`); handleNavigation(targetLink || elements.tabLinks[0]); });
-            window.addEventListener('resize', () => { const activeLink = document.querySelector('.tab-link.active'); if (activeLink) handleNavigation(activeLink); });
-
-            setupDetailsInteraction();
-            
+            window.addEventListener('resize', handleResize);
             elements.globalRefreshBtn?.addEventListener('click', updatePageData);
-            
-            elements.autoRefreshForm.addEventListener('change', (e) => {
-                if(e.target.type === 'checkbox' || e.target.type === 'number') {
-                    const enabled = elements.autoRefreshToggle.checked;
-                    const interval = parseInt(elements.autoRefreshIntervalInput.value, 10);
-                    elements.autoRefreshIntervalInput.disabled = !enabled;
-                    autoRefreshManager.updateSettings(enabled, interval);
-                }
-            });
+            elements.autoRefreshForm.addEventListener('change', (e) => { if(e.target.type === 'checkbox' || e.target.type === 'number') { const enabled = elements.autoRefreshToggle.checked; const interval = parseInt(elements.autoRefreshIntervalInput.value, 10); elements.autoRefreshIntervalInput.disabled = !enabled; autoRefreshManager.updateSettings(enabled, interval); } });
             document.addEventListener('visibilitychange', () => { document.hidden ? autoRefreshManager.stop() : autoRefreshManager.start(); });
-
-            elements.container.addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); if (elements.logSearch) { elements.logSearch.value = link.dataset.filterValue; } const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); applyLogFilterAndRender(); } });
             elements.toggleAuditBtn?.addEventListener('click', async (e) => { const btn = e.currentTarget; ui.setLoading(btn, true); try { if (state.isCapturing) { await api.stop(); } else { await api.start(); } } catch (error) { console.error("操作失败:", error); } await updatePageData(); });
             elements.clearAuditBtn?.addEventListener('click', async (e) => { if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { const btn = e.currentTarget; ui.setLoading(btn, true); try { await api.clear(); ui.showToast('日志已清空', 'success'); if (elements.logSearch) elements.logSearch.value = ''; } catch (error) { ui.showToast('清空日志失败', 'error'); } finally { await updatePageData(); ui.setLoading(btn, false); } } });
-            
-            elements.capacityForm?.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const newCapacity = parseInt(elements.newCapacityInput.value, 10);
-                if (!newCapacity || newCapacity <= 0 || newCapacity > 400000) {
-                    ui.showToast('请输入1到400000之间的有效容量', 'error');
-                    return;
-                }
-                const confirmationMessage = `确定要将容量设置为 ${newCapacity.toLocaleString()} 吗？\n\n注意：这将清空当前所有日志。\n每10万条日志增加约40M内存使用，请酌情设置。`;
-                if (confirm(confirmationMessage)) {
-                    const btn = e.currentTarget.querySelector('button');
-                    ui.setLoading(btn, true);
-                    try {
-                        await api.setCapacity(newCapacity);
-                        ui.showToast(`容量已成功设置为 ${newCapacity.toLocaleString()}`, 'success');
-                        elements.newCapacityInput.value = '';
-                    } catch (error) {
-                        console.error("Set capacity failed:", error);
-                    } finally {
-                        await updatePageData();
-                        ui.setLoading(btn, false);
-                    }
-                }
-            });
-
+            elements.capacityForm?.addEventListener('submit', async (e) => { e.preventDefault(); const newCapacity = parseInt(elements.newCapacityInput.value, 10); if (!newCapacity || newCapacity <= 0 || newCapacity > 400000) { ui.showToast('请输入1到400000之间的有效容量', 'error'); return; } if (confirm(`确定要将容量设置为 ${newCapacity.toLocaleString()} 吗？\n\n注意：这将清空当前所有日志。`)) { const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity.toLocaleString()}`, 'success'); elements.newCapacityInput.value = ''; } catch (error) { console.error("Set capacity failed:", error); } finally { await updatePageData(); ui.setLoading(btn, false); } } });
             elements.logSearch?.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(applyLogFilterAndRender, 300); });
             elements.logQueryTableContainer?.addEventListener('scroll', () => { const { scrollTop, scrollHeight, clientHeight } = elements.logQueryTableContainer; if (clientHeight + scrollTop >= scrollHeight - 200) { loadMoreLogs(); } });
-            if (elements.aliasModal) { document.getElementById('manage-aliases-btn')?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); }); document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close()); document.getElementById('export-aliases-btn')?.addEventListener('click', () => aliasManager.export()); document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click()); elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } }); }
+            
+            elements.body.addEventListener('click', e => {
+                const clickableLink = e.target.closest('.clickable-link');
+                const tabLinkAction = e.target.closest('.tab-link-action');
+                if (clickableLink) { e.preventDefault(); if (elements.logSearch) { elements.logSearch.value = clickableLink.dataset.filterValue; } const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); applyLogFilterAndRender(); return; }
+                if (tabLinkAction) { e.preventDefault(); const tabId = tabLinkAction.dataset.tab; const targetLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`); if(targetLink) handleNavigation(targetLink); return; }
+            });
 
+            if (state.isTouchDevice) {
+                elements.body.addEventListener('click', e => {
+                    const tooltipTrigger = e.target.closest('tr[data-log-index], tr[data-rank-index]');
+                    if (tooltipTrigger) { showTooltip(tooltipTrigger); return; }
+                    if (activeTooltip && !e.target.closest('.answers-tooltip')) { hideTooltip(true); }
+                });
+            } else {
+                let currentHoverTarget = null;
+                elements.body.addEventListener('mouseover', e => {
+                    const tooltipTrigger = e.target.closest('tr[data-log-index], tr[data-rank-index]');
+                    if (tooltipTrigger) {
+                        currentHoverTarget = tooltipTrigger;
+                        showTooltip(tooltipTrigger);
+                    }
+                });
+                elements.body.addEventListener('mouseout', e => {
+                    const tooltipTrigger = e.target.closest('tr[data-log-index], tr[data-rank-index]');
+                    if (tooltipTrigger && tooltipTrigger === currentHoverTarget) {
+                        currentHoverTarget = null;
+                        hideTooltip();
+                    }
+                });
+            }
+
+            if (elements.aliasModal) {
+                document.getElementById('manage-aliases-btn')?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); });
+                document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close());
+                document.getElementById('export-aliases-btn')?.addEventListener('click', () => aliasManager.export());
+                document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click());
+                elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
+                elements.aliasListContainer.addEventListener('click', async (e) => { const button = e.target.closest('.alias-item button'); if (!button) return; ui.setLoading(button, true); const item = button.closest('.alias-item'); const ip = item.querySelector('span[data-ip]').dataset.ip; const newName = item.querySelector('input').value.trim(); await aliasManager.set(ip, newName); ui.showToast(`已保存 ${ip} 的别名`, 'success'); ui.setLoading(button, false); });
+                elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); const ipInput = document.getElementById('manual-alias-ip'); const nameInput = document.getElementById('manual-alias-name'); const ip = ipInput.value.trim(); const name = nameInput.value.trim(); if(ip && name) { await aliasManager.set(ip, name); ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success'); ipInput.value = ''; nameInput.value = ''; await aliasManager.renderEditableList(); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(btn, false); });
+            }
+        }
+
+        async function init() {
+            state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            
             themeManager.init();
             aliasManager.load();
+            historyManager.load();
             autoRefreshManager.loadSettings();
+            tableSorter.init();
+            setupEventListeners();
+            setupGlowEffect();
+            handleResize();
             
             const initialHash = window.location.hash || '#overview';
             const initialLink = document.querySelector(`.tab-link[href="${initialHash}"]`);
+            
             setTimeout(() => {
                 handleNavigation(initialLink || elements.tabLinks[0]);
-                updatePageData();
-                if (!document.hidden) autoRefreshManager.start();
             }, 50);
-
-            setupGlowEffect();
+            
+            await updatePageData();
+            
+            const loader = elements.initialLoader;
+            loader.style.opacity = '0';
+            loader.addEventListener('transitionend', () => loader.remove());
+            
+            if (!document.hidden) autoRefreshManager.start();
         }
 
         init();
