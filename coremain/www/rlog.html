@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light" data-color-scheme="indigo">
+<html lang="zh-CN" data-theme="dark" data-color-scheme="indigo">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 仪表盘 - v12.6 终版</title>
+    <title>Mosdns 仪表盘 V2.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- 优化版UI的CSS (v12.6 - 终版) --- */
+        /* --- UI CSS (v16.1 - 最终修复) --- */
         :root { 
             --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             --font-family-mono: "SF Mono", "Fira Code", "Consolas", monospace; 
@@ -37,11 +37,11 @@
         [data-theme="light"] { --color-bg: #f5f8ff; --color-bg-card: #ffffff; --color-bg-alt: #f0f3f8; --color-text-primary: #0f172a; --color-text-secondary: #64748b; --color-border: #e2e8f0; --color-accent-secondary: #ec4899; --color-accent-text: #ffffff; --color-danger: #ef4444; --color-danger-hover: #dc2626; --color-success: #22c55e; --color-warning: #f59e0b; }
         [data-theme="dark"] { --color-bg: #0d1117; --color-bg-card: #161b22; --color-bg-alt: #21262d; --color-text-primary: #c9d1d9; --color-text-secondary: #8b949e; --color-border: #30363d; --color-accent-secondary: #f778ba; --color-accent-text: #ffffff; --color-danger: #f87171; --color-danger-hover: #ff9191; --color-success: #56d364; --color-warning: #facc15; }
         
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        /* --- 基础样式 --- */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--color-accent-primary) 40%, transparent); border-radius: 6px; }
+        ::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--color-accent-primary) 40%, transparent); border-radius: 8px; border: 2px solid transparent; background-clip: content-box;}
         ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--color-accent-primary) 60%, transparent); }
-
         *, *::before, *::after { box-sizing: border-box; }
         html { font-size: 16px; scroll-behavior: smooth; }
         body { font-family: var(--font-family-sans); background-color: var(--color-bg); color: var(--color-text-primary); margin: 0; position: relative; overflow-x: hidden; transition: background-color var(--transition-slow), color var(--transition-slow); }
@@ -77,7 +77,6 @@
         @keyframes pulse-small { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-success) 40%, transparent); } 70% { box-shadow: 0 0 0 5px transparent; } }
         
         .refresh-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: var(--border-radius-md); background-color: var(--color-bg-alt); color: var(--color-text-secondary); border: 1px solid var(--color-border); cursor: pointer; transition: all var(--transition-fast); flex-shrink: 0; }
-        .refresh-btn svg { transition: transform var(--transition-med); }
         .refresh-btn:hover:not(:disabled):not([aria-busy="true"]) { color: var(--color-accent-primary); border-color: var(--color-accent-primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
         .refresh-btn:hover:not(:disabled):not([aria-busy="true"]) svg { transform: rotate(45deg); }
         .refresh-btn[aria-busy="true"] { cursor: wait; pointer-events: none; }
@@ -151,12 +150,25 @@
         input:focus { outline: none; border-color: var(--color-accent-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 25%, transparent); }
         
         .rankings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
-        .scrollable-table-container { max-height: 400px; overflow-y: auto; position: relative; }
-        #log-query-table-container { max-height: calc(100vh - 300px); min-height: 200px; }
+        .scrollable-table-container { 
+            max-height: 400px; 
+            overflow-y: auto; 
+            position: relative;
+        }
+        #log-query-table-container { max-height: calc(100vh - 350px); min-height: 200px; }
         
-        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; table-layout: fixed; }
-        th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--color-border); transition: background-color var(--transition-fast); word-break: break-all; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; }
+        th, td { padding: 0.8rem 1.25rem; text-align: left; border-bottom: 1px solid var(--color-border); transition: background-color var(--transition-fast); word-break: break-word; vertical-align: middle;}
         .text-right { text-align: right !important; }
+
+        /* [修正] 修复排行榜数字换行问题 */
+        #top-domains-table th:last-child,
+        #top-domains-table td:last-child,
+        #top-clients-table th:last-child,
+        #top-clients-table td:last-child {
+            width: 6rem;
+            white-space: nowrap;
+        }
 
         thead th { 
             background-color: var(--color-bg-alt); 
@@ -171,37 +183,13 @@
             top: 0; 
             z-index: 2;
         }
-
-        #top-domains-card .card-body,
-        #top-clients-card .card-body,
-        #slowest-queries-card .card-body {
-            padding: 0;
+        .scrollable-table-container thead {
+            transition: padding-right 0.2s ease-in-out;
         }
-        #top-domains-card .scrollable-table-container,
-        #top-clients-card .scrollable-table-container,
-        #slowest-queries-card .scrollable-table-container {
-            padding: 1.75rem;
-        }
-        #top-domains-card thead th,
-        #top-clients-card thead th,
-        #slowest-queries-card thead th {
-            top: -1.75rem;
-        }
-        #top-domains-card table th:first-child, #top-clients-card table th:first-child { width: 70%; }
-        #top-domains-card table th:last-child, #top-clients-card table th:last-child { width: 30%; }
         
-        #slowest-queries-card table th:nth-child(1) { width: 15%; }
-        #slowest-queries-card table th:nth-child(2) { width: 30%; }
-        #slowest-queries-card table th:nth-child(3) { width: 12%; }
-        #slowest-queries-card table th:nth-child(4) { width: 23%; }
-        #slowest-queries-card table th:nth-child(5) { width: 20%; }
-        
-        #log-query-tab table th:nth-child(1) { width: 15%; }
-        #log-query-tab table th:nth-child(2) { width: 30%; }
-        #log-query-tab table th:nth-child(3) { width: 8%; }
-        #log-query-tab table th:nth-child(4) { width: 12%; }
-        #log-query-tab table th:nth-child(5) { width: 15%; }
-        #log-query-tab table th:nth-child(6) { width: 20%; }
+        .domain-response-cell { display: flex; flex-direction: column; gap: 0.15rem; }
+        .domain-response-cell .domain-name { font-weight: 500; }
+        .domain-response-cell .response-summary { font-size: 0.9em; color: var(--color-text-secondary); }
 
         th[data-sortable] { cursor: pointer; }
         th[data-sortable]:hover { color: var(--color-text-primary); }
@@ -209,7 +197,24 @@
         th.sorted .sort-indicator { opacity: 1; }
         tbody tr:last-child td { border-bottom: none; }
         tbody tr:nth-child(even) { background-color: var(--color-bg-alt); }
-        tbody tr:hover { background-color: color-mix(in srgb, var(--color-accent-primary) 8%, transparent); }
+        tbody tr {
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
+        }
+        tbody tr:hover { 
+            background-color: color-mix(in srgb, var(--color-accent-primary) 8%, transparent);
+            transform: scale(1.01); 
+            box-shadow: var(--shadow-sm);
+            z-index: 1;
+            position: relative;
+        }
+        
+        tbody tr.data-log-entry {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: data-log-entry-animation 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        @keyframes data-log-entry-animation { to { opacity: 1; transform: translateY(0); } }
+
         .truncate-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         tbody td a.clickable-link { position: relative; text-decoration: none; }
@@ -220,9 +225,10 @@
         .touch tbody tr[data-log-index], .touch tbody tr[data-rank-index] { cursor: pointer; }
 
         .empty-state-row td { text-align: center !important; padding: 3rem 1.5rem !important; white-space: normal !important; }
-        .empty-state-content { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; color: var(--color-text-secondary); }
+        .empty-state-content { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--color-text-secondary); }
         .empty-state-content svg { width: 48px; height: 48px; opacity: 0.5; }
         .empty-state-content strong { color: var(--color-text-primary); font-size: 1.1rem; }
+        .empty-state-content .button { margin-top: 0.5rem; } 
 
         .tab-content { display: none; margin-top: 2.5rem; }
         .tab-content.active { display: block; animation: fadeIn 0.5s ease; }
@@ -230,8 +236,7 @@
         
         .client-alias { font-weight: 600; }
         
-        .response-cell { display: flex; align-items: center; gap: 0.75rem; }
-        .response-tag { padding: 0.2rem 0.6rem; font-size: 0.8rem; font-weight: 700; border-radius: var(--border-radius-sm); white-space: nowrap; }
+        .response-tag { padding: 0.2rem 0.6rem; font-size: 0.8rem; font-weight: 700; border-radius: var(--border-radius-sm); white-space: nowrap; display: inline-block; }
         .response-tag.noerror { background-color: color-mix(in srgb, var(--color-success) 20%, transparent); color: var(--color-success); }
         .response-tag.nxdomain { background-color: color-mix(in srgb, var(--color-warning) 20%, transparent); color: var(--color-warning); }
         .response-tag.servfail { background-color: color-mix(in srgb, var(--color-danger) 20%, transparent); color: var(--color-danger); }
@@ -257,12 +262,13 @@
         dialog { border: none; border-radius: var(--border-radius-lg); box-shadow: var(--shadow-lg); padding: 0; max-width: 600px; width: 90%; background-color: var(--color-bg-card); color: var(--color-text-primary); } 
         dialog::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); } 
         .modal-header { padding: 1.25rem 1.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); } 
-        .modal-body { padding: 1.75rem; max-height: 60vh; overflow-y: auto; } 
+        .modal-body { padding: 1.75rem; max-height: 60vh; overflow-y: auto; scrollbar-gutter: stable; } 
         .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: 0.75rem; background-color: var(--color-bg-alt); } 
         .modal-footer .footer-actions-right { display: flex; gap: 0.75rem; }
         
         .alias-item { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } 
         .alias-item:nth-child(even) { background-color: var(--color-bg-alt); }
+        .alias-item input.changed { border-color: var(--color-warning); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-warning) 25%, transparent); }
         #manual-alias-form { padding: 1.25rem; background: var(--color-bg-alt); border-radius: var(--border-radius-md); margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: center; border: 1px solid var(--color-border); }
         
         #initial-loader { position: fixed; inset: 0; background: var(--color-bg); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.5s; }
@@ -300,17 +306,9 @@
             
             .header-main-actions .refresh-btn, .header-main-actions .last-updated { display: none; }
             
-            /* Mobile card layout for tables */
-            #log-query-tab table thead, 
-            #slowest-queries-card table thead { 
-                display: none; 
-            }
-            #log-query-tab table, #log-query-tab tbody,
-            #slowest-queries-card table, #slowest-queries-card tbody {
-                display: block;
-            }
-            #log-query-tab tr,
-            #slowest-queries-card tr {
+            .mobile-card-layout thead { display: none; }
+            .mobile-card-layout, .mobile-card-layout tbody { display: block; }
+            .mobile-card-layout tr {
                 display: block;
                 background-color: var(--color-bg-card);
                 padding: 1rem;
@@ -319,23 +317,16 @@
                 border: 1px solid var(--color-border);
                 box-shadow: var(--shadow-sm);
             }
-            #log-query-tab td,
-            #slowest-queries-card td {
-                display: block;
-                border: none;
-                padding: 0;
-            }
-            #log-query-tab tr:nth-child(even),
-            #slowest-queries-card tr:nth-child(even) {
-                background-color: var(--color-bg-card);
-            }
+            .mobile-card-layout td { display: block; border: none; padding: 0; }
+            .mobile-card-layout tr:nth-child(even) { background-color: var(--color-bg-card); }
+            .mobile-card-layout tr:hover { transform: none; box-shadow: var(--shadow-md); }
             
-            .mobile-log-row { display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem; }
-            .mobile-log-row .domain { font-weight: 600; color: var(--color-text-primary); word-break: break-all; }
-            .mobile-log-row .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.7rem; color: var(--color-text-secondary); font-size: 0.85rem;}
-            .mobile-log-row .meta > *:not(:first-child)::before { content: "•"; margin-right: 0.7rem; color: var(--color-border); }
-            .mobile-log-row .meta .client { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .mobile-log-row .time { color: var(--color-text-secondary); font-size: 0.8rem; margin-top: 0.25rem; }
+            .mobile-log-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "domain time" "meta meta"; gap: 0.25rem 1rem; font-size: 0.9rem; }
+            .mobile-log-row .domain { grid-area: domain; font-weight: 600; color: var(--color-text-primary); word-break: break-all; align-self: center;}
+            .mobile-log-row .time { grid-area: time; text-align: right; color: var(--color-text-secondary); font-size: 0.8rem; align-self: center; }
+            .mobile-log-row .meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; color: var(--color-text-secondary); font-size: 0.85rem; padding-top: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--color-border);}
+            .mobile-log-row .meta .client { max-width: 15ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .mobile-log-row .meta .duration { font-weight: 500; }
 
             .mobile-compact-table th:not(:first-child),
             .mobile-compact-table td:not(:first-child) {
@@ -346,21 +337,23 @@
                 width: 100%;
             }
 
-            #slowest-queries-card .scrollable-table-container {
-                max-height: 400px;
-                overflow-y: auto;
-                padding: 1.25rem;
+            #slowest-queries-card .scrollable-table-container,
+            #log-query-table-container {
+                padding: 0.75rem;
                 background-color: var(--color-bg-alt);
+                border-radius: var(--border-radius-md);
             }
             #top-domains-card .scrollable-table-container,
             #top-clients-card .scrollable-table-container {
-                padding: 1.25rem; 
+                padding-top: 1.25rem; 
             }
-             #top-domains-card thead th,
+            #top-domains-card thead th,
             #top-clients-card thead th {
                 top: -1.25rem;
             }
-            #log-query-table-container { padding: 0.75rem; background-color: var(--color-bg-alt); }
+            #slowest-queries-card .scrollable-table-container {
+                padding-left: 0; padding-right: 0;
+            }
             
             .control-panel-grid { grid-template-columns: 1fr; gap: 1.5rem; }
             .control-module { padding: 1.25rem; }
@@ -404,7 +397,7 @@
             </div>
         </header>
 
-        <div id="toast"></div>
+        <div id="toast" role="status" aria-live="polite"></div>
 
         <dialog id="alias-modal">
             <header class="modal-header">
@@ -455,7 +448,7 @@
                     <header class="card-header"><h2>域名请求排行</h2></header>
                     <div class="card-body">
                         <div class="scrollable-table-container">
-                            <table class="mobile-compact-table">
+                            <table id="top-domains-table" class="mobile-compact-table">
                                 <thead><tr><th>域名</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
                                 <tbody id="top-domains-body"></tbody>
                             </table>
@@ -467,7 +460,7 @@
                     <header class="card-header"><h2>客户端请求排行</h2></header>
                     <div class="card-body">
                         <div class="scrollable-table-container">
-                            <table class="mobile-compact-table">
+                            <table id="top-clients-table" class="mobile-compact-table">
                                 <thead><tr><th>客户端</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
                                 <tbody id="top-clients-body"></tbody>
                             </table>
@@ -480,8 +473,8 @@
                 <header class="card-header"><h2>最慢查询</h2></header>
                 <div class="card-body">
                      <div class="scrollable-table-container">
-                        <table>
-                            <thead><tr><th class="hide-on-mobile">时间</th><th>域名</th><th class="hide-on-mobile text-right">耗时 (ms)</th><th class="hide-on-mobile">客户端</th><th class="hide-on-mobile">响应</th></tr></thead>
+                        <table id="slowest-queries-table" class="mobile-card-layout">
+                            <thead><tr><th class="hide-on-mobile">时间</th><th>域名 / 响应</th><th class="hide-on-mobile text-right">耗时 (ms)</th><th class="hide-on-mobile">客户端</th></tr></thead>
                             <tbody id="slowest-queries-body"></tbody>
                         </table>
                     </div>
@@ -498,17 +491,16 @@
                     </div>
                 </header>
                 <div class="card-body">
-                    <input type="search" id="log-search" placeholder="搜索域名、IP、CNAME 或别名..." style="margin-bottom: 1rem;">
+                    <input type="search" id="log-search" placeholder="搜索域名、IP (精准匹配)、CNAME 或别名..." style="margin-bottom: 1rem;">
                     <div class="scrollable-table-container" id="log-query-table-container">
-                        <table>
+                        <table id="log-table" class="mobile-card-layout">
                             <thead id="log-table-head">
                                 <tr>
                                     <th class="hide-on-mobile" data-sortable data-sort-key="query_time">时间 <span class="sort-indicator"></span></th>
-                                    <th data-sortable data-sort-key="query_name">域名 <span class="sort-indicator"></span></th>
+                                    <th data-sortable data-sort-key="query_name">域名 / 响应 <span class="sort-indicator"></span></th>
                                     <th class="hide-on-mobile" data-sortable data-sort-key="query_type">类型 <span class="sort-indicator"></span></th>
                                     <th class="hide-on-mobile text-right" data-sortable data-sort-key="duration_ms">耗时(ms) <span class="sort-indicator"></span></th>
                                     <th class="hide-on-mobile" data-sortable data-sort-key="client_ip">客户端 <span class="sort-indicator"></span></th>
-                                    <th class="hide-on-mobile">响应</th>
                                 </tr>
                             </thead>
                             <tbody id="log-table-body"></tbody>
@@ -588,25 +580,145 @@
     <button id="fab-refresh" class="fab" aria-label="刷新数据" aria-busy="false">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
     </button>
+    
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // --- 1. 核心常量、状态、元素 ---
         const CONSTANTS = { API_BASE_URL: `${window.location.protocol}//${window.location.hostname}:9099`, LOGS_PER_PAGE: 50, HISTORY_LENGTH: 30, DEFAULT_AUTO_REFRESH_INTERVAL: 15, ANIMATION_DURATION: 1000, MOBILE_BREAKPOINT: 768, TOAST_DURATION: 3000 };
         let state = { isUpdating: false, isCapturing: false, isMobile: false, isTouchDevice: false, currentLogPage: 1, isLogLoading: false, logPaginationInfo: null, displayedLogs: [], currentLogSearchTerm: '', clientAliases: {}, topDomains: [], topClients: [], slowestQueries: [], logSort: { key: 'query_time', order: 'desc' }, autoRefresh: { enabled: true, intervalId: null, intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL }, data: { totalQueries: { current: null, previous: 0 }, avgDuration: { current: null, previous: 0 } }, history: { totalQueries: [], avgDuration: [] }, lastUpdateTime: null };
-        const elements = { html: document.documentElement, body: document.body, container: document.querySelector('.container'), initialLoader: document.getElementById('initial-loader'), lightThemeBtn: document.getElementById('light-theme-btn'), darkThemeBtn: document.getElementById('dark-theme-btn'), colorSwatches: document.querySelectorAll('.color-swatch'), navWrapper: document.querySelector('.nav-wrapper'), mainNav: document.querySelector('.main-nav'), navSlider: document.querySelector('.main-nav-slider'), tabLinks: document.querySelectorAll('.tab-link'), tabContents: document.querySelectorAll('.tab-content'), globalRefreshBtn: document.getElementById('global-refresh-btn'), lastUpdated: document.getElementById('last-updated'), fabRefresh: document.getElementById('fab-refresh'), autoRefreshToggle: document.getElementById('auto-refresh-toggle'), autoRefreshIntervalInput: document.getElementById('auto-refresh-interval'), autoRefreshForm: document.getElementById('auto-refresh-form'), statCard1: document.getElementById('stat-card-1'), statCard2: document.getElementById('stat-card-2'), totalQueries: document.getElementById('total-queries'), avgDuration: document.getElementById('avg-duration'), sparklineTotal: document.getElementById('sparkline-total'), sparklineAvg: document.getElementById('sparkline-avg'), sparklineTotalMin: document.getElementById('sparkline-total-min'), sparklineTotalMax: document.getElementById('sparkline-total-max'), sparklineAvgMin: document.getElementById('sparkline-avg-min'), sparklineAvgMax: document.getElementById('sparkline-avg-max'), auditStatus: document.getElementById('audit-status'), toggleAuditBtn: document.getElementById('toggle-audit-btn'), clearAuditBtn: document.getElementById('clear-audit-btn'), auditCapacity: document.getElementById('audit-capacity'), capacityForm: document.getElementById('capacity-form'), newCapacityInput: document.getElementById('new-capacity'), topDomainsBody: document.getElementById('top-domains-body'), topClientsBody: document.getElementById('top-clients-body'), slowestQueriesBody: document.getElementById('slowest-queries-body'), logSearch: document.getElementById('log-search'), logTableHead: document.getElementById('log-table-head'), logTableBody: document.getElementById('log-table-body'), logQueryTableContainer: document.getElementById('log-query-table-container'), logLoader: document.getElementById('log-loader'), toast: document.getElementById('toast'), aliasModal: document.getElementById('alias-modal'), manualAliasForm: document.getElementById('manual-alias-form'), aliasListContainer: document.getElementById('alias-list-container'), importAliasInput: document.getElementById('import-alias-file-input'), saveAllAliasesBtn: document.getElementById('save-all-aliases-btn'), systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator') };
+        const elements = { 
+            html: document.documentElement, body: document.body, container: document.querySelector('.container'), initialLoader: document.getElementById('initial-loader'), 
+            lightThemeBtn: document.getElementById('light-theme-btn'), darkThemeBtn: document.getElementById('dark-theme-btn'), colorSwatches: document.querySelectorAll('.color-swatch'), 
+            navWrapper: document.querySelector('.nav-wrapper'), mainNav: document.querySelector('.main-nav'), navSlider: document.querySelector('.main-nav-slider'), 
+            tabLinks: document.querySelectorAll('.tab-link'), tabContents: document.querySelectorAll('.tab-content'), 
+            globalRefreshBtn: document.getElementById('global-refresh-btn'), lastUpdated: document.getElementById('last-updated'), fabRefresh: document.getElementById('fab-refresh'), 
+            autoRefreshToggle: document.getElementById('auto-refresh-toggle'), autoRefreshIntervalInput: document.getElementById('auto-refresh-interval'), autoRefreshForm: document.getElementById('auto-refresh-form'), 
+            statCard1: document.getElementById('stat-card-1'), statCard2: document.getElementById('stat-card-2'), 
+            totalQueries: document.getElementById('total-queries'), avgDuration: document.getElementById('avg-duration'), 
+            sparklineTotal: document.getElementById('sparkline-total'), sparklineAvg: document.getElementById('sparkline-avg'), 
+            sparklineTotalMin: document.getElementById('sparkline-total-min'), sparklineTotalMax: document.getElementById('sparkline-total-max'), 
+            sparklineAvgMin: document.getElementById('sparkline-avg-min'), sparklineAvgMax: document.getElementById('sparkline-avg-max'), 
+            auditStatus: document.getElementById('audit-status'), toggleAuditBtn: document.getElementById('toggle-audit-btn'), clearAuditBtn: document.getElementById('clear-audit-btn'), 
+            auditCapacity: document.getElementById('audit-capacity'), capacityForm: document.getElementById('capacity-form'), newCapacityInput: document.getElementById('new-capacity'), 
+            topDomainsBody: document.getElementById('top-domains-body'), topClientsBody: document.getElementById('top-clients-body'), slowestQueriesBody: document.getElementById('slowest-queries-body'), 
+            logTable: document.getElementById('log-table'), logTableHead: document.getElementById('log-table-head'), logTableBody: document.getElementById('log-table-body'),
+            slowestQueriesTable: document.getElementById('slowest-queries-table'),
+            logSearch: document.getElementById('log-search'), logQueryTableContainer: document.getElementById('log-query-table-container'), logLoader: document.getElementById('log-loader'), 
+            toast: document.getElementById('toast'), 
+            aliasModal: document.getElementById('alias-modal'), manualAliasForm: document.getElementById('manual-alias-form'), 
+            aliasListContainer: document.getElementById('alias-list-container'), importAliasInput: document.getElementById('import-alias-file-input'), saveAllAliasesBtn: document.getElementById('save-all-aliases-btn'), 
+            systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator') 
+        };
         let toastTimeout;
+        
+        // --- 2. 工具函数 ---
+        const debounce = (func, wait) => {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        };
+
+        // --- 3. 轻量级表头对齐管理器 ---
+        const tableHeaderAligner = {
+            scrollbarWidth: 0,
+            containersToAlign: [],
+
+            init() {
+                this.scrollbarWidth = this.getScrollbarWidth();
+                this.containersToAlign = [
+                    elements.logQueryTableContainer,
+                    document.querySelector('#slowest-queries-card .scrollable-table-container'),
+                    document.querySelector('#top-domains-card .scrollable-table-container'),
+                    document.querySelector('#top-clients-card .scrollable-table-container')
+                ].filter(Boolean);
+                
+                window.addEventListener('resize', debounce(() => this.updateAll(), 150));
+                this.containersToAlign.forEach(container => {
+                    container.addEventListener('scroll', () => this.update(container));
+                });
+            },
+
+            getScrollbarWidth() {
+                const outer = document.createElement('div');
+                outer.style.visibility = 'hidden';
+                outer.style.overflow = 'scroll';
+                document.body.appendChild(outer);
+                const inner = document.createElement('div');
+                outer.appendChild(inner);
+                const scrollbarWidth = outer.offsetWidth - inner.offsetWidth;
+                outer.parentNode.removeChild(outer);
+                return scrollbarWidth > 0 ? scrollbarWidth : 17;
+            },
+
+            update(container) {
+                if (!container || state.isMobile) return;
+                const thead = container.querySelector('thead');
+                if (!thead) return;
+
+                const hasScrollbar = container.scrollHeight > container.clientHeight;
+                
+                thead.style.paddingRight = hasScrollbar ? `${this.scrollbarWidth}px` : '0px';
+            },
+
+            updateAll() {
+                this.containersToAlign.forEach(container => this.update(container));
+            }
+        };
+
+        // --- 4. 主要模块 ---
         const api = { fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`); const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { ui.showToast(`网络请求失败: ${error.message}`, 'error'); console.error(error); } throw error; } }, getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }), getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }), start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }), stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }), clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }), setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }), v2: { getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }), getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }), getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }), getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }), getLogs: (signal, params = {}) => { const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params }); for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } } return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal }); } } };
-        const ui = { showToast(message, type = 'success') { if (!elements.toast) return; clearTimeout(toastTimeout); const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; const hideToast = () => { elements.toast.className = elements.toast.className.replace('show', ''); }; elements.toast.onmouseenter = () => clearTimeout(toastTimeout); elements.toast.onmouseleave = () => toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); }, setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } }, updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } }, updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; }, updateOverviewStats() { animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION); animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION); state.history.totalQueries.push(state.data.totalQueries.current ?? 0); state.history.avgDuration.push(state.data.avgDuration.current ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift(); historyManager.save(); if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries); if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, true); }, renderLogTable(logs, append = false) { if (!elements.logTableBody) return; if (!append) elements.logTableBody.innerHTML = ''; if (logs.length === 0 && !append) { renderTable(elements.logTableBody, [], () => {}, 'log-query'); return; } const rows = logs.map(log => { const tr = document.createElement('tr'); const globalIndex = state.displayedLogs.indexOf(log); tr.dataset.logIndex = globalIndex; tr.innerHTML = renderLogItemHTML(log); return tr; }); elements.logTableBody.append(...rows); } };
-        const aliasManager = { load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; }, save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); }, getDisplayName: (ip) => state.clientAliases[ip] || ip, getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip, getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; }, set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } }, async saveAll() { const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item'); let changed = false; aliasItems.forEach(item => { const ip = item.dataset.ip; const input = item.querySelector('input'); const newValue = input.value.trim(); const originalValue = input.dataset.originalValue; if (newValue !== originalValue) { this.set(ip, newValue); changed = true; } }); if(changed) { this.save(); ui.showToast('所有别名更改已保存', 'success'); await updatePageData(); } else { ui.showToast('没有检测到任何更改', 'success'); } }, async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = topClients.map(client => client.key).sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.dataset.ip = ip; const currentAlias = this.getDisplayName(ip); item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${currentAlias === ip ? '' : currentAlias}" data-original-value="${currentAlias === ip ? '' : currentAlias}">`; elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } }, export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); }, import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); }, };
+        const ui = {
+            showToast(message, type = 'success') { if (!elements.toast) return; clearTimeout(toastTimeout); const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; const hideToast = () => { elements.toast.className = elements.toast.className.replace('show', ''); }; elements.toast.onmouseenter = () => clearTimeout(toastTimeout); elements.toast.onmouseleave = () => toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); },
+            setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
+            updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } },
+            updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; },
+            updateOverviewStats() { animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION); animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION); state.history.totalQueries.push(state.data.totalQueries.current ?? 0); state.history.avgDuration.push(state.data.avgDuration.current ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift(); historyManager.save(); if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries); if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, true); },
+            renderLogTable(logs, append = false) {
+                const tbody = elements.logTableBody;
+                if (!tbody) return;
+                
+                if (!append) {
+                    tbody.innerHTML = '';
+                    state.displayedLogs = [];
+                }
+
+                if (logs.length === 0 && !append) {
+                    renderTable(tbody, [], () => {}, 'log-query');
+                    return;
+                }
+
+                const startIndex = state.displayedLogs.length;
+                state.displayedLogs.push(...logs);
+
+                const fragment = document.createDocumentFragment();
+                logs.forEach((log, i) => {
+                    const row = renderLogItemHTML(log, startIndex + i);
+                    row.classList.add('data-log-entry');
+                    row.style.animationDelay = `${i * 30}ms`;
+                    fragment.appendChild(row);
+                });
+                tbody.appendChild(fragment);
+
+                requestAnimationFrame(() => tableHeaderAligner.update(elements.logQueryTableContainer));
+            }
+        };
+        const aliasManager = { load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; }, save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); }, getDisplayName: (ip) => state.clientAliases[ip] || ip, getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip, getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; }, set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } }, async saveAll() { const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item'); let changed = false; aliasItems.forEach(item => { const ip = item.dataset.ip; const input = item.querySelector('input'); const newValue = input.value.trim(); const originalValue = input.dataset.originalValue; if (newValue !== originalValue) { this.set(ip, newValue); changed = true; } }); if(changed) { this.save(); ui.showToast('所有别名更改已保存', 'success'); await updatePageData(); await this.renderEditableList(); } else { ui.showToast('没有检测到任何更改', 'success'); } }, async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = [...new Set(topClients.map(client => client.key))].sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.dataset.ip = ip; const currentAlias = this.getDisplayName(ip); const aliasValue = currentAlias === ip ? '' : currentAlias; item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${aliasValue}" data-original-value="${aliasValue}">`; const input = item.querySelector('input'); input.addEventListener('input', () => { input.classList.toggle('changed', input.value.trim() !== input.dataset.originalValue); }); elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } }, export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); }, import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); }, };
         const historyManager = { load: () => { const saved = JSON.parse(localStorage.getItem('mosdnsHistory')); if (saved) { state.history.totalQueries = saved.totalQueries || []; state.history.avgDuration = saved.avgDuration || []; } }, save: () => { localStorage.setItem('mosdnsHistory', JSON.stringify(state.history)); } };
         const themeManager = { init() { const savedTheme = localStorage.getItem('mosdns-theme') || 'dark'; const savedColor = localStorage.getItem('mosdns-color') || 'indigo'; this.setTheme(savedTheme, false); this.setColor(savedColor, false); elements.lightThemeBtn?.addEventListener('click', () => this.setTheme('light')); elements.darkThemeBtn?.addEventListener('click', () => this.setTheme('dark')); elements.colorSwatches.forEach(swatch => { swatch.addEventListener('click', () => this.setColor(swatch.dataset.color)); }); }, setTheme(theme, save = true) { elements.html.setAttribute('data-theme', theme); if (elements.lightThemeBtn) { elements.lightThemeBtn.classList.toggle('active', theme === 'light'); elements.darkThemeBtn.classList.toggle('active', theme === 'dark'); } if (save) localStorage.setItem('mosdns-theme', theme); }, setColor(color, save = true) { elements.html.setAttribute('data-color-scheme', color); document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active')); document.querySelectorAll(`.color-swatch[data-color="${color}"]`).forEach(s => s.classList.add('active')); if (save) localStorage.setItem('mosdns-color', color); if (color === 'indigo') { if (elements.statCard1) elements.statCard1.className = 'stat-card default-gradient-1'; if (elements.statCard2) elements.statCard2.className = 'stat-card default-gradient-2'; } else { if (elements.statCard1) elements.statCard1.className = 'stat-card theme-gradient'; if (elements.statCard2) elements.statCard2.className = 'stat-card theme-gradient'; } } };
         const animateValue = (element, start, end, duration) => { if (!element || start === null || end === null) return; if (start === end) { element.textContent = (element.id === 'avg-duration' ? parseFloat(end).toFixed(2) : Math.floor(end).toLocaleString()); return; } let startTimestamp = null; const step = (timestamp) => { if (!startTimestamp) startTimestamp = timestamp; const progress = Math.min((timestamp - startTimestamp) / duration, 1); const current = start + progress * (end - start); element.textContent = (element.id === 'avg-duration' ? parseFloat(current).toFixed(2) : Math.floor(current).toLocaleString()); if (progress < 1) window.requestAnimationFrame(step); }; window.requestAnimationFrame(step); };
         const setupGlowEffect = () => { elements.container?.addEventListener('mousemove', (e) => { const card = e.target.closest('.card'); if (card) { const rect = card.getBoundingClientRect(); card.style.setProperty('--glow-x', `${e.clientX - rect.left}px`); card.style.setProperty('--glow-y', `${e.clientY - rect.top}px`); } }); };
         const generateSparklineSVG = (data, isFloat = false, width = 300, height = 60) => { if (!data || data.length < 2) return ''; const numericData = data.map(Number); const maxVal = Math.max(...numericData); const minVal = Math.min(...numericData); const range = maxVal - minVal === 0 ? 1 : maxVal - minVal; const points = numericData.map((d, i) => { const x = (i / (data.length - 1)) * width; const y = height - ((d - minVal) / range) * height; return `${x.toFixed(2)},${y.toFixed(2)}`; }); const pathD = `M ${points.join(' L ')}`; const fillPathD = `${pathD} L ${width},${height} L 0,${height} Z`; return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="sparkline-gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0.5" /><stop offset="100%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0" /></linearGradient></defs><path d="${fillPathD}" fill="url(#sparkline-gradient)" /><path d="${pathD}" class="sparkline-path" fill="none" /></svg>`; };
-        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const colspan = state.isMobile ? 1 : (tbody.previousElementSibling?.rows[0]?.cells.length || 2); const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; const message = tableType === 'log-query' || tableType === 'slowest-queries' ? '没有匹配的日志记录，请尝试调整搜索词。' : '请确保审计功能已开启。 <a href="#system-control" class="tab-link-action" data-tab="system-control">前往系统控制开启</a>'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p></div></td>`; tbody.appendChild(emptyRow); return; } data.forEach((item, index) => tbody.appendChild(renderRow(item, index))); };
+        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const isSearchEmpty = tableType === 'log-query' && state.currentLogSearchTerm; const message = isSearchEmpty ? `沒有找到与 "<strong>${state.currentLogSearchTerm}</strong>" 匹配的记录。` : '请确保审计功能已开启。'; const ctaButton = isSearchEmpty ? '' : '<button class="button primary tab-link-action" data-tab="system-control">前往系统控制</button>'; const colspan = state.isMobile ? 1 : (tbody.previousElementSibling?.rows[0]?.cells.length || 2); const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p>${ctaButton}</div></td>`; tbody.appendChild(emptyRow); return; } const fragment = document.createDocumentFragment(); data.forEach((item, index) => { const row = renderRow(item, index); row.classList.add('data-log-entry'); row.style.animationDelay = `${index * 30}ms`; fragment.appendChild(row); }); tbody.appendChild(fragment); };
         const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain'; tr.innerHTML = `<td><span class="truncate-text">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-domains');
         const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getAliasedClientHTML(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
-        const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.logIndex = index; tr.dataset.logSource = 'slowest'; tr.innerHTML = renderSlowestQueryItemHTML(item); return tr; }, 'slowest-queries');
+        const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, renderSlowestQueryItemHTML, 'slowest-queries');
         
         let updateController;
         async function updatePageData() {
@@ -645,7 +757,12 @@
                 const activeTabLink = document.querySelector('.tab-link.active');
                 if (activeTabLink && activeTabLink.dataset.tab === 'log-query') { fetchAndRenderLogs(1, false); }
             } catch (error) { if (error.name !== 'AbortError') console.error("Page update failed:", error); } 
-            finally { elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); elements.fabRefresh.setAttribute('aria-busy', 'false'); state.isUpdating = false; }
+            finally { 
+                elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); 
+                elements.fabRefresh.setAttribute('aria-busy', 'false'); 
+                state.isUpdating = false; 
+                requestAnimationFrame(() => tableHeaderAligner.updateAll());
+            }
         }
         
         let logRequestController;
@@ -659,35 +776,50 @@
             const searchTerm = state.currentLogSearchTerm;
             try {
                 if (searchTerm) {
-                    const searchPromises = []; const ipFromAlias = aliasManager.getIpByAlias(searchTerm); const isIpAddress = /^\d{1,3}(\.\d{1,3}){3}$|:/.test(searchTerm);
-                    if (ipFromAlias) { searchPromises.push(api.v2.getLogs(signal, { client_ip: ipFromAlias })); } 
-                    else { searchPromises.push(api.v2.getLogs(signal, { domain: searchTerm })); searchPromises.push(api.v2.getLogs(signal, { cname: searchTerm })); if (isIpAddress) { searchPromises.push(api.v2.getLogs(signal, { client_ip: searchTerm })); searchPromises.push(api.v2.getLogs(signal, { answer_ip: searchTerm })); } }
+                    const searchPromises = [];
+                    const isFullIp = /^((\d{1,3}\.){3}\d{1,3}|([a-fA-F0-9]{1,4}:){2,7}[a-fA-F0-9]{1,4})$/i.test(searchTerm);
+                    
+                    if (isFullIp) {
+                        searchPromises.push(api.v2.getLogs(signal, { client_ip: searchTerm }));
+                        searchPromises.push(api.v2.getLogs(signal, { answer_ip: searchTerm }));
+                    } else {
+                        const ipFromAlias = aliasManager.getIpByAlias(searchTerm);
+                        if (ipFromAlias) {
+                             searchPromises.push(api.v2.getLogs(signal, { client_ip: ipFromAlias }));
+                        }
+                        searchPromises.push(api.v2.getLogs(signal, { domain: searchTerm }));
+                        searchPromises.push(api.v2.getLogs(signal, { cname: searchTerm }));
+                    }
+                    
                     const results = await Promise.allSettled(searchPromises);
                     const allLogs = results.filter(res => res.status === 'fulfilled' && res.value && res.value.logs).flatMap(res => res.value.logs);
                     const uniqueLogs = new Map();
                     allLogs.forEach(log => { const key = log.trace_id || `${log.query_time}-${log.client_ip}-${log.query_name}`; if (!uniqueLogs.has(key)) { uniqueLogs.set(key, log); } });
                     const finalLogs = Array.from(uniqueLogs.values());
                     state.logPaginationInfo = null;
-                    state.displayedLogs = finalLogs;
                     elements.logQueryTableContainer.scrollTop = 0;
-                    tableSorter.sortLogs();
+                    tableSorter.sortLogs(finalLogs);
                 } else {
                     const response = await api.v2.getLogs(signal, { page });
                     if (!response || !response.pagination) throw new Error("Invalid response from logs API");
                     const { pagination, logs } = response;
                     state.logPaginationInfo = pagination; state.currentLogPage = pagination.current_page;
-                    if (append) { state.displayedLogs.push(...logs); } else { state.displayedLogs = logs || []; elements.logQueryTableContainer.scrollTop = 0; }
+                    if (!append) elements.logQueryTableContainer.scrollTop = 0;
                     ui.renderLogTable(logs || [], append);
                 }
             } catch (error) { if (error.name !== 'AbortError') { console.error("Failed to fetch logs:", error); ui.showToast('获取日志失败', 'error'); }
-            } finally { state.isLogLoading = false; if (elements.logLoader) elements.logLoader.style.display = 'none'; }
+            } finally { 
+                state.isLogLoading = false; 
+                if (elements.logLoader) elements.logLoader.style.display = 'none'; 
+                requestAnimationFrame(() => tableHeaderAligner.update(elements.logQueryTableContainer));
+            }
         }
         
         const tableSorter = {
             init() { if (elements.logTableHead) elements.logTableHead.addEventListener('click', this.handleSort.bind(this)); this.updateHeaders(); },
             handleSort(e) { const th = e.target.closest('th[data-sortable]'); if (!th) return; const key = th.dataset.sortKey; if (state.logSort.key === key) { state.logSort.order = state.logSort.order === 'asc' ? 'desc' : 'asc'; } else { state.logSort.key = key; state.logSort.order = 'desc'; } this.sortLogs(); this.updateHeaders(); },
-            sortLogs() { const { key, order } = state.logSort; state.displayedLogs.sort((a, b) => { let valA = a[key]; let valB = b[key]; if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); } const result = valA < valB ? -1 : valA > valB ? 1 : 0; return order === 'asc' ? result : -result; }); ui.renderLogTable(state.displayedLogs, false); },
-            updateHeaders() { document.querySelectorAll('#log-table-head th[data-sortable]').forEach(th => { th.classList.remove('sorted'); const indicator = th.querySelector('.sort-indicator'); if (th.dataset.sortKey === state.logSort.key) { th.classList.add('sorted'); indicator.textContent = state.logSort.order === 'asc' ? '▲' : '▼'; } else { indicator.textContent = ' '; } }); }
+            sortLogs(logs = state.displayedLogs) { const { key, order } = state.logSort; logs.sort((a, b) => { let valA = a[key]; let valB = b[key]; if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); } const result = valA < valB ? -1 : valA > valB ? 1 : 0; return order === 'asc' ? result : -result; }); ui.renderLogTable(logs, false); },
+            updateHeaders() { document.querySelectorAll('#log-table-head th[data-sortable]').forEach(th => { th.classList.remove('sorted'); const indicator = th.querySelector('.sort-indicator'); if(indicator) { if (th.dataset.sortKey === state.logSort.key) { th.classList.add('sorted'); indicator.textContent = state.logSort.order === 'asc' ? '▲' : '▼'; } else { indicator.textContent = ' '; } } }); }
         };
 
         function applyLogFilterAndRender() { if (!elements.logSearch) return; state.currentLogSearchTerm = elements.logSearch.value.trim(); fetchAndRenderLogs(1, false); }
@@ -698,13 +830,11 @@
             const now = new Date();
             const past = new Date(isoString);
             const diffInSeconds = Math.max(0, Math.round((now - past) / 1000));
-            
             if (diffInSeconds < 5) return '刚刚';
             if (diffInSeconds < 60) return `${diffInSeconds}秒前`;
             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}分钟前`;
             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}小时前`;
             if (diffInSeconds < 86400 * 2) return `昨天`;
-
             return past.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
         }
         function updateLastUpdated() { if (elements.lastUpdated) { elements.lastUpdated.textContent = state.lastUpdateTime ? `上次更新于 ${formatRelativeTime(state.lastUpdateTime.toISOString())}` : ''; } }
@@ -719,10 +849,7 @@
             const source = targetElement.dataset.logSource || targetElement.dataset.rankSource;
             const targetId = `${source}-${logIndex ?? rankIndex}`;
             
-            if (state.isTouchDevice && activeTooltip && activeTooltip.dataset.targetId === targetId) {
-                hideTooltip(true);
-                return;
-            }
+            if (state.isTouchDevice && activeTooltip && activeTooltip.dataset.targetId === targetId) { hideTooltip(true); return; }
             hideTooltip(true);
 
             let data;
@@ -741,17 +868,13 @@
 
             const targetRect = targetElement.getBoundingClientRect();
             const tooltipRect = activeTooltip.getBoundingClientRect();
-            
             let top = targetRect.bottom + 10;
             let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
-
             if (top + tooltipRect.height > window.innerHeight - 10) { top = targetRect.top - tooltipRect.height - 10; }
             if (left < 10) { left = 10; } 
             else if (left + tooltipRect.width > window.innerWidth - 10) { left = window.innerWidth - tooltipRect.width - 10; }
-
             activeTooltip.style.top = `${top}px`;
             activeTooltip.style.left = `${left}px`;
-            
             setTimeout(() => { if (activeTooltip) activeTooltip.classList.add('visible'); }, 10);
         }
 
@@ -771,103 +894,40 @@
             }
         }
         
-        function getResponseTagHTML(log) {
-            if (!log) return '';
-            const code = log.response_code || 'UNKNOWN';
-            let tagClass = 'other';
-            if (code === 'NOERROR') tagClass = 'noerror';
-            else if (code === 'NXDOMAIN') tagClass = 'nxdomain';
-            else if (code === 'SERVFAIL') tagClass = 'servfail';
-            else if (code === 'REFUSED') tagClass = 'refused';
-            return `<span class="response-tag ${tagClass}">${code}</span>`;
-        }
-        function getResponseSummary(log) { if (!log || !log.answers) return ''; const answers = log.answers; if (log.response_code !== 'NOERROR') return ''; if (answers.length > 0) { const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = answers.find(a => a.type === 'CNAME'); let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data); if (answers.length > 1) mainText += ` (+${answers.length - 1})`; return `<span class="truncate-text">${mainText}</span>`; } return '<span>(empty)</span>'; }
+        function getResponseTagHTML(log) { if (!log) return ''; const code = log.response_code || 'UNKNOWN'; let tagClass = 'other'; if (code === 'NOERROR') tagClass = 'noerror'; else if (code === 'NXDOMAIN') tagClass = 'nxdomain'; else if (code === 'SERVFAIL') tagClass = 'servfail'; else if (code === 'REFUSED') tagClass = 'refused'; return `<span class="response-tag ${tagClass}">${code}</span>`; }
+        function getResponseSummary(log) { if (!log) return ''; if (log.response_code !== 'NOERROR') { return getResponseTagHTML(log); } if (log.answers && log.answers.length > 0) { const firstIp = log.answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = log.answers.find(a => a.type === 'CNAME'); let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : log.answers[0].data); if (mainText.length > 25) mainText = mainText.substring(0, 22) + '...'; if (log.answers.length > 1) mainText += ` (+${log.answers.length - 1})`; return `<span class="truncate-text">${mainText}</span>`; } return '<span>(empty)</span>'; }
+        function renderDomainResponseCellHTML(log) { return `<div class="domain-response-cell"><span class="domain-name truncate-text">${log.query_name}</span><span class="response-summary">${getResponseSummary(log)}</span></div>`; }
         
-        function renderResponseCellHTML(log) {
-             return `<div class="response-cell">${getResponseTagHTML(log)}${getResponseSummary(log)}</div>`;
-        }
-
-        function renderLogItemHTML(log) {
-            const clientDisplay = state.isMobile ? aliasManager.getDisplayName(log.client_ip) : aliasManager.getAliasedClientHTML(log.client_ip);
-
+        function renderLogItemHTML(log, globalIndex) {
+            const tr = document.createElement('tr');
+            tr.dataset.logIndex = globalIndex;
             if (state.isMobile) {
-                return `<td>
-                    <div class="mobile-log-row">
-                        <div class="domain">${log.query_name}</div>
-                        <div class="meta">
-                            <span class="client">${clientDisplay}</span>
-                            <span>${log.duration_ms.toFixed(0)}ms</span>
-                            ${getResponseTagHTML(log)}
-                        </div>
-                        <div class="time">${formatRelativeTime(log.query_time)}</div>
-                    </div>
-                </td>`;
+                tr.innerHTML = `<td><div class="mobile-log-row"><div class="domain">${log.query_name}</div><div class="time">${formatRelativeTime(log.query_time)}</div><div class="meta"><span class="client">${aliasManager.getDisplayName(log.client_ip)}</span><span class="duration">${log.duration_ms.toFixed(0)}ms</span>${getResponseTagHTML(log)}</div></div></td>`;
+            } else {
+                tr.innerHTML = `<td>${formatRelativeTime(log.query_time)}</td><td>${renderDomainResponseCellHTML(log)}</td><td>${log.query_type}</td><td class="text-right">${log.duration_ms.toFixed(2)}</td><td>${aliasManager.getAliasedClientHTML(log.client_ip)}</td>`;
             }
-            return `<td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td><td><span class="truncate-text">${log.query_name}</span></td><td class="hide-on-mobile">${log.query_type}</td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${clientDisplay}</td><td class="hide-on-mobile">${renderResponseCellHTML(log)}</td>`;
+            return tr;
         }
-        
-        function renderSlowestQueryItemHTML(log) {
-            const clientDisplay = state.isMobile ? aliasManager.getDisplayName(log.client_ip) : aliasManager.getAliasedClientHTML(log.client_ip);
 
+        function renderSlowestQueryItemHTML(log, index) {
+            const tr = document.createElement('tr');
+            tr.dataset.logIndex = index;
+            tr.dataset.logSource = 'slowest';
             if (state.isMobile) {
-                return `<td>
-                    <div class="mobile-log-row">
-                        <div class="domain">${log.query_name}</div>
-                        <div class="meta">
-                             <span class="client">${clientDisplay}</span>
-                             <span>${log.duration_ms.toFixed(0)}ms</span>
-                             ${getResponseTagHTML(log)}
-                        </div>
-                        <div class="time">${formatRelativeTime(log.query_time)}</div>
-                    </div>
-                </td>`;
+                tr.innerHTML = `<td><div class="mobile-log-row"><div class="domain">${log.query_name}</div><div class="time">${formatRelativeTime(log.query_time)}</div><div class="meta"><span class="client">${aliasManager.getDisplayName(log.client_ip)}</span><span class="duration">${log.duration_ms.toFixed(0)}ms</span>${getResponseTagHTML(log)}</div></div></td>`;
+            } else {
+                tr.innerHTML = `
+                    <td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td>
+                    <td>${renderDomainResponseCellHTML(log)}</td>
+                    <td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td>
+                    <td class="hide-on-mobile">${aliasManager.getAliasedClientHTML(log.client_ip)}</td>
+                `;
             }
-            // Desktop view for slowest queries.
-            return `<td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td><td><span class="truncate-text">${log.query_name}</span></td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${clientDisplay}</td><td class="hide-on-mobile">${renderResponseCellHTML(log)}</td>`;
+            return tr;
         }
 
-        function getTooltipHTML(data, source) {
-            if (!data) return '';
-            
-            const queryInfo = {};
-            const responseInfo = {};
-            let answers = [];
-            
-            if (source === 'domain' || source === 'client') {
-                queryInfo['请求数'] = data.count.toLocaleString();
-            } else { // Log data
-                const flags = data.response_flags || {};
-                const flagItems = [];
-                if (flags.ra) flagItems.push('RA'); if (flags.aa) flagItems.push('AA'); if (flags.tc) flagItems.push('TC');
-                
-                queryInfo['精确时间'] = formatDate(data.query_time);
-                queryInfo['客户端'] = aliasManager.getDisplayName(data.client_ip);
-                queryInfo['类型'] = data.query_type || 'N/A';
-                if (data.query_class) queryInfo['类别'] = data.query_class;
-
-                responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`;
-                responseInfo['状态'] = data.response_code || 'N/A';
-                if (flagItems.length > 0) responseInfo['标志'] = flagItems.join(', ');
-
-                if (data.trace_id) {
-                    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`;
-                    queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`;
-                }
-                answers = data.answers || [];
-            }
-            
-            const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
-            
-            let tooltipHTML = ``;
-            if (Object.keys(queryInfo).length > 0) tooltipHTML += `<h5>查询信息</h5><ul>${buildList(queryInfo)}</ul>`;
-            if (Object.keys(responseInfo).length > 0) tooltipHTML += `<h5 style="margin-top:0.75rem;">响应信息</h5><ul>${buildList(responseInfo)}</ul>`;
-            if (answers.length > 0) {
-                tooltipHTML += `<h5 style="margin-top:0.75rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} <small>(TTL: ${ans.ttl}s)</small></li>`).join('')}</ul>`;
-            }
-            return tooltipHTML;
-        }
+        function getTooltipHTML(data, source) { if (!data) return ''; const queryInfo = {}; const responseInfo = {}; let answers = []; if (source === 'domain' || source === 'client') { queryInfo['请求数'] = data.count.toLocaleString(); } else { const flags = data.response_flags || {}; const flagItems = []; if (flags.ra) flagItems.push('RA'); if (flags.aa) flagItems.push('AA'); if (flags.tc) flagItems.push('TC'); queryInfo['精确时间'] = formatDate(data.query_time); queryInfo['客户端'] = aliasManager.getDisplayName(data.client_ip); queryInfo['类型'] = data.query_type || 'N/A'; if (data.query_class) queryInfo['类别'] = data.query_class; responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`; responseInfo['状态'] = data.response_code || 'N/A'; if (flagItems.length > 0) responseInfo['标志'] = flagItems.join(', '); if (data.trace_id) { const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`; queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`; } answers = data.answers || []; } const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join(''); let tooltipHTML = ``; if (Object.keys(queryInfo).length > 0) tooltipHTML += `<h5>查询信息</h5><ul>${buildList(queryInfo)}</ul>`; if (Object.keys(responseInfo).length > 0) tooltipHTML += `<h5 style="margin-top:0.75rem;">响应信息</h5><ul>${buildList(responseInfo)}</ul>`; if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.75rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} <small>(TTL: ${ans.ttl}s)</small></li>`).join('')}</ul>`; } return tooltipHTML; }
         
-        let searchTimeout;
         const autoRefreshManager = {
             start() { this.stop(); if (state.autoRefresh.enabled && state.autoRefresh.intervalSeconds >= 5) { state.autoRefresh.intervalId = setInterval(updatePageData, state.autoRefresh.intervalSeconds * 1000); } },
             stop() { if (state.autoRefresh.intervalId) { clearInterval(state.autoRefresh.intervalId); state.autoRefresh.intervalId = null; } },
@@ -904,6 +964,9 @@
             state.isMobile = window.innerWidth <= CONSTANTS.MOBILE_BREAKPOINT;
             
             if (wasMobile !== state.isMobile) {
+                elements.logTable?.classList.toggle('mobile-card-layout', state.isMobile);
+                elements.slowestQueriesTable?.classList.toggle('mobile-card-layout', state.isMobile);
+                
                 const activeTab = document.querySelector('.tab-link.active')?.dataset.tab;
                 if (activeTab === 'log-query') {
                     ui.renderLogTable(state.displayedLogs); 
@@ -920,7 +983,7 @@
         function setupEventListeners() {
             elements.tabLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); handleNavigation(link); }); });
             window.addEventListener('popstate', () => { const hash = window.location.hash || '#overview'; const targetLink = document.querySelector(`.tab-link[href="${hash}"]`); handleNavigation(targetLink || elements.tabLinks[0]); });
-            window.addEventListener('resize', handleResize);
+            window.addEventListener('resize', debounce(handleResize, 150));
             [elements.globalRefreshBtn, elements.fabRefresh].forEach(btn => btn?.addEventListener('click', updatePageData));
             setInterval(updateLastUpdated, 5000);
             elements.autoRefreshForm.addEventListener('change', (e) => { if(e.target.type === 'checkbox' || e.target.type === 'number') { const enabled = elements.autoRefreshToggle.checked; const interval = parseInt(elements.autoRefreshIntervalInput.value, 10); elements.autoRefreshIntervalInput.disabled = !enabled; autoRefreshManager.updateSettings(enabled, interval); } });
@@ -928,15 +991,16 @@
             elements.toggleAuditBtn?.addEventListener('click', async (e) => { const btn = e.currentTarget; ui.setLoading(btn, true); try { if (state.isCapturing) { await api.stop(); } else { await api.start(); } } catch (error) { console.error("操作失败:", error); } await updatePageData(); });
             elements.clearAuditBtn?.addEventListener('click', async (e) => { if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { const btn = e.currentTarget; ui.setLoading(btn, true); try { await api.clear(); ui.showToast('日志已清空', 'success'); if (elements.logSearch) elements.logSearch.value = ''; } catch (error) { ui.showToast('清空日志失败', 'error'); } finally { await updatePageData(); ui.setLoading(btn, false); } } });
             elements.capacityForm?.addEventListener('submit', async (e) => { e.preventDefault(); const newCapacity = parseInt(elements.newCapacityInput.value, 10); if (!newCapacity || newCapacity <= 0 || newCapacity > 400000) { ui.showToast('请输入1到400000之间的有效容量', 'error'); return; } if (confirm(`确定要将容量设置为 ${newCapacity.toLocaleString()} 吗？\n\n注意：这将清空当前所有日志。`)) { const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity.toLocaleString()}`, 'success'); elements.newCapacityInput.value = ''; } catch (error) { console.error("Set capacity failed:", error); } finally { await updatePageData(); ui.setLoading(btn, false); } } });
-            elements.logSearch?.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(applyLogFilterAndRender, 300); });
+            elements.logSearch?.addEventListener('input', debounce(applyLogFilterAndRender, 300));
             elements.logQueryTableContainer?.addEventListener('scroll', () => { const { scrollTop, scrollHeight, clientHeight } = elements.logQueryTableContainer; if (clientHeight + scrollTop >= scrollHeight - 200) { loadMoreLogs(); } });
             
             document.querySelectorAll('.stat-card').forEach(card => {
                 card.addEventListener('mouseenter', () => {
-                    const sparklineId = card.querySelector('.sparkline-container').id;
+                    const sparklineId = card.querySelector('.sparkline-container')?.id;
+                    if (!sparklineId) return;
                     const historyKey = sparklineId === 'sparkline-total' ? 'totalQueries' : 'avgDuration';
                     const data = state.history[historyKey];
-                    if(data.length > 0) {
+                    if(data && data.length > 0) {
                         const min = Math.min(...data);
                         const max = Math.max(...data);
                         const isAvg = historyKey === 'avgDuration';
@@ -953,7 +1017,7 @@
                 if (clickableLink) { e.preventDefault(); if (elements.logSearch) { elements.logSearch.value = clickableLink.dataset.filterValue; } const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); applyLogFilterAndRender(); return; }
                 if (tabLinkAction) { e.preventDefault(); const tabId = tabLinkAction.dataset.tab; const targetLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`); if(targetLink) handleNavigation(targetLink); return; }
                 if (copyBtn) {
-                    e.stopPropagation(); // Prevent tooltip from opening on touch devices
+                    e.stopPropagation();
                     const valueToCopy = copyBtn.dataset.copyValue;
                     if(valueToCopy) {
                         navigator.clipboard.writeText(valueToCopy)
@@ -1002,7 +1066,7 @@
                 elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); const ipInput = document.getElementById('manual-alias-ip'); const nameInput = document.getElementById('manual-alias-name'); const ip = ipInput.value.trim(); const name = nameInput.value.trim(); if(ip && name) { aliasManager.set(ip, name); aliasManager.save(); ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success'); ipInput.value = ''; nameInput.value = ''; await aliasManager.renderEditableList(); await updatePageData(); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(btn, false); });
             }
         }
-
+        
         async function init() {
             state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             
@@ -1014,16 +1078,14 @@
             setupEventListeners();
             setupGlowEffect();
             
-            const initialHash = window.location.hash || '#overview';
-            const initialLink = document.querySelector(`.tab-link[href="${initialHash}"]`);
+            tableHeaderAligner.init();
             
-            setTimeout(() => {
-                handleNavigation(initialLink || elements.tabLinks[0]);
-            }, 50);
-
-            // Initial resize call to set up mobile/desktop view correctly
             handleResize();
             
+            const initialHash = window.location.hash || '#overview';
+            const initialLink = document.querySelector(`.tab-link[href="${initialHash}"]`);
+            handleNavigation(initialLink || elements.tabLinks[0]);
+
             await updatePageData();
             
             const loader = elements.initialLoader;
