@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 仪表盘 - v11.0 最终修复版</title>
+    <title>Mosdns 仪表盘 - v12.6 终版</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* --- 优化版UI的CSS (v11.0) --- */
+        /* --- 优化版UI的CSS (v12.6 - 终版) --- */
         :root { 
             --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             --font-family-mono: "SF Mono", "Fira Code", "Consolas", monospace; 
@@ -34,8 +34,8 @@
         [data-theme="dark"][data-color-scheme="orange"] { --color-accent-primary: #fb923c; --color-accent-primary-hover: #fdba74; --glow-color: rgba(251, 146, 60, 0.15); }
 
         /* 基础明暗主题变量 */
-        [data-theme="light"] { --color-bg: #f5f8ff; --color-bg-card: #ffffff; --color-bg-alt: #f0f3f8; --color-text-primary: #0f172a; --color-text-secondary: #64748b; --color-border: #e2e8f0; --color-accent-secondary: #ec4899; --color-accent-text: #ffffff; --color-danger: #ef4444; --color-danger-hover: #dc2626; --color-success: #22c55e; }
-        [data-theme="dark"] { --color-bg: #0d1117; --color-bg-card: #161b22; --color-bg-alt: #21262d; --color-text-primary: #c9d1d9; --color-text-secondary: #8b949e; --color-border: #30363d; --color-accent-secondary: #f778ba; --color-accent-text: #ffffff; --color-danger: #f87171; --color-danger-hover: #ff9191; --color-success: #56d364; }
+        [data-theme="light"] { --color-bg: #f5f8ff; --color-bg-card: #ffffff; --color-bg-alt: #f0f3f8; --color-text-primary: #0f172a; --color-text-secondary: #64748b; --color-border: #e2e8f0; --color-accent-secondary: #ec4899; --color-accent-text: #ffffff; --color-danger: #ef4444; --color-danger-hover: #dc2626; --color-success: #22c55e; --color-warning: #f59e0b; }
+        [data-theme="dark"] { --color-bg: #0d1117; --color-bg-card: #161b22; --color-bg-alt: #21262d; --color-text-primary: #c9d1d9; --color-text-secondary: #8b949e; --color-border: #30363d; --color-accent-secondary: #f778ba; --color-accent-text: #ffffff; --color-danger: #f87171; --color-danger-hover: #ff9191; --color-success: #56d364; --color-warning: #facc15; }
         
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -53,9 +53,17 @@
         h3 { font-size: 0.9rem; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.8px;}
         a { color: var(--color-accent-primary); text-decoration: none; font-weight: 600; transition: var(--transition-fast); }
         a:hover { color: var(--color-accent-primary-hover); }
+        [title] { 
+            cursor: help; 
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-decoration-color: var(--color-text-secondary);
+            text-underline-offset: 3px;
+        }
 
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1.5rem; }
         .header-main-actions { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; max-width: 100%; }
+        .last-updated { font-size: 0.8rem; color: var(--color-text-secondary); white-space: nowrap; }
         .nav-wrapper { position: relative; overflow-x: auto; overflow-y: hidden; }
         
         .main-nav { display: inline-flex; background-color: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: 0.25rem; }
@@ -88,6 +96,8 @@
         .sparkline-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 60px; opacity: 0.5; mask-image: linear-gradient(to top, rgba(0,0,0,1) 50%, transparent 100%); -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 50%, transparent 100%); }
         .sparkline-container svg { width: 100%; height: 100%; }
         .sparkline-path { stroke: var(--color-accent-text, #fff); stroke-width: 2.5; fill: url(#sparkline-gradient); fill-opacity: 0.2; stroke-linecap: round; stroke-linejoin: round; }
+        .sparkline-labels { position: absolute; bottom: 10px; left: 1.5rem; right: 1.5rem; display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: var(--color-accent-text); opacity: 0; transition: var(--transition-fast); pointer-events: none; }
+        .stat-card:hover .sparkline-labels { opacity: 0.7; }
         
         .card { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--border-radius-lg); box-shadow: var(--shadow-sm); transition: var(--transition-fast); position: relative; }
         .card::before { content: ""; position: absolute; top: var(--glow-y, 50%); left: var(--glow-x, 50%); transform: translate(-50%, -50%); width: 250px; height: 250px; background: radial-gradient(circle, var(--glow-color), transparent 70%); opacity: 0; transition: opacity 0.4s ease-out; pointer-events: none; z-index: 0; }
@@ -141,11 +151,11 @@
         input:focus { outline: none; border-color: var(--color-accent-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 25%, transparent); }
         
         .rankings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
-        .scrollable-table-container { max-height: 400px; overflow: auto; position: relative; }
+        .scrollable-table-container { max-height: 400px; overflow-y: auto; position: relative; }
         #log-query-table-container { max-height: calc(100vh - 300px); min-height: 200px; }
         
-        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; }
-        th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--color-border); transition: background-color var(--transition-fast); }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; table-layout: fixed; }
+        th, td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--color-border); transition: background-color var(--transition-fast); word-break: break-all; }
         .text-right { text-align: right !important; }
 
         thead th { 
@@ -177,6 +187,21 @@
         #slowest-queries-card thead th {
             top: -1.75rem;
         }
+        #top-domains-card table th:first-child, #top-clients-card table th:first-child { width: 70%; }
+        #top-domains-card table th:last-child, #top-clients-card table th:last-child { width: 30%; }
+        
+        #slowest-queries-card table th:nth-child(1) { width: 15%; }
+        #slowest-queries-card table th:nth-child(2) { width: 30%; }
+        #slowest-queries-card table th:nth-child(3) { width: 12%; }
+        #slowest-queries-card table th:nth-child(4) { width: 23%; }
+        #slowest-queries-card table th:nth-child(5) { width: 20%; }
+        
+        #log-query-tab table th:nth-child(1) { width: 15%; }
+        #log-query-tab table th:nth-child(2) { width: 30%; }
+        #log-query-tab table th:nth-child(3) { width: 8%; }
+        #log-query-tab table th:nth-child(4) { width: 12%; }
+        #log-query-tab table th:nth-child(5) { width: 15%; }
+        #log-query-tab table th:nth-child(6) { width: 20%; }
 
         th[data-sortable] { cursor: pointer; }
         th[data-sortable]:hover { color: var(--color-text-primary); }
@@ -203,16 +228,25 @@
         .tab-content.active { display: block; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .client-alias { font-weight: 600; } 
-        .client-ip-tag { font-size: 0.8em; color: var(--color-text-secondary); margin-left: 0.5em; background-color: color-mix(in srgb, var(--color-border) 50%, transparent); padding: 0.2rem 0.5rem; border-radius: var(--border-radius-sm); } 
+        .client-alias { font-weight: 600; }
         
-        .answers-tooltip { visibility: hidden; opacity: 0; position: fixed; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); background: var(--color-bg-alt); border: 1px solid var(--color-border); box-shadow: var(--shadow-lg); width: max-content; max-width: 400px; z-index: 9999; transition: opacity 0.2s, visibility 0.2s, transform 0.2s; text-align: left; pointer-events: none; font-size: 0.9rem; transform: translateY(10px); } 
+        .response-cell { display: flex; align-items: center; gap: 0.75rem; }
+        .response-tag { padding: 0.2rem 0.6rem; font-size: 0.8rem; font-weight: 700; border-radius: var(--border-radius-sm); white-space: nowrap; }
+        .response-tag.noerror { background-color: color-mix(in srgb, var(--color-success) 20%, transparent); color: var(--color-success); }
+        .response-tag.nxdomain { background-color: color-mix(in srgb, var(--color-warning) 20%, transparent); color: var(--color-warning); }
+        .response-tag.servfail { background-color: color-mix(in srgb, var(--color-danger) 20%, transparent); color: var(--color-danger); }
+        .response-tag.refused { background-color: color-mix(in srgb, var(--color-danger) 25%, transparent); color: var(--color-danger); }
+        .response-tag.other { background-color: var(--color-border); color: var(--color-text-secondary); }
+
+        .answers-tooltip { visibility: hidden; opacity: 0; position: fixed; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); background: var(--color-bg-alt); border: 1px solid var(--color-border); box-shadow: var(--shadow-lg); width: max-content; max-width: calc(100vw - 20px); z-index: 9999; transition: opacity 0.2s, visibility 0.2s, transform 0.2s; text-align: left; pointer-events: none; font-size: 0.9rem; transform: translateY(10px); } 
         .answers-tooltip.visible { visibility: visible; opacity: 1; transform: translateY(0); }
         .answers-tooltip h5 { margin: 0 0 0.75rem 0; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem; } 
         .answers-tooltip ul { margin: 0; padding: 0; list-style-type: none; display: flex; flex-direction: column; gap: 0.4rem; } 
-        .answers-tooltip li { font-family: var(--font-family-mono); white-space: normal; word-break: break-all; } 
-        .answers-tooltip li > strong { font-family: var(--font-family-sans); }
+        .answers-tooltip li { font-family: var(--font-family-mono); white-space: normal; word-break: break-all; display: flex; align-items: center; justify-content: space-between; gap: 1rem;} 
+        .answers-tooltip li > strong { font-family: var(--font-family-sans); flex-shrink: 0; }
         .answers-tooltip small { font-size: 0.85em; opacity: 0.8; } 
+        .copy-btn { background: none; border: none; cursor: pointer; color: var(--color-text-secondary); padding: 2px; border-radius: 4px; display: inline-flex; vertical-align: middle; transition: var(--transition-fast); }
+        .copy-btn:hover { color: var(--color-accent-primary); background-color: var(--color-border); }
 
         #toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.5rem; border-radius: var(--border-radius-sm); z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); transform: translateY(-20px) scale(0.95); box-shadow: var(--shadow-lg); color: var(--color-accent-text); font-weight: 500; } 
         #toast.show { opacity: 1; visibility: visible; transform: translateY(0) scale(1); } 
@@ -224,8 +258,10 @@
         dialog::backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); } 
         .modal-header { padding: 1.25rem 1.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); } 
         .modal-body { padding: 1.75rem; max-height: 60vh; overflow-y: auto; } 
-        .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: flex-end; gap: 0.75rem; background-color: var(--color-bg-alt); } 
-        .alias-item { display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } 
+        .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: 0.75rem; background-color: var(--color-bg-alt); } 
+        .modal-footer .footer-actions-right { display: flex; gap: 0.75rem; }
+        
+        .alias-item { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } 
         .alias-item:nth-child(even) { background-color: var(--color-bg-alt); }
         #manual-alias-form { padding: 1.25rem; background: var(--color-bg-alt); border-radius: var(--border-radius-md); margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: center; border: 1px solid var(--color-border); }
         
@@ -236,7 +272,10 @@
         
         .control-panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
         .control-module { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
-        .control-module h3 { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); text-transform: none; letter-spacing: 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); margin-bottom: 0.25rem; }
+        .control-module h3 { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); text-transform: none; letter-spacing: 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.6rem; }
+        .control-module h3 svg { width: 1.1em; height: 1.1em; color: var(--color-accent-primary); opacity: 0.8; }
+
+        .fab { display: none; }
 
         /* --- 全面优化的响应式布局 --- */
         @media (max-width: 992px) {
@@ -247,13 +286,56 @@
         
         @media (max-width: 768px) {
             html { font-size: 15px; } 
-            .container { padding: 1.5rem 1rem; }
+            .container { padding: 1.5rem 1rem 4rem; }
             h1 { font-size: 1.8rem; }
             .card-header { padding: 1rem 1.25rem; }
             .card-body { padding: 1.25rem; }
             .rankings-grid { grid-template-columns: 1fr; gap: 2rem; }
             
             .hide-on-mobile { display: none !important; }
+
+            .fab { display: flex; align-items: center; justify-content: center; position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px; background-color: var(--color-accent-primary); color: var(--color-accent-text); border-radius: 50%; border: none; box-shadow: var(--shadow-lg); z-index: 100; transition: all var(--transition-med); }
+            .fab:hover { background-color: var(--color-accent-primary-hover); transform: scale(1.05); }
+            .fab[aria-busy="true"] svg { animation: spin 1s linear infinite; }
+            
+            .header-main-actions .refresh-btn, .header-main-actions .last-updated { display: none; }
+            
+            /* Mobile card layout for tables */
+            #log-query-tab table thead, 
+            #slowest-queries-card table thead { 
+                display: none; 
+            }
+            #log-query-tab table, #log-query-tab tbody,
+            #slowest-queries-card table, #slowest-queries-card tbody {
+                display: block;
+            }
+            #log-query-tab tr,
+            #slowest-queries-card tr {
+                display: block;
+                background-color: var(--color-bg-card);
+                padding: 1rem;
+                border-radius: var(--border-radius-md);
+                margin-bottom: 0.75rem;
+                border: 1px solid var(--color-border);
+                box-shadow: var(--shadow-sm);
+            }
+            #log-query-tab td,
+            #slowest-queries-card td {
+                display: block;
+                border: none;
+                padding: 0;
+            }
+            #log-query-tab tr:nth-child(even),
+            #slowest-queries-card tr:nth-child(even) {
+                background-color: var(--color-bg-card);
+            }
+            
+            .mobile-log-row { display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem; }
+            .mobile-log-row .domain { font-weight: 600; color: var(--color-text-primary); word-break: break-all; }
+            .mobile-log-row .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.7rem; color: var(--color-text-secondary); font-size: 0.85rem;}
+            .mobile-log-row .meta > *:not(:first-child)::before { content: "•"; margin-right: 0.7rem; color: var(--color-border); }
+            .mobile-log-row .meta .client { max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .mobile-log-row .time { color: var(--color-text-secondary); font-size: 0.8rem; margin-top: 0.25rem; }
 
             .mobile-compact-table th:not(:first-child),
             .mobile-compact-table td:not(:first-child) {
@@ -264,25 +346,22 @@
                 width: 100%;
             }
 
+            #slowest-queries-card .scrollable-table-container {
+                max-height: 400px;
+                overflow-y: auto;
+                padding: 1.25rem;
+                background-color: var(--color-bg-alt);
+            }
             #top-domains-card .scrollable-table-container,
-            #top-clients-card .scrollable-table-container,
-            #slowest-queries-card .card-body .scrollable-table-container {
+            #top-clients-card .scrollable-table-container {
                 padding: 1.25rem; 
             }
-            #top-domains-card thead th,
-            #top-clients-card thead th,
-            #slowest-queries-card thead th {
+             #top-domains-card thead th,
+            #top-clients-card thead th {
                 top: -1.25rem;
             }
-            #log-query-table-container {
-                padding: 0;
-            }
-            #log-query-table-container thead th {
-                top: 0;
-            }
+            #log-query-table-container { padding: 0.75rem; background-color: var(--color-bg-alt); }
             
-            td, th { white-space: normal; word-break: break-all; }
-
             .control-panel-grid { grid-template-columns: 1fr; gap: 1.5rem; }
             .control-module { padding: 1.25rem; }
             .control-item { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
@@ -292,11 +371,11 @@
             .auto-refresh-form { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
             .color-palette { justify-content: flex-start; }
             #manual-alias-form { grid-template-columns: 1fr; }
+            .alias-item { grid-template-columns: 1fr; }
         }
         @media (max-width: 480px) {
-            .alias-item { grid-template-columns: 1fr; gap: 0.5rem; text-align: center; }
+            .alias-item { text-align: center; }
             .alias-item input { text-align: center; }
-            .alias-item button { width: 100%; }
         }
     </style>
 </head>
@@ -318,6 +397,7 @@
                         </a>
                     </nav>
                 </div>
+                <span id="last-updated" class="last-updated"></span>
                 <button id="global-refresh-btn" class="refresh-btn" title="刷新数据" aria-label="刷新数据" aria-busy="false">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
                 </button>
@@ -341,8 +421,13 @@
                 <div id="alias-list-container"></div>
             </div>
             <footer class="modal-footer">
-                <button id="import-aliases-btn" class="button secondary"><span>导入配置</span></button>
-                <button id="export-aliases-btn" class="button secondary"><span>导出配置</span></button>
+                <div class="footer-actions-left">
+                     <button id="import-aliases-btn" class="button secondary"><span>导入配置</span></button>
+                     <button id="export-aliases-btn" class="button secondary"><span>导出配置</span></button>
+                </div>
+                <div class="footer-actions-right">
+                     <button id="save-all-aliases-btn" class="button primary"><span>全部保存</span></button>
+                </div>
             </footer>
         </dialog>
         <input type="file" id="import-alias-file-input" accept=".json" style="display: none;">
@@ -352,12 +437,14 @@
                 <div class="stat-card" id="stat-card-1">
                     <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M11.25 4.53335C11.6642 4.44457 12.0858 4.44457 12.5 4.53335C17.1524 5.54133 21 9.80443 21 14.6465C21 19.9806 16.9706 22 12 22C7.02944 22 3 19.9806 3 14.6465C3 9.80443 6.84759 5.54133 11.25 4.53335ZM12 2C6.47715 2 2 7.02165 2 14.6465C2 21.4939 6.27609 24 12 24C17.7239 24 22 21.4939 22 14.6465C22 7.02165 17.5228 2 12 2Z"></path></svg><span>总查询数</span></h3>
                     <div id="total-queries" class="value">--</div>
+                    <div class="sparkline-labels"><span id="sparkline-total-min"></span><span id="sparkline-total-max"></span></div>
                     <div class="icon-bg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V4C20 2.89543 19.1046 2 18 2ZM11 14H8V12H11V14ZM16 10H8V8H16V10Z"></path></svg></div>
                     <div class="sparkline-container" id="sparkline-total"></div>
                 </div>
                 <div class="stat-card" id="stat-card-2">
                     <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM11 6V11H16V13H11V18H9V11H4V9H9V6H11Z"></path></svg><span>平均处理时间 (ms)</span></h3>
                     <div id="avg-duration" class="value">--</div>
+                    <div class="sparkline-labels"><span id="sparkline-avg-min"></span><span id="sparkline-avg-max"></span></div>
                     <div class="icon-bg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 11.0711L14.1213 13.1924L15.5355 11.7782L12.7071 9L12 9.70711V11.0711ZM13 13H11V17H13V13Z"></path></svg></div>
                     <div class="sparkline-container" id="sparkline-avg"></div>
                 </div>
@@ -435,7 +522,7 @@
         <section id="system-control-tab" class="tab-content">
              <div class="control-panel-grid">
                 <div class="control-module">
-                    <h3>审计状态</h3>
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM11 11H7V13H11V17H13V13H17V11H13V7H11V11Z"></path></svg>审计状态</h3>
                     <div class="control-item">
                         <strong>运行状态:</strong> <span id="audit-status">查询中...</span>
                     </div>
@@ -445,7 +532,7 @@
                     </div>
                 </div>
                 <div class="control-module">
-                    <h3>日志容量</h3>
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3ZM12 19C8.13401 19 5 15.866 5 12C5 8.13401 8.13401 5 12 5C15.866 5 19 8.13401 19 12C19 15.866 15.866 19 12 19ZM12 10.5C12.8284 10.5 13.5 11.1716 13.5 12C13.5 12.8284 12.8284 13.5 12 13.5C11.1716 13.5 10.5 12.8284 10.5 12C10.5 11.1716 11.1716 10.5 12 10.5Z"></path></svg>日志容量</h3>
                     <div class="control-item">
                         <strong>当前容量:</strong> <span id="audit-capacity">查询中...</span>
                     </div>
@@ -455,7 +542,7 @@
                     </form>
                 </div>
                 <div class="control-module">
-                    <h3>自动刷新</h3>
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 20C16.4183 20 20 16.4183 20 12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20ZM11 7H13V12L16.5 15.5L15.0858 16.9142L11 12.8284V7Z"></path></svg>自动刷新</h3>
                      <form id="auto-refresh-form" class="auto-refresh-form">
                         <label class="switch" for="auto-refresh-toggle" style="display: contents; cursor: pointer;">
                             <strong>启用</strong>
@@ -471,7 +558,7 @@
                     </form>
                 </div>
                 <div class="control-module">
-                    <h3>主题与外观</h3>
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5C12.4142 2.5 12.75 2.83579 12.75 3.25V5.03131C15.2635 5.50376 17.25 7.49021 17.7224 9.99993H19.5C19.9142 9.99993 20.25 10.3357 20.25 10.75V13.25C20.25 13.6642 19.9142 14 19.5 14H17.7224C17.25 16.5097 15.2635 18.4962 12.75 18.9686V20.75C12.75 21.1642 12.4142 21.5 12 21.5C11.5858 21.5 11.25 21.1642 11.25 20.75V18.9686C8.73652 18.4962 6.75 16.5097 6.27758 14H4.5C4.08579 14 3.75 13.6642 3.75 13.25V10.75C3.75 10.3357 4.08579 9.99993 4.5 9.99993H6.27758C6.75 7.49021 8.73652 5.50376 11.25 5.03131V3.25C11.25 2.83579 11.5858 2.5 12 2.5ZM12 7C9.23858 7 7 9.23858 7 12C7 14.7614 9.23858 17 12 17C14.7614 17 17 14.7614 17 12C17 9.23858 14.7614 7 12 7Z"></path></svg>主题与外观</h3>
                     <div class="control-item">
                         <strong>颜色方案</strong>
                         <div class="color-palette">
@@ -498,152 +585,28 @@
         </section>
     </main>
 
+    <button id="fab-refresh" class="fab" aria-label="刷新数据" aria-busy="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+    </button>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const CONSTANTS = {
-            API_BASE_URL: `${window.location.protocol}//${window.location.hostname}:9099`,
-            LOGS_PER_PAGE: 50,
-            HISTORY_LENGTH: 30,
-            DEFAULT_AUTO_REFRESH_INTERVAL: 15,
-            ANIMATION_DURATION: 1000,
-            MOBILE_BREAKPOINT: 768,
-        };
-
-        let state = {
-            isUpdating: false,
-            isCapturing: false,
-            isMobile: false,
-            isTouchDevice: false,
-            currentLogPage: 1,
-            isLogLoading: false,
-            logPaginationInfo: null,
-            displayedLogs: [],
-            currentLogSearchTerm: '',
-            clientAliases: {},
-            topDomains: [],
-            topClients: [],
-            slowestQueries: [],
-            logSort: { key: 'query_time', order: 'desc' },
-            autoRefresh: {
-                enabled: true,
-                intervalId: null,
-                intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL
-            },
-            data: {
-                totalQueries: { current: null, previous: 0 },
-                avgDuration: { current: null, previous: 0 }
-            },
-            history: {
-                totalQueries: [],
-                avgDuration: []
-            }
-        };
-        
-        const elements = {
-            html: document.documentElement,
-            body: document.body,
-            container: document.querySelector('.container'),
-            initialLoader: document.getElementById('initial-loader'),
-            lightThemeBtn: document.getElementById('light-theme-btn'),
-            darkThemeBtn: document.getElementById('dark-theme-btn'),
-            colorSwatches: document.querySelectorAll('.color-swatch'),
-            navWrapper: document.querySelector('.nav-wrapper'),
-            mainNav: document.querySelector('.main-nav'),
-            navSlider: document.querySelector('.main-nav-slider'),
-            tabLinks: document.querySelectorAll('.tab-link'),
-            tabContents: document.querySelectorAll('.tab-content'),
-            globalRefreshBtn: document.getElementById('global-refresh-btn'),
-            autoRefreshToggle: document.getElementById('auto-refresh-toggle'),
-            autoRefreshIntervalInput: document.getElementById('auto-refresh-interval'),
-            autoRefreshForm: document.getElementById('auto-refresh-form'),
-            statCard1: document.getElementById('stat-card-1'),
-            statCard2: document.getElementById('stat-card-2'),
-            totalQueries: document.getElementById('total-queries'),
-            avgDuration: document.getElementById('avg-duration'),
-            sparklineTotal: document.getElementById('sparkline-total'),
-            sparklineAvg: document.getElementById('sparkline-avg'),
-            auditStatus: document.getElementById('audit-status'),
-            toggleAuditBtn: document.getElementById('toggle-audit-btn'),
-            clearAuditBtn: document.getElementById('clear-audit-btn'),
-            auditCapacity: document.getElementById('audit-capacity'),
-            capacityForm: document.getElementById('capacity-form'),
-            newCapacityInput: document.getElementById('new-capacity'),
-            topDomainsBody: document.getElementById('top-domains-body'),
-            topClientsBody: document.getElementById('top-clients-body'),
-            slowestQueriesBody: document.getElementById('slowest-queries-body'),
-            logSearch: document.getElementById('log-search'),
-            logTableHead: document.getElementById('log-table-head'),
-            logTableBody: document.getElementById('log-table-body'),
-            logQueryTableContainer: document.getElementById('log-query-table-container'),
-            logLoader: document.getElementById('log-loader'),
-            toast: document.getElementById('toast'),
-            aliasModal: document.getElementById('alias-modal'),
-            manualAliasForm: document.getElementById('manual-alias-form'),
-            aliasListContainer: document.getElementById('alias-list-container'),
-            importAliasInput: document.getElementById('import-alias-file-input'),
-            systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator')
-        };
-        
-        const api = {
-            fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`); const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { ui.showToast(`网络请求失败: ${error.message}`, 'error'); console.error(error); } throw error; } },
-            getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }),
-            getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }),
-            start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }),
-            stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }),
-            clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }),
-            setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }),
-            v2: {
-                getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }),
-                getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }),
-                getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }),
-                getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }),
-                getLogs: (signal, params = {}) => {
-                    const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params });
-                    for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } }
-                    return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal });
-                }
-            }
-        };
-
-        const ui = {
-            showToast(message, type = 'success') { if (!elements.toast) return; const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; setTimeout(() => { elements.toast.className = elements.toast.className.replace('show', ''); }, 3000); },
-            setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
-            updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } },
-            updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; },
-            updateOverviewStats() { animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION); animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION); state.history.totalQueries.push(state.data.totalQueries.current ?? 0); state.history.avgDuration.push(state.data.avgDuration.current ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift(); historyManager.save(); if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries); if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, true); },
-            renderLogTable(logs, append = false) { if (!elements.logTableBody) return; if (!append) elements.logTableBody.innerHTML = ''; if (logs.length === 0 && !append) { renderTable(elements.logTableBody, [], () => {}, 'log-query'); return; } const rows = logs.map(log => { const tr = document.createElement('tr'); const globalIndex = state.displayedLogs.indexOf(log); tr.dataset.logIndex = globalIndex; tr.innerHTML = `<td class="hide-on-mobile">${formatDate(log.query_time)}</td><td><span class="truncate-text">${log.query_name}</span></td><td class="hide-on-mobile">${log.query_type}</td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${aliasManager.getDisplayName(log.client_ip)}</td><td class="hide-on-mobile">${getResponseSummary(log)}</td>`; return tr; }); elements.logTableBody.append(...rows); }
-        };
-        
-        const aliasManager = {
-            load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; },
-            save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); },
-            getDisplayName: (ip) => state.clientAliases[ip] ? `<span class="client-alias">${state.clientAliases[ip]}</span><span class="client-ip-tag">${ip}</span>` : ip,
-            getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; },
-            async set(ip, name) { if (name) state.clientAliases[ip] = name; else delete state.clientAliases[ip]; this.save(); await updatePageData(); },
-            async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = topClients.map(client => client.key).sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.innerHTML = `<span style="font-weight:600;" data-ip="${ip}">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="button primary"><span>保存</span></button>`; elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } },
-            export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); },
-            import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
-        };
-
-        const historyManager = {
-            load: () => { const saved = JSON.parse(localStorage.getItem('mosdnsHistory')); if (saved) { state.history.totalQueries = saved.totalQueries || []; state.history.avgDuration = saved.avgDuration || []; } },
-            save: () => { localStorage.setItem('mosdnsHistory', JSON.stringify(state.history)); }
-        };
-
-        const themeManager = {
-            init() { const savedTheme = localStorage.getItem('mosdns-theme') || 'dark'; const savedColor = localStorage.getItem('mosdns-color') || 'indigo'; this.setTheme(savedTheme, false); this.setColor(savedColor, false); elements.lightThemeBtn?.addEventListener('click', () => this.setTheme('light')); elements.darkThemeBtn?.addEventListener('click', () => this.setTheme('dark')); elements.colorSwatches.forEach(swatch => { swatch.addEventListener('click', () => this.setColor(swatch.dataset.color)); }); },
-            setTheme(theme, save = true) { elements.html.setAttribute('data-theme', theme); if (elements.lightThemeBtn) { elements.lightThemeBtn.classList.toggle('active', theme === 'light'); elements.darkThemeBtn.classList.toggle('active', theme === 'dark'); } if (save) localStorage.setItem('mosdns-theme', theme); },
-            setColor(color, save = true) { elements.html.setAttribute('data-color-scheme', color); document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active')); document.querySelectorAll(`.color-swatch[data-color="${color}"]`).forEach(s => s.classList.add('active')); if (save) localStorage.setItem('mosdns-color', color); if (color === 'indigo') { if (elements.statCard1) elements.statCard1.className = 'stat-card default-gradient-1'; if (elements.statCard2) elements.statCard2.className = 'stat-card default-gradient-2'; } else { if (elements.statCard1) elements.statCard1.className = 'stat-card theme-gradient'; if (elements.statCard2) elements.statCard2.className = 'stat-card theme-gradient'; } }
-        };
-
+        const CONSTANTS = { API_BASE_URL: `${window.location.protocol}//${window.location.hostname}:9099`, LOGS_PER_PAGE: 50, HISTORY_LENGTH: 30, DEFAULT_AUTO_REFRESH_INTERVAL: 15, ANIMATION_DURATION: 1000, MOBILE_BREAKPOINT: 768, TOAST_DURATION: 3000 };
+        let state = { isUpdating: false, isCapturing: false, isMobile: false, isTouchDevice: false, currentLogPage: 1, isLogLoading: false, logPaginationInfo: null, displayedLogs: [], currentLogSearchTerm: '', clientAliases: {}, topDomains: [], topClients: [], slowestQueries: [], logSort: { key: 'query_time', order: 'desc' }, autoRefresh: { enabled: true, intervalId: null, intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL }, data: { totalQueries: { current: null, previous: 0 }, avgDuration: { current: null, previous: 0 } }, history: { totalQueries: [], avgDuration: [] }, lastUpdateTime: null };
+        const elements = { html: document.documentElement, body: document.body, container: document.querySelector('.container'), initialLoader: document.getElementById('initial-loader'), lightThemeBtn: document.getElementById('light-theme-btn'), darkThemeBtn: document.getElementById('dark-theme-btn'), colorSwatches: document.querySelectorAll('.color-swatch'), navWrapper: document.querySelector('.nav-wrapper'), mainNav: document.querySelector('.main-nav'), navSlider: document.querySelector('.main-nav-slider'), tabLinks: document.querySelectorAll('.tab-link'), tabContents: document.querySelectorAll('.tab-content'), globalRefreshBtn: document.getElementById('global-refresh-btn'), lastUpdated: document.getElementById('last-updated'), fabRefresh: document.getElementById('fab-refresh'), autoRefreshToggle: document.getElementById('auto-refresh-toggle'), autoRefreshIntervalInput: document.getElementById('auto-refresh-interval'), autoRefreshForm: document.getElementById('auto-refresh-form'), statCard1: document.getElementById('stat-card-1'), statCard2: document.getElementById('stat-card-2'), totalQueries: document.getElementById('total-queries'), avgDuration: document.getElementById('avg-duration'), sparklineTotal: document.getElementById('sparkline-total'), sparklineAvg: document.getElementById('sparkline-avg'), sparklineTotalMin: document.getElementById('sparkline-total-min'), sparklineTotalMax: document.getElementById('sparkline-total-max'), sparklineAvgMin: document.getElementById('sparkline-avg-min'), sparklineAvgMax: document.getElementById('sparkline-avg-max'), auditStatus: document.getElementById('audit-status'), toggleAuditBtn: document.getElementById('toggle-audit-btn'), clearAuditBtn: document.getElementById('clear-audit-btn'), auditCapacity: document.getElementById('audit-capacity'), capacityForm: document.getElementById('capacity-form'), newCapacityInput: document.getElementById('new-capacity'), topDomainsBody: document.getElementById('top-domains-body'), topClientsBody: document.getElementById('top-clients-body'), slowestQueriesBody: document.getElementById('slowest-queries-body'), logSearch: document.getElementById('log-search'), logTableHead: document.getElementById('log-table-head'), logTableBody: document.getElementById('log-table-body'), logQueryTableContainer: document.getElementById('log-query-table-container'), logLoader: document.getElementById('log-loader'), toast: document.getElementById('toast'), aliasModal: document.getElementById('alias-modal'), manualAliasForm: document.getElementById('manual-alias-form'), aliasListContainer: document.getElementById('alias-list-container'), importAliasInput: document.getElementById('import-alias-file-input'), saveAllAliasesBtn: document.getElementById('save-all-aliases-btn'), systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator') };
+        let toastTimeout;
+        const api = { fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`); const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { ui.showToast(`网络请求失败: ${error.message}`, 'error'); console.error(error); } throw error; } }, getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }), getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }), start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }), stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }), clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }), setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }), v2: { getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }), getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }), getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }), getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }), getLogs: (signal, params = {}) => { const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params }); for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } } return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal }); } } };
+        const ui = { showToast(message, type = 'success') { if (!elements.toast) return; clearTimeout(toastTimeout); const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; const hideToast = () => { elements.toast.className = elements.toast.className.replace('show', ''); }; elements.toast.onmouseenter = () => clearTimeout(toastTimeout); elements.toast.onmouseleave = () => toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); }, setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } }, updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } }, updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; }, updateOverviewStats() { animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION); animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION); state.history.totalQueries.push(state.data.totalQueries.current ?? 0); state.history.avgDuration.push(state.data.avgDuration.current ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift(); historyManager.save(); if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries); if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, true); }, renderLogTable(logs, append = false) { if (!elements.logTableBody) return; if (!append) elements.logTableBody.innerHTML = ''; if (logs.length === 0 && !append) { renderTable(elements.logTableBody, [], () => {}, 'log-query'); return; } const rows = logs.map(log => { const tr = document.createElement('tr'); const globalIndex = state.displayedLogs.indexOf(log); tr.dataset.logIndex = globalIndex; tr.innerHTML = renderLogItemHTML(log); return tr; }); elements.logTableBody.append(...rows); } };
+        const aliasManager = { load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; }, save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); }, getDisplayName: (ip) => state.clientAliases[ip] || ip, getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip, getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; }, set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } }, async saveAll() { const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item'); let changed = false; aliasItems.forEach(item => { const ip = item.dataset.ip; const input = item.querySelector('input'); const newValue = input.value.trim(); const originalValue = input.dataset.originalValue; if (newValue !== originalValue) { this.set(ip, newValue); changed = true; } }); if(changed) { this.save(); ui.showToast('所有别名更改已保存', 'success'); await updatePageData(); } else { ui.showToast('没有检测到任何更改', 'success'); } }, async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = topClients.map(client => client.key).sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.dataset.ip = ip; const currentAlias = this.getDisplayName(ip); item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${currentAlias === ip ? '' : currentAlias}" data-original-value="${currentAlias === ip ? '' : currentAlias}">`; elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } }, export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); }, import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); }, };
+        const historyManager = { load: () => { const saved = JSON.parse(localStorage.getItem('mosdnsHistory')); if (saved) { state.history.totalQueries = saved.totalQueries || []; state.history.avgDuration = saved.avgDuration || []; } }, save: () => { localStorage.setItem('mosdnsHistory', JSON.stringify(state.history)); } };
+        const themeManager = { init() { const savedTheme = localStorage.getItem('mosdns-theme') || 'dark'; const savedColor = localStorage.getItem('mosdns-color') || 'indigo'; this.setTheme(savedTheme, false); this.setColor(savedColor, false); elements.lightThemeBtn?.addEventListener('click', () => this.setTheme('light')); elements.darkThemeBtn?.addEventListener('click', () => this.setTheme('dark')); elements.colorSwatches.forEach(swatch => { swatch.addEventListener('click', () => this.setColor(swatch.dataset.color)); }); }, setTheme(theme, save = true) { elements.html.setAttribute('data-theme', theme); if (elements.lightThemeBtn) { elements.lightThemeBtn.classList.toggle('active', theme === 'light'); elements.darkThemeBtn.classList.toggle('active', theme === 'dark'); } if (save) localStorage.setItem('mosdns-theme', theme); }, setColor(color, save = true) { elements.html.setAttribute('data-color-scheme', color); document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active')); document.querySelectorAll(`.color-swatch[data-color="${color}"]`).forEach(s => s.classList.add('active')); if (save) localStorage.setItem('mosdns-color', color); if (color === 'indigo') { if (elements.statCard1) elements.statCard1.className = 'stat-card default-gradient-1'; if (elements.statCard2) elements.statCard2.className = 'stat-card default-gradient-2'; } else { if (elements.statCard1) elements.statCard1.className = 'stat-card theme-gradient'; if (elements.statCard2) elements.statCard2.className = 'stat-card theme-gradient'; } } };
         const animateValue = (element, start, end, duration) => { if (!element || start === null || end === null) return; if (start === end) { element.textContent = (element.id === 'avg-duration' ? parseFloat(end).toFixed(2) : Math.floor(end).toLocaleString()); return; } let startTimestamp = null; const step = (timestamp) => { if (!startTimestamp) startTimestamp = timestamp; const progress = Math.min((timestamp - startTimestamp) / duration, 1); const current = start + progress * (end - start); element.textContent = (element.id === 'avg-duration' ? parseFloat(current).toFixed(2) : Math.floor(current).toLocaleString()); if (progress < 1) window.requestAnimationFrame(step); }; window.requestAnimationFrame(step); };
         const setupGlowEffect = () => { elements.container?.addEventListener('mousemove', (e) => { const card = e.target.closest('.card'); if (card) { const rect = card.getBoundingClientRect(); card.style.setProperty('--glow-x', `${e.clientX - rect.left}px`); card.style.setProperty('--glow-y', `${e.clientY - rect.top}px`); } }); };
         const generateSparklineSVG = (data, isFloat = false, width = 300, height = 60) => { if (!data || data.length < 2) return ''; const numericData = data.map(Number); const maxVal = Math.max(...numericData); const minVal = Math.min(...numericData); const range = maxVal - minVal === 0 ? 1 : maxVal - minVal; const points = numericData.map((d, i) => { const x = (i / (data.length - 1)) * width; const y = height - ((d - minVal) / range) * height; return `${x.toFixed(2)},${y.toFixed(2)}`; }); const pathD = `M ${points.join(' L ')}`; const fillPathD = `${pathD} L ${width},${height} L 0,${height} Z`; return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="sparkline-gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0.5" /><stop offset="100%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0" /></linearGradient></defs><path d="${fillPathD}" fill="url(#sparkline-gradient)" /><path d="${pathD}" class="sparkline-path" fill="none" /></svg>`; };
-        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const colspan = tbody.previousElementSibling?.rows[0]?.cells.length || 2; const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; const message = tableType === 'log-query' ? '没有匹配的日志记录，请尝试调整搜索词。' : '请确保审计功能已开启。 <a href="#system-control" class="tab-link-action" data-tab="system-control">前往系统控制开启</a>'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p></div></td>`; tbody.appendChild(emptyRow); return; } data.forEach((item, index) => tbody.appendChild(renderRow(item, index))); };
-        
+        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const colspan = state.isMobile ? 1 : (tbody.previousElementSibling?.rows[0]?.cells.length || 2); const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; const message = tableType === 'log-query' || tableType === 'slowest-queries' ? '没有匹配的日志记录，请尝试调整搜索词。' : '请确保审计功能已开启。 <a href="#system-control" class="tab-link-action" data-tab="system-control">前往系统控制开启</a>'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p></div></td>`; tbody.appendChild(emptyRow); return; } data.forEach((item, index) => tbody.appendChild(renderRow(item, index))); };
         const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain'; tr.innerHTML = `<td><span class="truncate-text">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-domains');
-        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getDisplayName(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
-        const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.logIndex = index; tr.dataset.logSource = 'slowest'; tr.innerHTML = `<td class="hide-on-mobile">${formatDate(item.query_time)}</td><td><span class="truncate-text">${item.query_name}</span></td><td class="hide-on-mobile text-right">${item.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${aliasManager.getDisplayName(item.client_ip)}</td><td class="hide-on-mobile">${getResponseSummary(item)}</td>`; return tr; }, 'slowest-queries');
+        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getAliasedClientHTML(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
+        const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.logIndex = index; tr.dataset.logSource = 'slowest'; tr.innerHTML = renderSlowestQueryItemHTML(item); return tr; }, 'slowest-queries');
         
         let updateController;
         async function updatePageData() {
@@ -653,6 +616,7 @@
             updateController = new AbortController();
             const signal = updateController.signal;
             elements.globalRefreshBtn.setAttribute('aria-busy', 'true');
+            elements.fabRefresh.setAttribute('aria-busy', 'true');
             try {
                 const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([
                     api.getStatus(signal), api.getCapacity(signal), api.v2.getStats(signal),
@@ -675,10 +639,13 @@
                 if (topClientsRes.status === 'fulfilled') { state.topClients = topClientsRes.value || []; renderTopClients(state.topClients); }
                 if (slowestRes.status === 'fulfilled') { state.slowestQueries = slowestRes.value || []; renderSlowestQueries(state.slowestQueries); }
                 
+                state.lastUpdateTime = new Date();
+                updateLastUpdated();
+
                 const activeTabLink = document.querySelector('.tab-link.active');
                 if (activeTabLink && activeTabLink.dataset.tab === 'log-query') { fetchAndRenderLogs(1, false); }
             } catch (error) { if (error.name !== 'AbortError') console.error("Page update failed:", error); } 
-            finally { elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); state.isUpdating = false; }
+            finally { elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); elements.fabRefresh.setAttribute('aria-busy', 'false'); state.isUpdating = false; }
         }
         
         let logRequestController;
@@ -726,6 +693,21 @@
         function applyLogFilterAndRender() { if (!elements.logSearch) return; state.currentLogSearchTerm = elements.logSearch.value.trim(); fetchAndRenderLogs(1, false); }
         function loadMoreLogs() { if (state.currentLogSearchTerm) return; if (state.isLogLoading || !state.logPaginationInfo || state.currentLogPage >= state.logPaginationInfo.total_pages) { return; } fetchAndRenderLogs(state.currentLogPage + 1, true); }
         function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-') : 'N/A'; }
+        function formatRelativeTime(isoString) {
+            if (!isoString) return 'N/A';
+            const now = new Date();
+            const past = new Date(isoString);
+            const diffInSeconds = Math.max(0, Math.round((now - past) / 1000));
+            
+            if (diffInSeconds < 5) return '刚刚';
+            if (diffInSeconds < 60) return `${diffInSeconds}秒前`;
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}分钟前`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}小时前`;
+            if (diffInSeconds < 86400 * 2) return `昨天`;
+
+            return past.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+        }
+        function updateLastUpdated() { if (elements.lastUpdated) { elements.lastUpdated.textContent = state.lastUpdateTime ? `上次更新于 ${formatRelativeTime(state.lastUpdateTime.toISOString())}` : ''; } }
         
         let activeTooltip = null;
         let hideTooltipTimeout = null;
@@ -777,7 +759,7 @@
             clearTimeout(hideTooltipTimeout);
             if (!activeTooltip) return;
             if (immediate) {
-                activeTooltip.remove();
+                if (activeTooltip) activeTooltip.remove();
                 activeTooltip = null;
             } else {
                 hideTooltipTimeout = setTimeout(() => {
@@ -789,45 +771,98 @@
             }
         }
         
-        function getResponseSummary(log) { if (!log || !log.answers) return 'N/A'; const answers = log.answers; if (log.response_code !== 'NOERROR') return log.response_code; if (answers.length > 0) { const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = answers.find(a => a.type === 'CNAME'); let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data); if (answers.length > 1) mainText += ` (+${answers.length - 1})`; return mainText; } return 'NOERROR (empty)'; }
+        function getResponseTagHTML(log) {
+            if (!log) return '';
+            const code = log.response_code || 'UNKNOWN';
+            let tagClass = 'other';
+            if (code === 'NOERROR') tagClass = 'noerror';
+            else if (code === 'NXDOMAIN') tagClass = 'nxdomain';
+            else if (code === 'SERVFAIL') tagClass = 'servfail';
+            else if (code === 'REFUSED') tagClass = 'refused';
+            return `<span class="response-tag ${tagClass}">${code}</span>`;
+        }
+        function getResponseSummary(log) { if (!log || !log.answers) return ''; const answers = log.answers; if (log.response_code !== 'NOERROR') return ''; if (answers.length > 0) { const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = answers.find(a => a.type === 'CNAME'); let mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data); if (answers.length > 1) mainText += ` (+${answers.length - 1})`; return `<span class="truncate-text">${mainText}</span>`; } return '<span>(empty)</span>'; }
         
+        function renderResponseCellHTML(log) {
+             return `<div class="response-cell">${getResponseTagHTML(log)}${getResponseSummary(log)}</div>`;
+        }
+
+        function renderLogItemHTML(log) {
+            const clientDisplay = state.isMobile ? aliasManager.getDisplayName(log.client_ip) : aliasManager.getAliasedClientHTML(log.client_ip);
+
+            if (state.isMobile) {
+                return `<td>
+                    <div class="mobile-log-row">
+                        <div class="domain">${log.query_name}</div>
+                        <div class="meta">
+                            <span class="client">${clientDisplay}</span>
+                            <span>${log.duration_ms.toFixed(0)}ms</span>
+                            ${getResponseTagHTML(log)}
+                        </div>
+                        <div class="time">${formatRelativeTime(log.query_time)}</div>
+                    </div>
+                </td>`;
+            }
+            return `<td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td><td><span class="truncate-text">${log.query_name}</span></td><td class="hide-on-mobile">${log.query_type}</td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${clientDisplay}</td><td class="hide-on-mobile">${renderResponseCellHTML(log)}</td>`;
+        }
+        
+        function renderSlowestQueryItemHTML(log) {
+            const clientDisplay = state.isMobile ? aliasManager.getDisplayName(log.client_ip) : aliasManager.getAliasedClientHTML(log.client_ip);
+
+            if (state.isMobile) {
+                return `<td>
+                    <div class="mobile-log-row">
+                        <div class="domain">${log.query_name}</div>
+                        <div class="meta">
+                             <span class="client">${clientDisplay}</span>
+                             <span>${log.duration_ms.toFixed(0)}ms</span>
+                             ${getResponseTagHTML(log)}
+                        </div>
+                        <div class="time">${formatRelativeTime(log.query_time)}</div>
+                    </div>
+                </td>`;
+            }
+            // Desktop view for slowest queries.
+            return `<td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td><td><span class="truncate-text">${log.query_name}</span></td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${clientDisplay}</td><td class="hide-on-mobile">${renderResponseCellHTML(log)}</td>`;
+        }
+
         function getTooltipHTML(data, source) {
             if (!data) return '';
             
-            let details = {};
+            const queryInfo = {};
+            const responseInfo = {};
             let answers = [];
-            let title = '详情';
-
+            
             if (source === 'domain' || source === 'client') {
-                title = '排行详情';
-                details['请求数'] = data.count.toLocaleString();
+                queryInfo['请求数'] = data.count.toLocaleString();
             } else { // Log data
-                title = '查询详情';
                 const flags = data.response_flags || {};
                 const flagItems = [];
-                if (flags.ra) flagItems.push('ra'); if (flags.aa) flagItems.push('aa'); if (flags.tc) flagItems.push('tc');
+                if (flags.ra) flagItems.push('RA'); if (flags.aa) flagItems.push('AA'); if (flags.tc) flagItems.push('TC');
                 
-                if (state.isMobile) {
-                    details['时间'] = formatDate(data.query_time);
+                queryInfo['精确时间'] = formatDate(data.query_time);
+                queryInfo['客户端'] = aliasManager.getDisplayName(data.client_ip);
+                queryInfo['类型'] = data.query_type || 'N/A';
+                if (data.query_class) queryInfo['类别'] = data.query_class;
+
+                responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`;
+                responseInfo['状态'] = data.response_code || 'N/A';
+                if (flagItems.length > 0) responseInfo['标志'] = flagItems.join(', ');
+
+                if (data.trace_id) {
+                    const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`;
+                    queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`;
                 }
-                details['客户端'] = aliasManager.getDisplayName(data.client_ip);
-                if (state.isMobile) {
-                    details['响应'] = getResponseSummary(data);
-                }
-                details['类型'] = data.query_type || 'N/A';
-                details['耗时'] = `${data.duration_ms.toFixed(2)} ms`;
-                details['状态'] = data.response_code || 'N/A';
-                if (flagItems.length > 0) details['标志'] = flagItems.join(', ');
-                if (data.query_class) details['类别'] = data.query_class;
-                if (data.trace_id) details['Trace ID'] = `<small>${data.trace_id}</small>`;
                 answers = data.answers || [];
             }
-
-            let detailsHTML = Object.entries(details).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
-            let tooltipHTML = `<h5>${title}</h5><ul>${detailsHTML}</ul>`;
             
+            const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join('');
+            
+            let tooltipHTML = ``;
+            if (Object.keys(queryInfo).length > 0) tooltipHTML += `<h5>查询信息</h5><ul>${buildList(queryInfo)}</ul>`;
+            if (Object.keys(responseInfo).length > 0) tooltipHTML += `<h5 style="margin-top:0.75rem;">响应信息</h5><ul>${buildList(responseInfo)}</ul>`;
             if (answers.length > 0) {
-                tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}</ul>`;
+                tooltipHTML += `<h5 style="margin-top:0.75rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} <small>(TTL: ${ans.ttl}s)</small></li>`).join('')}</ul>`;
             }
             return tooltipHTML;
         }
@@ -865,19 +900,29 @@
         }
         
         function handleResize() {
+            const wasMobile = state.isMobile;
             state.isMobile = window.innerWidth <= CONSTANTS.MOBILE_BREAKPOINT;
+            
+            if (wasMobile !== state.isMobile) {
+                const activeTab = document.querySelector('.tab-link.active')?.dataset.tab;
+                if (activeTab === 'log-query') {
+                    ui.renderLogTable(state.displayedLogs); 
+                } else if (activeTab === 'overview') {
+                    renderSlowestQueries(state.slowestQueries);
+                }
+            }
+
             if (state.isTouchDevice) { elements.body.classList.add('touch'); } else { elements.body.classList.remove('touch'); }
             const activeLink = document.querySelector('.tab-link.active');
-            if (activeLink) {
-                setTimeout(() => handleNavigation(activeLink), 50);
-            }
+            if (activeLink) { setTimeout(() => handleNavigation(activeLink), 50); }
         }
 
         function setupEventListeners() {
             elements.tabLinks.forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); handleNavigation(link); }); });
             window.addEventListener('popstate', () => { const hash = window.location.hash || '#overview'; const targetLink = document.querySelector(`.tab-link[href="${hash}"]`); handleNavigation(targetLink || elements.tabLinks[0]); });
             window.addEventListener('resize', handleResize);
-            elements.globalRefreshBtn?.addEventListener('click', updatePageData);
+            [elements.globalRefreshBtn, elements.fabRefresh].forEach(btn => btn?.addEventListener('click', updatePageData));
+            setInterval(updateLastUpdated, 5000);
             elements.autoRefreshForm.addEventListener('change', (e) => { if(e.target.type === 'checkbox' || e.target.type === 'number') { const enabled = elements.autoRefreshToggle.checked; const interval = parseInt(elements.autoRefreshIntervalInput.value, 10); elements.autoRefreshIntervalInput.disabled = !enabled; autoRefreshManager.updateSettings(enabled, interval); } });
             document.addEventListener('visibilitychange', () => { document.hidden ? autoRefreshManager.stop() : autoRefreshManager.start(); });
             elements.toggleAuditBtn?.addEventListener('click', async (e) => { const btn = e.currentTarget; ui.setLoading(btn, true); try { if (state.isCapturing) { await api.stop(); } else { await api.start(); } } catch (error) { console.error("操作失败:", error); } await updatePageData(); });
@@ -886,11 +931,37 @@
             elements.logSearch?.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(applyLogFilterAndRender, 300); });
             elements.logQueryTableContainer?.addEventListener('scroll', () => { const { scrollTop, scrollHeight, clientHeight } = elements.logQueryTableContainer; if (clientHeight + scrollTop >= scrollHeight - 200) { loadMoreLogs(); } });
             
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.addEventListener('mouseenter', () => {
+                    const sparklineId = card.querySelector('.sparkline-container').id;
+                    const historyKey = sparklineId === 'sparkline-total' ? 'totalQueries' : 'avgDuration';
+                    const data = state.history[historyKey];
+                    if(data.length > 0) {
+                        const min = Math.min(...data);
+                        const max = Math.max(...data);
+                        const isAvg = historyKey === 'avgDuration';
+                        document.getElementById(`${sparklineId}-min`).textContent = isAvg ? min.toFixed(2) : min.toLocaleString();
+                        document.getElementById(`${sparklineId}-max`).textContent = isAvg ? max.toFixed(2) : max.toLocaleString();
+                    }
+                });
+            });
+
             elements.body.addEventListener('click', e => {
                 const clickableLink = e.target.closest('.clickable-link');
                 const tabLinkAction = e.target.closest('.tab-link-action');
+                const copyBtn = e.target.closest('.copy-btn');
                 if (clickableLink) { e.preventDefault(); if (elements.logSearch) { elements.logSearch.value = clickableLink.dataset.filterValue; } const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); applyLogFilterAndRender(); return; }
                 if (tabLinkAction) { e.preventDefault(); const tabId = tabLinkAction.dataset.tab; const targetLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`); if(targetLink) handleNavigation(targetLink); return; }
+                if (copyBtn) {
+                    e.stopPropagation(); // Prevent tooltip from opening on touch devices
+                    const valueToCopy = copyBtn.dataset.copyValue;
+                    if(valueToCopy) {
+                        navigator.clipboard.writeText(valueToCopy)
+                            .then(() => ui.showToast('已复制到剪贴板', 'success'))
+                            .catch(err => ui.showToast('复制失败', 'error'));
+                    }
+                    return;
+                }
             });
 
             if (state.isTouchDevice) {
@@ -920,11 +991,15 @@
             if (elements.aliasModal) {
                 document.getElementById('manage-aliases-btn')?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); });
                 document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close());
+                elements.saveAllAliasesBtn?.addEventListener('click', async () => {
+                    ui.setLoading(elements.saveAllAliasesBtn, true);
+                    await aliasManager.saveAll();
+                    ui.setLoading(elements.saveAllAliasesBtn, false);
+                });
                 document.getElementById('export-aliases-btn')?.addEventListener('click', () => aliasManager.export());
                 document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click());
                 elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
-                elements.aliasListContainer.addEventListener('click', async (e) => { const button = e.target.closest('.alias-item button'); if (!button) return; ui.setLoading(button, true); const item = button.closest('.alias-item'); const ip = item.querySelector('span[data-ip]').dataset.ip; const newName = item.querySelector('input').value.trim(); await aliasManager.set(ip, newName); ui.showToast(`已保存 ${ip} 的别名`, 'success'); ui.setLoading(button, false); });
-                elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); const ipInput = document.getElementById('manual-alias-ip'); const nameInput = document.getElementById('manual-alias-name'); const ip = ipInput.value.trim(); const name = nameInput.value.trim(); if(ip && name) { await aliasManager.set(ip, name); ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success'); ipInput.value = ''; nameInput.value = ''; await aliasManager.renderEditableList(); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(btn, false); });
+                elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); const ipInput = document.getElementById('manual-alias-ip'); const nameInput = document.getElementById('manual-alias-name'); const ip = ipInput.value.trim(); const name = nameInput.value.trim(); if(ip && name) { aliasManager.set(ip, name); aliasManager.save(); ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success'); ipInput.value = ''; nameInput.value = ''; await aliasManager.renderEditableList(); await updatePageData(); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(btn, false); });
             }
         }
 
@@ -938,7 +1013,6 @@
             tableSorter.init();
             setupEventListeners();
             setupGlowEffect();
-            handleResize();
             
             const initialHash = window.location.hash || '#overview';
             const initialLink = document.querySelector(`.tab-link[href="${initialHash}"]`);
@@ -946,6 +1020,9 @@
             setTimeout(() => {
                 handleNavigation(initialLink || elements.tabLinks[0]);
             }, 50);
+
+            // Initial resize call to set up mobile/desktop view correctly
+            handleResize();
             
             await updatePageData();
             
