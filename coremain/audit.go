@@ -224,7 +224,6 @@ func (c *AuditCollector) SetCapacity(newCapacity int) {
 	if newCapacity < 0 {
 		newCapacity = 0
 	}
-	// --- MODIFIED: Use the maxAuditCapacity constant for the upper limit ---
 	if newCapacity > maxAuditCapacity {
 		newCapacity = maxAuditCapacity
 	}
@@ -234,9 +233,6 @@ func (c *AuditCollector) SetCapacity(newCapacity int) {
 	c.head = 0
 }
 
-// --- ADDED START: V2 API Support ---
-// --- Do not modify any code below this line ---
-
 // V2GetLogsParams holds all filtering and pagination options for the v2 logs API.
 type V2GetLogsParams struct {
 	Page        int
@@ -245,11 +241,11 @@ type V2GetLogsParams struct {
 	AnswerIP    string
 	AnswerCNAME string
 	ClientIP    string
+	Q           string // Global search query
+	Exact       bool   // Flag to indicate exact matching
 }
 
 // getLogsSnapshot safely creates a copy of the current logs for processing.
-// This is crucial to avoid holding the lock for long during calculations.
-// It returns a chronologically sorted slice (newest first).
 func (c *AuditCollector) getLogsSnapshot() []AuditLog {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -260,22 +256,19 @@ func (c *AuditCollector) getLogsSnapshot() []AuditLog {
 
 	snapshot := make([]AuditLog, len(c.logs))
 	if len(c.logs) < c.capacity {
-		// If buffer is not full, just copy and reverse.
 		copy(snapshot, c.logs)
 	} else {
-		// If buffer is full (circular), copy in order.
 		copy(snapshot, c.logs[c.head:])
 		copy(snapshot[c.capacity-c.head:], c.logs[:c.head])
 	}
 
-	// Reverse the snapshot to have newest logs first.
 	for i, j := 0, len(snapshot)-1; i < j; i, j = i+1, j-1 {
 		snapshot[i], snapshot[j] = snapshot[j], snapshot[i]
 	}
 	return snapshot
 }
 
-// 1. CalculateV2Stats computes total queries and average duration.
+// CalculateV2Stats computes total queries and average duration.
 func (c *AuditCollector) CalculateV2Stats() V2StatsResponse {
 	snapshot := c.getLogsSnapshot()
 	totalLogs := len(snapshot)
@@ -294,7 +287,7 @@ func (c *AuditCollector) CalculateV2Stats() V2StatsResponse {
 	}
 }
 
-// 2 & 3. CalculateRank is a generic function for domain and client ranking.
+// CalculateRank is a generic function for domain and client ranking.
 func (c *AuditCollector) CalculateRank(keyExtractor func(log *AuditLog) string, limit int) []V2RankItem {
 	snapshot := c.getLogsSnapshot()
 	if len(snapshot) == 0 {
@@ -324,7 +317,7 @@ func (c *AuditCollector) CalculateRank(keyExtractor func(log *AuditLog) string, 
 	return rankList
 }
 
-// 4. GetSlowestQueries returns logs sorted by duration.
+// GetSlowestQueries returns logs sorted by duration.
 func (c *AuditCollector) GetSlowestQueries(limit int) []AuditLog {
 	snapshot := c.getLogsSnapshot()
 
@@ -338,51 +331,80 @@ func (c *AuditCollector) GetSlowestQueries(limit int) []AuditLog {
 	return snapshot
 }
 
-// 5. GetV2Logs provides advanced filtering and pagination.
+// GetV2Logs provides advanced filtering and pagination with both exact and contains search support.
 func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsResponse {
 	snapshot := c.getLogsSnapshot()
-
-	// Apply filters
 	filteredLogs := make([]AuditLog, 0, len(snapshot))
+
 	for _, log := range snapshot {
-		// Client IP filter (exact match)
-		if params.ClientIP != "" && log.ClientIP != params.ClientIP {
-			continue
+		// Global search filter (`q`) with exact/contains logic
+		if params.Q != "" {
+			var matchFunc func(string, string) bool
+			searchTerm := params.Q
+			if params.Exact {
+				matchFunc = func(s, substr string) bool { return s == substr }
+			} else {
+				matchFunc = strings.Contains
+				searchTerm = strings.ToLower(searchTerm)
+			}
+			
+			foundInQ := false
+			
+			var haystack string
+			
+			// Check QueryName
+			haystack = log.QueryName
+			if !params.Exact { haystack = strings.ToLower(haystack) }
+			if matchFunc(haystack, searchTerm) {
+				foundInQ = true
+			}
+			
+			// Check ClientIP
+			if !foundInQ {
+				haystack = log.ClientIP
+				if !params.Exact { haystack = strings.ToLower(haystack) } // Note: IP usually doesn't need ToLower, but for contains it's safer
+				if matchFunc(haystack, searchTerm) {
+					foundInQ = true
+				}
+			}
+
+			// Check Answers
+			if !foundInQ {
+				for _, answer := range log.Answers {
+					haystack = answer.Data
+					if !params.Exact { haystack = strings.ToLower(haystack) }
+					if matchFunc(haystack, searchTerm) {
+						foundInQ = true
+						break
+					}
+				}
+			}
+
+			if !foundInQ {
+				continue // If q is provided and no match, skip this log
+			}
 		}
-		// Domain filter (contains)
-		if params.Domain != "" && !strings.Contains(log.QueryName, params.Domain) {
-			continue
-		}
-		// Answer IP filter
+
+		// Specific filters (can be used in combination with `q`)
+		if params.ClientIP != "" && log.ClientIP != params.ClientIP { continue }
+		if params.Domain != "" && !strings.Contains(log.QueryName, params.Domain) { continue }
 		if params.AnswerIP != "" {
 			found := false
 			for _, answer := range log.Answers {
-				if answer.Type == "A" || answer.Type == "AAAA" {
-					if answer.Data == params.AnswerIP {
-						found = true
-						break
-					}
+				if (answer.Type == "A" || answer.Type == "AAAA") && answer.Data == params.AnswerIP {
+					found = true; break
 				}
 			}
-			if !found {
-				continue
-			}
+			if !found { continue }
 		}
-		// CNAME filter
 		if params.AnswerCNAME != "" {
 			found := false
 			for _, answer := range log.Answers {
-				if answer.Type == "CNAME" {
-					// Use strings.Contains for partial match on CNAME target
-					if strings.Contains(answer.Data, params.AnswerCNAME) {
-						found = true
-						break
-					}
+				if answer.Type == "CNAME" && strings.Contains(answer.Data, params.AnswerCNAME) {
+					found = true; break
 				}
 			}
-			if !found {
-				continue
-			}
+			if !found { continue }
 		}
 
 		filteredLogs = append(filteredLogs, log)
@@ -390,12 +412,8 @@ func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsRespon
 
 	// Apply pagination
 	totalItems := len(filteredLogs)
-	if params.Page < 1 {
-		params.Page = 1
-	}
-	if params.Limit < 1 {
-		params.Limit = 50
-	}
+	if params.Page < 1 { params.Page = 1 }
+	if params.Limit <= 0 { params.Limit = 50 }
 	totalPages := int(math.Ceil(float64(totalItems) / float64(params.Limit)))
 	offset := (params.Page - 1) * params.Limit
 
@@ -411,14 +429,7 @@ func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsRespon
 	}
 
 	return V2PaginatedLogsResponse{
-		Pagination: V2PaginationInfo{
-			TotalItems:   totalItems,
-			TotalPages:   totalPages,
-			CurrentPage:  params.Page,
-			ItemsPerPage: params.Limit,
-		},
-		Logs: paginatedLogs,
+		Pagination: V2PaginationInfo{TotalItems: totalItems, TotalPages: totalPages, CurrentPage: params.Page, ItemsPerPage: params.Limit},
+		Logs:       paginatedLogs,
 	}
 }
-
-// --- ADDED END: V2 API Support ---
