@@ -1,6 +1,3 @@
-// /root/mosdns/coremain/api_audit_v2.go
-// --- THIS IS A NEW FILE ---
-
 package coremain
 
 import (
@@ -100,13 +97,18 @@ func handleV2GetSlowestQueries(w http.ResponseWriter, r *http.Request) {
 // 5. Handler for: Get logs with advanced filtering and pagination
 func handleV2GetLogs(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
+	
+	exactSearch, _ := strconv.ParseBool(query.Get("exact"))
+
 	params := V2GetLogsParams{
-		Page:       parseQueryInt(r, "page", 1),
-		Limit:      parseQueryInt(r, "limit", 50),
-		Domain:     query.Get("domain"),
-		AnswerIP:   query.Get("answer_ip"),
+		Page:        parseQueryInt(r, "page", 1),
+		Limit:       parseQueryInt(r, "limit", 50),
+		Domain:      query.Get("domain"),
+		AnswerIP:    query.Get("answer_ip"),
 		AnswerCNAME: query.Get("cname"),
-		ClientIP:   query.Get("client_ip"),
+		ClientIP:    query.Get("client_ip"),
+		Q:           query.Get("q"),
+		Exact:       exactSearch,
 	}
 
 	response := GlobalAuditCollector.GetV2Logs(params)
