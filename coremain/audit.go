@@ -1,6 +1,7 @@
 package coremain
 
 import (
+	"container/heap"
 	"math"
 	"sort"
 	"strings"
@@ -47,16 +48,52 @@ const (
 	// The absolute maximum capacity allowed. Exceeding this may cause performance issues.
 	maxAuditCapacity = 400000
 
+	// --- ADDED: The capacity for our slowest queries heap ---
+	slowestQueriesCapacity = 300
+
 	// The buffer size for the async log processing channel.
 	auditChannelCapacity = 1024
 )
 
+// --- ADDED: A new type for our min-heap of slowest queries ---
+type slowestQueryHeap []*AuditLog
+
+func (h slowestQueryHeap) Len() int           { return len(h) }
+func (h slowestQueryHeap) Less(i, j int) bool { return h[i].DurationMs < h[j].DurationMs } // Min-heap based on duration
+func (h slowestQueryHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+
+func (h *slowestQueryHeap) Push(x any) {
+	*h = append(*h, x.(*AuditLog))
+}
+
+func (h *slowestQueryHeap) Pop() any {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
 type AuditCollector struct {
-	mu         sync.Mutex
-	capturing  bool
-	capacity   int
-	logs       []AuditLog
-	head       int
+	mu        sync.Mutex
+	capturing bool
+
+	// Main log storage
+	capacity int
+	logs     []AuditLog
+	head     int
+
+	// --- ADDED: Dedicated storage for slowest queries using a min-heap ---
+	slowestQueries slowestQueryHeap
+
+	// --- ADDED: Real-time counters for ranking ---
+	domainCounts map[string]int
+	clientCounts map[string]int
+
+	// --- ADDED: Real-time aggregated stats ---
+	totalQueryCount    uint64
+	totalQueryDuration float64
+
 	ctxChan    chan *query_context.Context
 	workerDone chan struct{}
 }
@@ -65,13 +102,21 @@ type AuditCollector struct {
 var GlobalAuditCollector = NewAuditCollector(defaultAuditCapacity)
 
 func NewAuditCollector(capacity int) *AuditCollector {
-	return &AuditCollector{
-		capturing:  true,
-		capacity:   capacity,
-		logs:       make([]AuditLog, 0, capacity),
-		ctxChan:    make(chan *query_context.Context, auditChannelCapacity),
-		workerDone: make(chan struct{}),
+	// --- MODIFIED: Initialize all dedicated storage structures ---
+	c := &AuditCollector{
+		capturing:          true,
+		capacity:           capacity,
+		logs:               make([]AuditLog, 0, capacity),
+		slowestQueries:     make(slowestQueryHeap, 0, slowestQueriesCapacity),
+		domainCounts:       make(map[string]int),
+		clientCounts:       make(map[string]int),
+		totalQueryCount:    0,
+		totalQueryDuration: 0.0,
+		ctxChan:            make(chan *query_context.Context, auditChannelCapacity),
+		workerDone:         make(chan struct{}),
 	}
+	heap.Init(&c.slowestQueries)
+	return c
 }
 
 // ... (StartWorker, StopWorker, worker functions remain unchanged) ...
@@ -103,7 +148,8 @@ func (c *AuditCollector) processContext(qCtx *query_context.Context) {
 	}
 
 	qQuestion := qCtx.QQuestion()
-	log := AuditLog{
+	// --- MODIFIED: Create a pointer to the log to avoid duplicating the object in memory ---
+	log := &AuditLog{
 		ClientIP:   qCtx.ServerMeta.ClientAddr.String(),
 		QueryType:  dns.TypeToString[qQuestion.Qtype],
 		QueryName:  strings.TrimSuffix(qQuestion.Name, "."),
@@ -158,18 +204,50 @@ func (c *AuditCollector) processContext(qCtx *query_context.Context) {
 		log.ResponseCode = "NO_RESPONSE"
 	}
 
+	// --- MODIFIED: Store a value copy in the main ring buffer and handle counter decrement ---
 	if len(c.logs) < c.capacity {
-		c.logs = append(c.logs, log)
+		c.logs = append(c.logs, *log)
 	} else {
 		if c.capacity == 0 {
 			return
 		}
-		c.logs[c.head] = log
+		// Decrement count for the log being overwritten
+		oldLog := c.logs[c.head]
+		c.domainCounts[oldLog.QueryName]--
+		if c.domainCounts[oldLog.QueryName] <= 0 {
+			delete(c.domainCounts, oldLog.QueryName)
+		}
+		c.clientCounts[oldLog.ClientIP]--
+		if c.clientCounts[oldLog.ClientIP] <= 0 {
+			delete(c.clientCounts, oldLog.ClientIP)
+		}
+		// --- ADDED: Decrement total duration for the overwritten log ---
+		c.totalQueryDuration -= oldLog.DurationMs
+
+		c.logs[c.head] = *log
 		c.head = (c.head + 1) % c.capacity
 	}
+
+	// --- MODIFIED: Update all real-time caches ---
+	
+	// 1. Update slowest queries heap
+	if c.slowestQueries.Len() < slowestQueriesCapacity {
+		heap.Push(&c.slowestQueries, log)
+	} else if log.DurationMs > c.slowestQueries[0].DurationMs { // heap[0] is the minimum element (the "fastest" of the "slowest")
+		heap.Pop(&c.slowestQueries)
+		heap.Push(&c.slowestQueries, log)
+	}
+
+	// 2. Update real-time counters for ranking
+	c.domainCounts[log.QueryName]++
+	c.clientCounts[log.ClientIP]++
+
+	// 3. Update real-time aggregated stats
+	c.totalQueryCount++
+	c.totalQueryDuration += log.DurationMs
 }
 
-// ... (The rest of the file: Collect, Start, Stop, IsCapturing, GetLogs, ClearLogs, GetCapacity remains unchanged) ...
+// ... (The rest of the file: Collect, Start, Stop, IsCapturing, GetLogs remains unchanged) ...
 
 func (c *AuditCollector) Collect(qCtx *query_context.Context) {
 	if c.IsCapturing() {
@@ -207,8 +285,18 @@ func (c *AuditCollector) GetLogs() []AuditLog {
 func (c *AuditCollector) ClearLogs() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	
+	// Clear main log buffer
 	c.logs = make([]AuditLog, 0, c.capacity)
 	c.head = 0
+
+	// --- MODIFIED: Also clear all dedicated caches to keep data consistent ---
+	c.slowestQueries = make(slowestQueryHeap, 0, slowestQueriesCapacity)
+	heap.Init(&c.slowestQueries)
+	c.domainCounts = make(map[string]int)
+	c.clientCounts = make(map[string]int)
+	c.totalQueryCount = 0
+	c.totalQueryDuration = 0.0
 }
 
 func (c *AuditCollector) GetCapacity() int {
@@ -229,8 +317,15 @@ func (c *AuditCollector) SetCapacity(newCapacity int) {
 	}
 
 	c.capacity = newCapacity
+	// --- MODIFIED: Clear all storages when capacity changes ---
 	c.logs = make([]AuditLog, 0, newCapacity)
 	c.head = 0
+	c.slowestQueries = make(slowestQueryHeap, 0, slowestQueriesCapacity)
+	heap.Init(&c.slowestQueries)
+	c.domainCounts = make(map[string]int)
+	c.clientCounts = make(map[string]int)
+	c.totalQueryCount = 0
+	c.totalQueryDuration = 0.0
 }
 
 // V2GetLogsParams holds all filtering and pagination options for the v2 logs API.
@@ -268,47 +363,37 @@ func (c *AuditCollector) getLogsSnapshot() []AuditLog {
 	return snapshot
 }
 
-// CalculateV2Stats computes total queries and average duration.
+// --- REWRITTEN: CalculateV2Stats now efficiently uses real-time aggregated values ---
 func (c *AuditCollector) CalculateV2Stats() V2StatsResponse {
-	snapshot := c.getLogsSnapshot()
-	totalLogs := len(snapshot)
-	if totalLogs == 0 {
-		return V2StatsResponse{}
-	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	
+	avgDuration := 0.0
+	logCount := len(c.logs)
 
-	var totalDuration float64
-	for i := range snapshot {
-		totalDuration += snapshot[i].DurationMs
+	if logCount > 0 {
+		avgDuration = c.totalQueryDuration / float64(logCount)
 	}
 
 	return V2StatsResponse{
-		TotalQueries:      totalLogs,
-		AverageDurationMs: totalDuration / float64(totalLogs),
+		TotalQueries:      int(c.totalQueryCount),
+		AverageDurationMs: avgDuration,
 	}
 }
 
-// CalculateRank is a generic function for domain and client ranking.
-func (c *AuditCollector) CalculateRank(keyExtractor func(log *AuditLog) string, limit int) []V2RankItem {
-	snapshot := c.getLogsSnapshot()
-	if len(snapshot) == 0 {
+// --- ADDED: A robust internal helper for creating ranks from maps ---
+func (c *AuditCollector) getRankFromMap(sourceMap map[string]int, limit int) []V2RankItem {
+	if len(sourceMap) == 0 {
 		return []V2RankItem{}
 	}
-
-	counts := make(map[string]int)
-	for i := range snapshot {
-		key := keyExtractor(&snapshot[i])
-		if key != "" {
-			counts[key]++
-		}
-	}
-
-	rankList := make([]V2RankItem, 0, len(counts))
-	for key, count := range counts {
+	
+	rankList := make([]V2RankItem, 0, len(sourceMap))
+	for key, count := range sourceMap {
 		rankList = append(rankList, V2RankItem{Key: key, Count: count})
 	}
 
 	sort.Slice(rankList, func(i, j int) bool {
-		return rankList[i].Count > rankList[j].Count // Sort descending
+		return rankList[i].Count > rankList[j].Count
 	})
 
 	if len(rankList) > limit {
@@ -317,12 +402,36 @@ func (c *AuditCollector) CalculateRank(keyExtractor func(log *AuditLog) string, 
 	return rankList
 }
 
-// GetSlowestQueries returns logs sorted by duration.
-func (c *AuditCollector) GetSlowestQueries(limit int) []AuditLog {
-	snapshot := c.getLogsSnapshot()
+// --- REWRITTEN: CalculateRank now efficiently uses the real-time counter maps ---
+func (c *AuditCollector) CalculateRank(keyExtractor func(log *AuditLog) string, limit int) []V2RankItem {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	sort.SliceStable(snapshot, func(i, j int) bool {
-		return snapshot[i].DurationMs > snapshot[j].DurationMs // Sort descending
+	// This is a robust way to determine which map to use, without making assumptions
+	// about the keyExtractor's internal workings.
+	tempLog := &AuditLog{QueryName: "domain", ClientIP: "client"}
+	if keyExtractor(tempLog) == "domain" {
+		return c.getRankFromMap(c.domainCounts, limit)
+	} else {
+		return c.getRankFromMap(c.clientCounts, limit)
+	}
+}
+
+// --- REWRITTEN: GetSlowestQueries now efficiently retrieves data from the heap ---
+func (c *AuditCollector) GetSlowestQueries(limit int) []AuditLog {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// The heap contains pointers, so we create a new slice of values for the response.
+	// This also prevents any race conditions if the heap is modified concurrently.
+	snapshot := make([]AuditLog, c.slowestQueries.Len())
+	for i, logPtr := range c.slowestQueries {
+		snapshot[i] = *logPtr // Dereference the pointer to create a value copy
+	}
+
+	// Sort the small snapshot in descending order of duration for display.
+	sort.Slice(snapshot, func(i, j int) bool {
+		return snapshot[i].DurationMs > snapshot[j].DurationMs
 	})
 
 	if len(snapshot) > limit {
