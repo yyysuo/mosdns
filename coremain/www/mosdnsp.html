@@ -918,6 +918,7 @@
             { tag: 'switch3', name: '核心运行模式', tip: '切换后将清空自动生成的分流规则，确保完全按照新模式分流（兼容/安全模式理论上分流效果无差异）。兼容模式性能更高，安全模式防泄露和劫持能力更强。', modes: { 'A': { name: '兼容模式', icon: 'fa-globe-americas' }, 'B': { name: '安全模式', icon: 'fa-shield-alt' }}},
             { tag: 'switch1', name: '请求屏蔽开关', desc: '对无解析结果的请求进行屏蔽', tip: '建议开启，避免无ipv4及ipv6结果的非必要DNS解析。', icon: 'fa-ban', valueForOn: 'A' },
             { tag: 'switch5', name: '类型屏蔽开关', desc: '屏蔽 SOA、PTR、HTTPS 等请求类型', tip: '建议开启，可减少不必要的网络请求，提高效率。', icon: 'fa-ban', valueForOn: 'A' },
+            { tag: 'switch6', name: 'IPV6屏蔽开关', desc: '屏蔽AAAA请求类型', tip: '无IPV6网络环境建议开启', icon: 'fa-ban', valueForOn: 'A' },
             { tag: 'switch2', name: '指定 Client 开关', desc: '对特定客户端 IP 应用分流策略', tip: '按需开启。需要 MosDNS 监听53端口，并正确配置 client_ip 名单。', icon: 'fa-user-secret', valueForOn: 'A' },
             { tag: 'switch4', name: '过期缓存开关', desc: '启用 Lazy Cache（乐观缓存）', tip: '建议开启，可以提升重复查询的响应速度，即使缓存已过期。', icon: 'fa-history', valueForOn: 'A' },
         ];
