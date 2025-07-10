@@ -1,15 +1,16 @@
 module github.com/IrineSistiana/mosdns/v5
 
-go 1.24.4
+go 1.24.5
 
 require (
 	github.com/IrineSistiana/go-bytes-pool v0.0.0-20230918115058-c72bd9761c57
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/google/nftables v0.3.0
+	github.com/google/uuid v1.6.0
 	github.com/kardianos/service v1.2.2
 	github.com/klauspost/compress v1.18.0
-	github.com/miekg/dns v1.1.66
+	github.com/miekg/dns v1.1.67
 	github.com/nadoo/ipset v0.5.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/quic-go/quic-go v0.52.0
@@ -22,10 +23,11 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
 	golang.org/x/net v0.41.0
-	golang.org/x/sync v0.15.0
-	golang.org/x/sys v0.33.0
+	golang.org/x/sync v0.16.0
+	golang.org/x/sys v0.34.0
 	golang.org/x/time v0.12.0
 	google.golang.org/protobuf v1.36.6
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 replace github.com/nadoo/ipset v0.5.0 => github.com/IrineSistiana/ipset v0.5.1-0.20220703061533-6e0fc3b04c0a
@@ -62,5 +64,4 @@ require (
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
