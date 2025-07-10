@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 日志面板</title>
+    <title>Mosdns 日志面板 (V2 API)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
     <style>
         /* --- 基本和布局调整 --- */
@@ -116,6 +116,7 @@
             border-radius: var(--pico-border-radius);
             padding: 0.5rem;
             background-color: var(--pico-table-background-color);
+            min-height: 400px;
         }
         .scrollable-table-container { max-height: 400px; overflow-y: auto; }
         .scrollable-table-container table, #log-query-tab figure table { margin-bottom: 0; }
@@ -150,7 +151,7 @@
 <body>
     <main class="container">
         <header>
-            <h1>Mosdns 日志面板</h1>
+            <h1>Mosdns 日志面板 (V2 API)</h1>
             <nav>
                 <ul>
                     <li><a href="#overview" class="tab-link" data-tab="overview" role="tab">概览</a></li>
@@ -248,7 +249,7 @@
                         <button id="refresh-logs-btn" aria-busy="false">刷新日志</button>
                     </div>
                 </header>
-                <input type="search" id="log-search" placeholder="实时搜索域名、IP、别名、响应..." style="margin-bottom: 1rem;">
+                <input type="search" id="log-search" placeholder='实时搜索... (使用 "引号" 精确匹配)' style="margin-bottom: 1rem;">
                 <figure>
                      <table role="grid">
                         <thead><tr><th>时间</th><th>域名</th><th>查询类型</th><th>耗时(ms)</th><th>客户端</th><th>响应 (悬停看全部)</th></tr></thead>
@@ -265,9 +266,18 @@
         // --- 配置与状态 ---
         const mosdnsApiBaseUrl = `${window.location.protocol}//${window.location.hostname}:9099`;
         const LOGS_PER_PAGE = 50;
-        let state = { allLogs: [], filteredLogs: [], isCapturing: false, currentPage: 0, isLoadingMore: false, clientAliases: {} };
+        let state = {
+            isCapturing: false,
+            displayedLogs: [],
+            logPaginationInfo: null,
+            currentPage: 1,
+            isLoadingMore: false,
+            clientAliases: {},
+            // [新增] 用于存储搜索条件
+            currentLogSearch: { query: '', exact: false }
+        };
 
-        // --- API ---
+        // --- API (已升级至v2) ---
         const api = {
             fetch: async (url, options = {}) => {
                 try {
@@ -283,12 +293,6 @@
                 }
             },
             getStatus: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/status`); },
-            getLogs: async function() {
-                try {
-                    const logs = await this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/logs`);
-                    return Array.isArray(logs) ? logs.sort((a, b) => new Date(b.query_time) - new Date(a.query_time)) : [];
-                } catch { return []; }
-            },
             getCapacity: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/capacity`); },
             start: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/start`, { method: 'POST' }); },
             stop: function() { return this.fetch(`${mosdnsApiBaseUrl}/api/v1/audit/stop`, { method: 'POST' }); },
@@ -300,6 +304,26 @@
                     body: JSON.stringify({ capacity: parseInt(capacity, 10) })
                 });
             },
+            v2: {
+                getStats: (signal) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/stats`, { signal }),
+                getTopDomains: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/domain?limit=${limit}`, { signal }),
+                getTopClients: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/client?limit=${limit}`, { signal }),
+                getSlowest: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }),
+                getLogs: (signal, params = {}) => {
+                    const queryParams = new URLSearchParams({
+                        page: 1,
+                        limit: LOGS_PER_PAGE,
+                        ...params
+                    });
+                    // [修改] 确保 exact 为 false 或空值时不被添加到 URL
+                    for (let [key, value] of queryParams.entries()) {
+                        if (!value) {
+                            queryParams.delete(key);
+                        }
+                    }
+                    return api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/logs?${queryParams}`, { signal });
+                }
+            }
         };
 
         const aliasManager = {
@@ -307,22 +331,47 @@
             save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); },
             getDisplayName: (ip) => { const alias = state.clientAliases[ip]; return alias ? `<span class="client-alias">${alias}</span><span class="client-ip-tag">${ip}</span>` : ip; },
             set: function(ip, name) { if (name) state.clientAliases[ip] = name; else delete state.clientAliases[ip]; this.save(); rerenderAllViews(); },
-            renderEditableList: function() { const container = document.getElementById('alias-list-container'); container.innerHTML = ''; const uniqueIps = [...new Set(state.allLogs.map(log => log.client_ip))].sort(); if (uniqueIps.length === 0) { container.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.innerHTML = ` <span class="client-ip-tag" style="opacity:1; font-weight:bold;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="outline">保存</button> `; item.querySelector('button').addEventListener('click', () => { const newName = item.querySelector('input').value.trim(); this.set(ip, newName); ui.showToast(`已保存 ${ip} 的别名`, 'success'); }); container.appendChild(item); }); },
+            renderEditableList: async function() {
+                const container = document.getElementById('alias-list-container');
+                container.innerHTML = '<p>正在加载客户端列表...</p>';
+                try {
+                    const topClients = await api.v2.getTopClients(null, 200);
+                    const uniqueIps = [...new Set(topClients.map(client => client.key))].sort();
+
+                    if (uniqueIps.length === 0) {
+                        container.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>';
+                        return;
+                    }
+
+                    container.innerHTML = '';
+                    uniqueIps.forEach(ip => {
+                        const item = document.createElement('div');
+                        item.className = 'alias-item';
+                        item.innerHTML = ` <span class="client-ip-tag" style="opacity:1; font-weight:bold;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="outline">保存</button> `;
+                        item.querySelector('button').addEventListener('click', () => {
+                            const newName = item.querySelector('input').value.trim();
+                            this.set(ip, newName);
+                            ui.showToast(`已保存 ${ip} 的别名`, 'success');
+                        });
+                        container.appendChild(item);
+                    });
+                } catch (error) {
+                    container.innerHTML = '<p>加载客户端列表失败。</p>';
+                    console.error("加载客户端列表失败:", error);
+                }
+            },
             export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出'); },
             import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); rerenderAllViews(); ui.showToast('配置已成功导入并合并'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
         };
         
-        // --- UI & 渲染函数 ---
         const ui = {
             showToast(message, type = 'success') { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = `show ${type}`; setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000); },
             setLoading(button, isLoading, text = '') { button.setAttribute('aria-busy', isLoading ? 'true' : 'false'); if (text) button.innerHTML = text; },
             updateStatus(isCapturing) {
                 const toggleBtn = document.getElementById('toggle-audit-btn');
                 const statusElem = document.getElementById('audit-status');
-                
                 toggleBtn.disabled = false;
                 this.setLoading(toggleBtn, false);
-
                 if (typeof isCapturing === 'boolean') {
                     state.isCapturing = isCapturing;
                     statusElem.textContent = isCapturing ? '运行中' : '已停止';
@@ -335,14 +384,26 @@
                 }
             },
             updateCapacity(capacity) { document.getElementById('audit-capacity').textContent = capacity ? capacity.toLocaleString() : '查询失败'; },
-            updateOverviewStats(logs) { const total = logs.length; document.getElementById('total-queries').textContent = total.toLocaleString(); document.getElementById('avg-duration').textContent = total > 0 ? (logs.reduce((sum, log) => sum + log.duration_ms, 0) / total).toFixed(2) : '0.00'; },
+            updateOverviewStats(stats) {
+                const total = stats ? stats.total_queries : 0;
+                const avg = stats ? stats.average_duration_ms : 0;
+                document.getElementById('total-queries').textContent = total.toLocaleString();
+                document.getElementById('avg-duration').textContent = avg.toFixed(2);
+            },
             renderLogTable(logs, append = false) { 
                 const tbody = document.getElementById('log-table-body');
-                if (!append) tbody.innerHTML = '';
+                if (!append) {
+                    tbody.innerHTML = '';
+                    state.displayedLogs = [];
+                }
+                
                 if (logs.length === 0 && !append) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">没有匹配的日志记录</td></tr>';
                     return;
                 }
+                
+                state.displayedLogs.push(...logs);
+
                 const rows = logs.map(log => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -358,95 +419,129 @@
                 tbody.append(...rows);
             }
         };
+
         const renderTable = (tbodyId, data, renderRow) => { const tbody = document.getElementById(tbodyId); tbody.innerHTML = ''; if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${tbody.previousElementSibling.rows[0].cells.length}" style="text-align:center;">无数据</td></tr>`; return; } data.forEach(item => tbody.appendChild(renderRow(item))); };
-        const renderTopDomains = (data) => renderTable('top-domains-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${item.name}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.name}">${item.count}</a></td>`; return tr; });
-        const renderTopClients = (data) => renderTable('top-clients-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${aliasManager.getDisplayName(item.ip)}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.ip}">${item.count}</a></td>`; return tr; });
+        const renderTopDomains = (data) => renderTable('top-domains-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${item.key}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count}</a></td>`; return tr; });
+        const renderTopClients = (data) => renderTable('top-clients-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${aliasManager.getDisplayName(item.key)}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count}</a></td>`; return tr; });
         const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${formatDate(item.query_time)}</td><td>${item.query_name}</td><td>${item.duration_ms.toFixed(2)}</td><td>${aliasManager.getDisplayName(item.client_ip)}</td><td>${formatResponseCell(item)}</td>`; return tr; });
-        function processLogsForOverview(logs) { if (!logs) return { topDomains: [], topClients: [], slowestQueries: [] }; const domainCounts = logs.reduce((acc, log) => { acc[log.query_name] = (acc[log.query_name] || 0) + 1; return acc; }, {}); const topDomains = Object.entries(domainCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 50); const clientCounts = logs.reduce((acc, log) => { acc[log.client_ip] = (acc[log.client_ip] || 0) + 1; return acc; }, {}); const topClients = Object.entries(clientCounts).map(([ip, count]) => ({ ip, count })).sort((a, b) => b.count - a.count).slice(0, 50); const slowestQueries = [...logs].sort((a, b) => b.duration_ms - a.duration_ms).slice(0, 50); return { topDomains, topClients, slowestQueries };}
         
-        // --- 核心逻辑与数据流 ---
+        let updateController;
         async function updatePageData() {
+            if (updateController) updateController.abort();
+            updateController = new AbortController();
+            const signal = updateController.signal;
+
             const refreshBtn = document.getElementById('refresh-overview-btn');
             ui.setLoading(refreshBtn, true, '处理中...');
 
             try {
-                const [statusResponse, logs, capacityResponse] = await Promise.allSettled([
-                    api.getStatus(),
-                    api.getLogs(),
-                    api.getCapacity()
+                const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([
+                    api.getStatus(signal),
+                    api.getCapacity(signal),
+                    api.v2.getStats(signal),
+                    api.v2.getTopDomains(signal),
+                    api.v2.getTopClients(signal),
+                    api.v2.getSlowest(signal)
                 ]);
 
-                if (statusResponse.status === 'fulfilled') {
-                    ui.updateStatus(statusResponse.value.capturing);
-                } else {
-                    ui.updateStatus(null);
-                }
-
-                state.allLogs = (logs.status === 'fulfilled') ? logs.value : [];
-                rerenderAllViews();
-
-                if (capacityResponse.status === 'fulfilled') {
-                    ui.updateCapacity(capacityResponse.value.capacity);
-                } else {
-                    ui.updateCapacity(null);
+                ui.updateStatus(statusRes.status === 'fulfilled' ? statusRes.value?.capturing : null);
+                ui.updateCapacity(capacityRes.status === 'fulfilled' ? capacityRes.value?.capacity : null);
+                ui.updateOverviewStats(statsRes.status === 'fulfilled' ? statsRes.value : null);
+                
+                renderTopDomains(topDomainsRes.status === 'fulfilled' ? topDomainsRes.value : []);
+                renderTopClients(topClientsRes.status === 'fulfilled' ? topClientsRes.value : []);
+                renderSlowestQueries(slowestRes.status === 'fulfilled' ? slowestRes.value : []);
+                
+                if (window.location.hash.startsWith('#log-query')) {
+                    applyLogFilterAndRender();
                 }
 
             } catch (error) {
-                console.error("页面更新时发生意外错误:", error);
+                if (error.name !== 'AbortError') console.error("页面更新时发生意外错误:", error);
             } finally {
                 ui.setLoading(refreshBtn, false, '刷新');
             }
         }
         
-        function rerenderAllViews() { const { topDomains, topClients, slowestQueries } = processLogsForOverview(state.allLogs); ui.updateOverviewStats(state.allLogs); renderTopDomains(topDomains); renderTopClients(topClients); renderSlowestQueries(slowestQueries); if (window.location.hash.startsWith('#log-query')) { applyLogFilterAndRender(); } }
-        
-        // BUGFIX: Reworked this function again to be more robust.
-        function applyLogFilterAndRender() { 
-            const searchTerm = document.getElementById('log-search').value.toLowerCase();
-            
-            state.filteredLogs = searchTerm 
-                ? state.allLogs.filter(log => {
-                    const alias = (state.clientAliases[log.client_ip] || '').toLowerCase();
-                    const responseMatch = log.answers && log.answers.some(answer => 
-                        answer.data.toLowerCase().includes(searchTerm)
-                    );
-                    return log.query_name.toLowerCase().includes(searchTerm) || 
-                           log.client_ip.toLowerCase().includes(searchTerm) || 
-                           (alias && alias.includes(searchTerm)) ||
-                           responseMatch;
-                }) 
-                : state.allLogs;
+        async function rerenderAllViews() {
+             const [topClientsRes, topDomainsRes] = await Promise.allSettled([
+                api.v2.getTopClients(),
+                api.v2.getTopDomains()
+            ]);
+            renderTopClients(topClientsRes.status === 'fulfilled' ? topClientsRes.value : []);
+            renderTopDomains(topDomainsRes.status === 'fulfilled' ? topDomainsRes.value : []);
+        }
 
-            // Reset pagination and render the first page of the new results.
-            state.currentPage = 0;
-            const logsToRender = state.filteredLogs.slice(0, LOGS_PER_PAGE);
-            ui.renderLogTable(logsToRender, false); // `false` to replace content.
+        let logRequestController;
+        async function applyLogFilterAndRender() { 
+            if (state.isLoadingMore) return;
+            if (logRequestController) logRequestController.abort();
             
-            // Increment page for the next `loadMoreLogs` call.
-            if (logsToRender.length > 0) {
+            logRequestController = new AbortController();
+            const signal = logRequestController.signal;
+            
+            // [修改] 解析搜索词以支持精确匹配
+            const rawSearchTerm = document.getElementById('log-search').value.trim();
+            let query = rawSearchTerm;
+            let exact = false;
+            if (rawSearchTerm.startsWith('"') && rawSearchTerm.endsWith('"')) {
+                query = rawSearchTerm.substring(1, rawSearchTerm.length - 1);
+                exact = true;
+            }
+            state.currentLogSearch = { query, exact };
+            
+            state.isLoadingMore = true;
+            document.getElementById('log-loader').style.display = 'block';
+
+            try {
+                const response = await api.v2.getLogs(signal, { 
+                    q: state.currentLogSearch.query, 
+                    exact: state.currentLogSearch.exact, 
+                    page: 1 
+                });
+                state.logPaginationInfo = response.pagination;
                 state.currentPage = 1;
+                ui.renderLogTable(response.logs, false);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    console.error("日志搜索失败:", error);
+                    document.getElementById('log-table-body').innerHTML = '<tr><td colspan="6" style="text-align:center;">加载日志失败</td></tr>';
+                }
+            } finally {
+                state.isLoadingMore = false;
+                document.getElementById('log-loader').style.display = 'none';
             }
         }
         
-	    function loadMoreLogs() { 
-            if (state.isLoadingMore) return;
-            const logLoader = document.getElementById('log-loader'); 
-            const start = state.currentPage * LOGS_PER_PAGE; 
-
-            if (start >= state.filteredLogs.length) {
-                return; 
+	    async function loadMoreLogs() { 
+            if (state.isLoadingMore || !state.logPaginationInfo || state.currentPage >= state.logPaginationInfo.total_pages) {
+                return;
             }
+            if (logRequestController) logRequestController.abort();
+            logRequestController = new AbortController();
+            const signal = logRequestController.signal;
 
             state.isLoadingMore = true; 
-            logLoader.style.display = 'block'; 
-            const logsToRender = state.filteredLogs.slice(start, start + LOGS_PER_PAGE); 
+            document.getElementById('log-loader').style.display = 'block'; 
             
-            setTimeout(() => { 
-                ui.renderLogTable(logsToRender, true); // `true` to append content.
-                state.currentPage++; 
+            // [修改] 使用 state 中保存的搜索条件
+            const nextPage = state.currentPage + 1;
+
+            try {
+                const response = await api.v2.getLogs(signal, { 
+                    q: state.currentLogSearch.query, 
+                    exact: state.currentLogSearch.exact, 
+                    page: nextPage 
+                });
+                state.logPaginationInfo = response.pagination;
+                state.currentPage = nextPage;
+                ui.renderLogTable(response.logs, true);
+            } catch (error) {
+                if (error.name !== 'AbortError') console.error("加载更多日志失败:", error);
+            } finally {
                 state.isLoadingMore = false; 
-                logLoader.style.display = 'none'; 
-            }, 50); 
+                document.getElementById('log-loader').style.display = 'none'; 
+            }
         }
 
         function formatDate(isoString) { return isoString ? new Date(isoString).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : 'N/A'; }
@@ -497,73 +592,77 @@
             document.querySelectorAll('.tab-link').forEach(el => el.classList.toggle('active', el.getAttribute('href') === hash));
             document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', `#${el.id.replace('-tab', '')}` === hash));
             if (hash.startsWith('#log-query')) {
-                applyLogFilterAndRender();
+                if (state.displayedLogs.length === 0) {
+                    applyLogFilterAndRender();
+                }
             }
         }
         
-        // --- 事件监听器 ---
-        window.addEventListener('hashchange', handleRouteChange);
-        document.getElementById('refresh-overview-btn').addEventListener('click', updatePageData);
-        
-        document.getElementById('toggle-audit-btn').addEventListener('click', async (e) => {
-            const btn = e.target;
-            btn.disabled = true;
-            ui.setLoading(btn, true, '处理中...');
+        const debounce = (func, wait) => { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), wait); }; };
 
-            try {
-                if (state.isCapturing) {
-                    if (confirm('确定要关闭并清空所有审计日志吗？此操作不可恢复。')) {
-                        await api.stop();
-                        await api.clear();
-                    } else {
-                        ui.updateStatus(state.isCapturing);
-                        return;
-                    }
-                } else {
-                    await api.start();
-                }
-            } catch (error) {
-                console.error("操作失败:", error);
-            }
-            await updatePageData();
-        });
-
-        document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { 
-            if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { 
+        function setupEventListeners() {
+            window.addEventListener('hashchange', handleRouteChange);
+            document.getElementById('refresh-overview-btn').addEventListener('click', updatePageData);
+            
+            document.getElementById('toggle-audit-btn').addEventListener('click', async (e) => {
                 const btn = e.target;
                 btn.disabled = true;
                 ui.setLoading(btn, true, '处理中...');
                 try {
-                    await api.clear(); 
-                    await updatePageData();
-                    ui.showToast('审计日志已清空', 'success');
+                    if (state.isCapturing) {
+                        if (confirm('关闭审计会清空当前内存日志，确定吗? (v2 API 行为)')) {
+                            await api.stop();
+                        } else {
+                            ui.updateStatus(state.isCapturing);
+                            return;
+                        }
+                    } else {
+                        await api.start();
+                    }
                 } catch (error) {
-                    console.error("Failed to clear logs:", error);
-                } finally {
-                    ui.setLoading(btn, false, '清空日志');
-                    btn.disabled = false;
+                    console.error("操作失败:", error);
                 }
-            } 
-        });
+                await updatePageData();
+            });
 
-        document.getElementById('capacity-form').addEventListener('submit', async (e) => { e.preventDefault(); const capacityInput = document.getElementById('new-capacity'); const newCapacity = parseInt(capacityInput.value, 10); if (!newCapacity || newCapacity <= 0) return; if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { const btn = e.target.querySelector('button'); btn.disabled = true; ui.setLoading(btn, true, '处理中...'); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); capacityInput.value = ''; } catch (error) { console.error("设置容量失败:", error); } finally { await updatePageData(); ui.setLoading(btn, false, '设置'); btn.disabled = false; } } });
-        document.getElementById('overview-tab').addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); document.getElementById('log-search').value = link.dataset.filterValue; window.location.hash = '#log-query'; } });
-        document.getElementById('refresh-logs-btn').addEventListener('click', updatePageData);
-        document.getElementById('log-search').addEventListener('input', applyLogFilterAndRender);
-        
-	    window.addEventListener('scroll', () => { if (window.location.hash.startsWith('#log-query')) { const { scrollTop, scrollHeight, clientHeight } = document.documentElement; if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) { loadMoreLogs(); } } });
+            document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { 
+                if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { 
+                    const btn = e.target;
+                    btn.disabled = true;
+                    ui.setLoading(btn, true, '处理中...');
+                    try {
+                        await api.clear(); 
+                        await updatePageData();
+                        ui.showToast('审计日志已清空', 'success');
+                    } catch (error) {
+                        console.error("Failed to clear logs:", error);
+                    } finally {
+                        ui.setLoading(btn, false, '清空日志');
+                        btn.disabled = false;
+                    }
+                } 
+            });
 
-        const aliasModal = document.getElementById('alias-modal');
-        document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
-        document.getElementById('close-alias-modal').addEventListener('click', (e) => { e.preventDefault(); aliasModal.close(); });
-        document.getElementById('export-aliases-btn').addEventListener('click', () => aliasManager.export());
-        const fileInput = document.getElementById('import-alias-file-input');
-        document.getElementById('import-aliases-btn').addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
+            document.getElementById('capacity-form').addEventListener('submit', async (e) => { e.preventDefault(); const capacityInput = document.getElementById('new-capacity'); const newCapacity = parseInt(capacityInput.value, 10); if (!newCapacity || newCapacity <= 0) return; if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { const btn = e.target.querySelector('button'); btn.disabled = true; ui.setLoading(btn, true, '处理中...'); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); capacityInput.value = ''; } catch (error) { console.error("设置容量失败:", error); } finally { await updatePageData(); ui.setLoading(btn, false, '设置'); btn.disabled = false; } } });
+            document.getElementById('overview-tab').addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); document.getElementById('log-search').value = link.dataset.filterValue; window.location.hash = '#log-query'; } });
+            document.getElementById('refresh-logs-btn').addEventListener('click', applyLogFilterAndRender);
+            document.getElementById('log-search').addEventListener('input', debounce(applyLogFilterAndRender, 300));
+            
+            window.addEventListener('scroll', () => { if (window.location.hash.startsWith('#log-query')) { const { scrollTop, scrollHeight, clientHeight } = document.documentElement; if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) { loadMoreLogs(); } } });
+
+            const aliasModal = document.getElementById('alias-modal');
+            document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
+            document.getElementById('close-alias-modal').addEventListener('click', (e) => { e.preventDefault(); aliasModal.close(); });
+            document.getElementById('export-aliases-btn').addEventListener('click', () => aliasManager.export());
+            const fileInput = document.getElementById('import-alias-file-input');
+            document.getElementById('import-aliases-btn').addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
+        }
         
         // --- 初始化 ---
         function init() {
             aliasManager.load();
+            setupEventListeners();
             handleRouteChange(); 
             updatePageData();
         }
