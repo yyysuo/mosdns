@@ -10,6 +10,7 @@ message CachedEntry {
   int64 cache_expiration_time = 3;
   int64 msg_expiration_time = 4;
   int64 msg_stored_time = 5;
+  string domain_set = 6;
 }
 
 message CacheDumpBlock {
