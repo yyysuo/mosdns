@@ -31,6 +31,11 @@ import (
 )
 
 const (
+	// KeyDomainSet is the key for storing the matched domain_set name in the context.
+	KeyDomainSet uint32 = iota + 100 // Use a number unlikely to conflict with internal keys.
+)
+
+const (
 	edns0Size = 1200
 )
 
