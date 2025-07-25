@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 日志面板 (V2 API)</title>
+    <title>Mosdns 日志与规则面板 (V2 API)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
     <style>
         /* --- 基本和布局调整 --- */
@@ -62,7 +62,12 @@
             border-bottom: 1px solid var(--pico-muted-border-color);
         }
         article > header h2 { margin: 0; font-size: 1.2rem; }
-
+        /* 【新增】为Adguard面板的无内边距内容区提供样式 */
+        article .article-body-no-padding {
+            padding: 0;
+            margin: -1.5rem -1.5rem -1.5rem -1.5rem; /* 重新调整边距以适应无内边距的表格 */
+        }
+        
         .overview-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
@@ -111,15 +116,15 @@
         }
         
         /* 为查询日志表格区域添加边框和内边距 */
-        #log-query-tab figure {
+        #log-query-tab figure, #adguard-tab figure {
             border: 1px solid var(--pico-muted-border-color);
             border-radius: var(--pico-border-radius);
-            padding: 0.5rem;
+            padding: 0; /* 【修改】移除padding，让表格填满 */
             background-color: var(--pico-table-background-color);
-            min-height: 400px;
+            margin: 0; /* 【修改】移除figure的默认margin */
         }
         .scrollable-table-container { max-height: 400px; overflow-y: auto; }
-        .scrollable-table-container table, #log-query-tab figure table { margin-bottom: 0; }
+        .scrollable-table-container table, #log-query-tab figure table, #adguard-tab figure table { margin-bottom: 0; }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -133,12 +138,33 @@
         .client-alias { font-weight: bold; }
         .client-ip-tag { font-size: 0.8em; color: var(--pico-secondary); margin-left: 0.5em; opacity: 0.7; }
         .tooltip-container { position: relative; cursor: help; display: inline-block; }
-        .answers-tooltip { visibility: hidden; position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%); padding: 0.75rem; border-radius: var(--pico-border-radius); background: var(--pico-card-background-color); border: 1px solid var(--pico-muted-border-color); box-shadow: var(--pico-card-box-shadow); width: max-content; max-width: 400px; z-index: 10; opacity: 0; transition: opacity 0.2s, visibility 0.2s; text-align: left; }
-        .tooltip-container:hover .answers-tooltip { visibility: visible; opacity: 1; }
-        .answers-tooltip h5 { margin: 0 0 0.5rem 0; font-size: 1em; }
-        .answers-tooltip ul { margin: 0; padding-left: 1.2rem; }
-        .answers-tooltip li { font-family: var(--pico-font-family-monospace); font-size: 0.9em; }
-        .answers-tooltip li small { font-family: var(--pico-font-family-monospace); }
+        /* 修复 2 (新): 隐藏原始tooltip，它现在只作为数据源 */
+        .answers-tooltip { display: none; }
+        
+        /* 修复 2 (新): 全局tooltip样式，由JS控制 */
+        #global-tooltip {
+            display: block; /* 覆盖.answers-tooltip的display:none */
+            visibility: hidden;
+            position: absolute; 
+            padding: 0.75rem;
+            border-radius: var(--pico-border-radius);
+            background: var(--pico-card-background-color);
+            border: 1px solid var(--pico-muted-border-color);
+            box-shadow: var(--pico-card-box-shadow);
+            width: max-content;
+            max-width: 400px;
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity 0.2s, visibility 0.2s;
+            text-align: left;
+            transform: translateX(-50%); /* 用于居中对齐 */
+            pointer-events: none; /* 防止tooltip自身捕获鼠标事件 */
+        }
+        #global-tooltip h5 { margin: 0 0 0.5rem 0; font-size: 1em; }
+        #global-tooltip ul { margin: 0; padding-left: 1.2rem; }
+        #global-tooltip li { font-family: var(--pico-font-family-monospace); font-size: 0.9em; }
+        #global-tooltip li small { font-family: var(--pico-font-family-monospace); }
+
         #toast { position: fixed; top: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 6px; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s; transform: translateY(-20px); }
         #toast.show { opacity: 1; visibility: visible; transform: translateY(0); }
         #toast.success { background-color: var(--pico-card-background-color); border-left: 5px solid var(--pico-color-green-500); }
@@ -146,16 +172,70 @@
         #alias-modal .modal-body { max-height: 60vh; overflow-y: auto; }
         .alias-item { display: grid; grid-template-columns: 1fr 2fr auto; gap: 1rem; align-items: center; padding: 0.5rem; }
         .alias-item:nth-child(odd) { background-color: var(--pico-muted-background-color); }
+
+        /* --- 【新增】Adguard 面板专属样式 --- */
+        #adguard-tab .url-cell { 
+            max-width: 350px; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; 
+            vertical-align: middle;
+        }
+        #adguard-tab .enabled-checkbox { 
+            transform: scale(1.1); 
+            cursor: pointer; 
+            vertical-align: middle;
+        }
+        #adguard-tab .action-buttons .grid {
+            gap: 0.5rem;
+        }
+        #adguard-tab .action-buttons button {
+            font-size: 0.85em;
+            padding: 0.4rem 0.8rem;
+        }
+        #adguard-rule-modal footer, #diversion-rule-modal footer {
+             display: grid;
+             grid-template-columns: 1fr 1fr;
+             gap: 1rem;
+        }
+        #adguard-tab .header-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* --- 问题修复 START --- */
+
+        /* 修复 1 & 3 (新旧合并): 所有滚动表格标题列固定 */
+        .scrollable-table-container > table > thead > tr > th {
+            position: sticky;
+            top: 0;
+            z-index: 2; /* 提高层级，确保在滚动内容之上 */
+            background-color: var(--pico-card-background-color);
+        }
+
+        /* 修复 4: 修复查询日志中超长域名换行问题 */
+        #log-query-tab table tbody td:nth-child(2) {
+            max-width: 280px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* --- 问题修复 END --- */
     </style>
 </head>
 <body>
+    <!-- 修复 2 (新): 全局 tooltip 容器 -->
+    <div id="global-tooltip"></div>
+
     <main class="container">
         <header>
-            <h1>Mosdns 日志面板 (V2 API)</h1>
+            <h1>Mosdns 面板</h1>
             <nav>
                 <ul>
                     <li><a href="#overview" class="tab-link" data-tab="overview" role="tab">概览</a></li>
                     <li><a href="#log-query" class="tab-link" data-tab="log-query" role="tab">查询日志</a></li>
+                    <li><a href="#adguard" class="tab-link" data-tab="adguard" role="tab">在线规则管理</a></li>
                 </ul>
             </nav>
         </header>
@@ -181,6 +261,91 @@
             </article>
         </dialog>
         <input type="file" id="import-alias-file-input" accept=".json" style="display: none;">
+
+        <dialog id="adguard-rule-modal">
+            <article>
+                <header style="margin-bottom: 1.5rem;">
+                    <h3 id="adguard-modal-title">添加规则</h3>
+                    <a href="#close" aria-label="Close" class="close" id="close-adguard-modal"></a>
+                </header>
+                <form id="adguard-rule-form">
+                    <input type="hidden" id="adguard-rule-id" name="id">
+                    <label for="adguard-rule-name">
+                        名称
+                        <input type="text" id="adguard-rule-name" name="name" placeholder="例如：AdGuard DNS filter" required>
+                    </label>
+                    <label for="adguard-rule-url">
+                        清单网址
+                        <input type="url" id="adguard-rule-url" name="url" placeholder="https://adguardteam.github.io/AdGuardSDNSFilter/filters/filter.txt" required>
+                    </label>
+                    
+                    <fieldset>
+                        <label for="adguard-rule-auto-update">
+                            <input type="checkbox" id="adguard-rule-auto-update" name="auto_update">
+                            自动更新
+                        </label>
+                    </fieldset>
+
+                    <label for="adguard-rule-update-interval">
+                        更新间隔 (小时)
+                        <input type="number" id="adguard-rule-update-interval" name="update_interval_hours" min="1" value="24">
+                    </label>
+                    <footer>
+                        <button type="button" class="secondary" id="cancel-adguard-modal-btn">取消</button>
+                        <button type="submit" id="adguard-save-rule-btn" aria-busy="false">保存</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        
+        <dialog id="diversion-rule-modal">
+            <article>
+                <header style="margin-bottom: 1.5rem;">
+                    <h3 id="diversion-modal-title">添加分流规则</h3>
+                    <a href="#close" aria-label="Close" class="close" id="close-diversion-modal"></a>
+                </header>
+                <form id="diversion-rule-form">
+                    <input type="hidden" id="diversion-rule-id" name="id">
+                    <label for="diversion-rule-type">
+                        类型
+                        <select id="diversion-rule-type" name="type" required>
+                            <option value="" disabled selected>请选择类型</option>
+                            <option value="geositecn">geositecn</option>
+                            <option value="geositenocn">geositenocn</option>
+                            <option value="geoipcn">geoipcn</option>
+                        </select>
+                    </label>
+                    <label for="diversion-rule-name">
+                        名称 (唯一标识)
+                        <input type="text" id="diversion-rule-name" name="name" placeholder="例如：geosite_cn" required>
+                    </label>
+                    <label for="diversion-rule-url">
+                        清单网址
+                        <input type="url" id="diversion-rule-url" name="url" placeholder="https://example.com/rules.srs" required>
+                    </label>
+                    <label for="diversion-rule-files">
+                        本地文件路径
+                        <input type="text" id="diversion-rule-files" name="files" placeholder="例如：/cus/mosdns/srs/geosite-cn.srs" required>
+                    </label>
+                    
+                    <fieldset>
+                        <label for="diversion-rule-auto-update">
+                            <input type="checkbox" id="diversion-rule-auto-update" name="auto_update">
+                            自动更新
+                        </label>
+                    </fieldset>
+
+                    <label for="diversion-rule-update-interval">
+                        更新间隔 (小时)
+                        <input type="number" id="diversion-rule-update-interval" name="update_interval_hours" min="1" value="24">
+                    </label>
+                    <footer>
+                        <button type="button" class="secondary" id="cancel-diversion-modal-btn">取消</button>
+                        <button type="submit" id="diversion-save-rule-btn" aria-busy="false">保存</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
 
         <section id="overview-tab" class="tab-content" role="tabpanel">
             <article>
@@ -235,9 +400,25 @@
             <article>
                 <header><h2>最慢查询</h2></header>
                 <div class="scrollable-table-container">
-                    <table role="grid"><thead><tr><th>时间</th><th>域名</th><th>耗时 (ms)</th><th>客户端</th><th>响应</th></tr></thead><tbody id="slowest-queries-body"></tbody></table>
+                    <table role="grid"><thead><tr><th>时间</th><th>域名</th><th>查询类型</th><th>耗时 (ms)</th><th>客户端</th><th>响应</th></tr></thead><tbody id="slowest-queries-body"></tbody></table>
                 </div>
             </article>
+
+            <article>
+                <header><h2>分流结果统计</h2></header>
+                <div class="scrollable-table-container">
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                <th>分流规则 (DomainSet)</th>
+                                <th>请求数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-domain-sets-body"></tbody>
+                    </table>
+                </div>
+            </article>
+
         </section>
 
         <section id="log-query-tab" class="tab-content" role="tabpanel">
@@ -251,19 +432,87 @@
                 </header>
                 <input type="search" id="log-search" placeholder='实时搜索... (使用 "引号" 精确匹配)' style="margin-bottom: 1rem;">
                 <figure>
-                     <table role="grid">
-                        <thead><tr><th>时间</th><th>域名</th><th>查询类型</th><th>耗时(ms)</th><th>客户端</th><th>响应 (悬停看全部)</th></tr></thead>
-                        <tbody id="log-table-body"></tbody>
-                    </table>
+                     <div class="scrollable-table-container" style="max-height: 550px;">
+                        <table role="grid">
+                            <thead><tr><th>时间</th><th>域名</th><th>查询类型</th><th>耗时(ms)</th><th>客户端</th><th>响应 (悬停看全部)</th></tr></thead>
+                            <tbody id="log-table-body"></tbody>
+                        </table>
+                    </div>
                 </figure>
                 <p id="log-loader" style="text-align: center; display: none;" aria-busy="true">正在加载更多日志...</p>
             </article>
         </section>
+
+        <section id="adguard-tab" class="tab-content" role="tabpanel">
+            <article>
+                <header>
+                    <h2>在线黑名单规则</h2>
+                    <div class="header-actions">
+                        <button id="add-rule-btn">
+                            <svg style="width:1em;height:1em;vertical-align: text-bottom;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"></path></svg>
+                            添加黑名单
+                        </button>
+                        <button id="check-updates-btn" class="secondary outline" aria-busy="false">
+                            <svg style="width:1em;height:1em;vertical-align: text-bottom;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C16.1333 2 19.536 4.30641 21.1009 7.82362L18.3294 8.76801C17.1523 6.22352 14.7951 4.5 12 4.5C7.85786 4.5 4.5 7.85786 4.5 12C4.5 16.1421 7.85786 19.5 12 19.5C15.2443 19.5 17.9739 17.4478 18.9472 14.5H16.5V12.5H22V18.5H20V15.118C18.6468 19.068 15.5849 22 12 22Z"></path></svg>
+                            检查更新
+                        </button>
+                    </div>
+                </header>
+                <div class="article-body-no-padding">
+                    <figure>
+                        <table role="grid">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 80px;">已启用</th>
+                                    <th scope="col">名称</th>
+                                    <th scope="col">清单网址</th>
+                                    <th scope="col">规则数</th>
+                                    <th scope="col">上次更新</th>
+                                    <th scope="col" style="width: 150px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adguard-rules-table-body"></tbody>
+                        </table>
+                    </figure>
+                </div>
+            </article>
+
+            <article>
+                <header>
+                    <h2>在线分流规则（不要删除和禁用！！！）</h2>
+                    <div class="header-actions">
+                        <button id="add-diversion-rule-btn">
+                            <svg style="width:1em;height:1em;vertical-align: text-bottom;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"></path></svg>
+                            添加分流规则
+                        </button>
+                    </div>
+                </header>
+                <div class="article-body-no-padding">
+                    <figure>
+                        <table role="grid">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 80px;">已启用</th>
+                                    <th scope="col">名称</th>
+                                    <th scope="col">类型</th>
+                                    <th scope="col">清单网址</th>
+                                    <th scope="col">规则数</th>
+                                    <th scope="col">上次更新</th>
+                                    <th scope="col" style="width: 220px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="diversion-rules-table-body"></tbody>
+                        </table>
+                    </figure>
+                </div>
+            </article>
+        </section>
+
     </main>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- 配置与状态 ---
+        // --- 配置与状态 (日志面板) ---
         const mosdnsApiBaseUrl = '';
         const LOGS_PER_PAGE = 50;
         let state = {
@@ -273,11 +522,10 @@
             currentPage: 1,
             isLoadingMore: false,
             clientAliases: {},
-            // [新增] 用于存储搜索条件
             currentLogSearch: { query: '', exact: false }
         };
 
-        // --- API (已升级至v2) ---
+        // --- API (日志面板 V2) ---
         const api = {
             fetch: async (url, options = {}) => {
                 try {
@@ -309,13 +557,13 @@
                 getTopDomains: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/domain?limit=${limit}`, { signal }),
                 getTopClients: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/client?limit=${limit}`, { signal }),
                 getSlowest: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }),
+                getTopDomainSets: (signal, limit = 50) => api.fetch(`${mosdnsApiBaseUrl}/api/v2/audit/rank/domain_set?limit=${limit}`, { signal }),
                 getLogs: (signal, params = {}) => {
                     const queryParams = new URLSearchParams({
                         page: 1,
                         limit: LOGS_PER_PAGE,
                         ...params
                     });
-                    // [修改] 确保 exact 为 false 或空值时不被添加到 URL
                     for (let [key, value] of queryParams.entries()) {
                         if (!value) {
                             queryParams.delete(key);
@@ -325,7 +573,8 @@
                 }
             }
         };
-
+        
+        // --- 别名管理器 (日志面板) ---
         const aliasManager = {
             load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; },
             save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); },
@@ -364,9 +613,10 @@
             import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); rerenderAllViews(); ui.showToast('配置已成功导入并合并'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
         };
         
+        // --- 统一 UI 控制器 ---
         const ui = {
             showToast(message, type = 'success') { const toast = document.getElementById('toast'); toast.textContent = message; toast.className = `show ${type}`; setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000); },
-            setLoading(button, isLoading, text = '') { button.setAttribute('aria-busy', isLoading ? 'true' : 'false'); if (text) button.innerHTML = text; },
+            setLoading(button, isLoading, text = '') { button.setAttribute('aria-busy', isLoading ? 'true' : 'false'); button.disabled = isLoading; if (text) button.innerHTML = text; },
             updateStatus(isCapturing) {
                 const toggleBtn = document.getElementById('toggle-audit-btn');
                 const statusElem = document.getElementById('audit-status');
@@ -396,19 +646,16 @@
                     tbody.innerHTML = '';
                     state.displayedLogs = [];
                 }
-                
                 if (logs.length === 0 && !append) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">没有匹配的日志记录</td></tr>';
                     return;
                 }
-                
                 state.displayedLogs.push(...logs);
-
                 const rows = logs.map(log => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${formatDate(log.query_time)}</td>
-                        <td>${log.query_name}</td>
+                        <td title="${log.query_name}">${log.query_name}</td>
                         <td>${log.query_type}</td>
                         <td>${log.duration_ms.toFixed(2)}</td>
                         <td>${aliasManager.getDisplayName(log.client_ip)}</td>
@@ -420,11 +667,14 @@
             }
         };
 
+        // --- 日志面板渲染函数 ---
         const renderTable = (tbodyId, data, renderRow) => { const tbody = document.getElementById(tbodyId); tbody.innerHTML = ''; if (!data || data.length === 0) { tbody.innerHTML = `<tr><td colspan="${tbody.previousElementSibling.rows[0].cells.length}" style="text-align:center;">无数据</td></tr>`; return; } data.forEach(item => tbody.appendChild(renderRow(item))); };
         const renderTopDomains = (data) => renderTable('top-domains-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${item.key}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count}</a></td>`; return tr; });
         const renderTopClients = (data) => renderTable('top-clients-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${aliasManager.getDisplayName(item.key)}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count}</a></td>`; return tr; });
-        const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${formatDate(item.query_time)}</td><td>${item.query_name}</td><td>${item.duration_ms.toFixed(2)}</td><td>${aliasManager.getDisplayName(item.client_ip)}</td><td>${formatResponseCell(item)}</td>`; return tr; });
-        
+        const renderSlowestQueries = (data) => renderTable('slowest-queries-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${formatDate(item.query_time)}</td><td>${item.query_name}</td><td>${item.query_type}</td><td>${item.duration_ms.toFixed(2)}</td><td>${aliasManager.getDisplayName(item.client_ip)}</td><td>${formatResponseCell(item)}</td>`; return tr; });
+        const renderTopDomainSets = (data) => renderTable('top-domain-sets-body', data, item => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${item.key}</td><td><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count}</a></td>`; return tr; });
+
+        // --- 日志面板核心逻辑 ---
         let updateController;
         async function updatePageData() {
             if (updateController) updateController.abort();
@@ -435,31 +685,26 @@
             ui.setLoading(refreshBtn, true, '处理中...');
 
             try {
-                const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([
+                const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes, topDomainSetsRes] = await Promise.allSettled([
                     api.getStatus(signal),
                     api.getCapacity(signal),
                     api.v2.getStats(signal),
                     api.v2.getTopDomains(signal),
                     api.v2.getTopClients(signal),
-                    api.v2.getSlowest(signal)
+                    api.v2.getSlowest(signal),
+                    api.v2.getTopDomainSets(signal)
                 ]);
-
                 ui.updateStatus(statusRes.status === 'fulfilled' ? statusRes.value?.capturing : null);
                 ui.updateCapacity(capacityRes.status === 'fulfilled' ? capacityRes.value?.capacity : null);
                 ui.updateOverviewStats(statsRes.status === 'fulfilled' ? statsRes.value : null);
-                
                 renderTopDomains(topDomainsRes.status === 'fulfilled' ? topDomainsRes.value : []);
                 renderTopClients(topClientsRes.status === 'fulfilled' ? topClientsRes.value : []);
                 renderSlowestQueries(slowestRes.status === 'fulfilled' ? slowestRes.value : []);
-                
-                if (window.location.hash.startsWith('#log-query')) {
-                    applyLogFilterAndRender();
-                }
-
+                renderTopDomainSets(topDomainSetsRes.status === 'fulfilled' ? topDomainSetsRes.value : []);
             } catch (error) {
                 if (error.name !== 'AbortError') console.error("页面更新时发生意外错误:", error);
             } finally {
-                ui.setLoading(refreshBtn, false, '刷新');
+                ui.setLoading(refreshBtn, false, '<svg style="width:1em;height:1em;vertical-align: text-bottom;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C16.1333 2 19.536 4.30641 21.1009 7.82362L18.3294 8.76801C17.1523 6.22352 14.7951 4.5 12 4.5C7.85786 4.5 4.5 7.85786 4.5 12C4.5 16.1421 7.85786 19.5 12 19.5C15.2443 19.5 17.9739 17.4478 18.9472 14.5H16.5V12.5H22V18.5H20V15.118C18.6468 19.068 15.5849 22 12 22Z"></path></svg> 刷新');
             }
         }
         
@@ -480,7 +725,6 @@
             logRequestController = new AbortController();
             const signal = logRequestController.signal;
             
-            // [修改] 解析搜索词以支持精确匹配
             const rawSearchTerm = document.getElementById('log-search').value.trim();
             let query = rawSearchTerm;
             let exact = false;
@@ -494,19 +738,12 @@
             document.getElementById('log-loader').style.display = 'block';
 
             try {
-                const response = await api.v2.getLogs(signal, { 
-                    q: state.currentLogSearch.query, 
-                    exact: state.currentLogSearch.exact, 
-                    page: 1 
-                });
+                const response = await api.v2.getLogs(signal, { q: state.currentLogSearch.query, exact: state.currentLogSearch.exact, page: 1 });
                 state.logPaginationInfo = response.pagination;
                 state.currentPage = 1;
                 ui.renderLogTable(response.logs, false);
             } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error("日志搜索失败:", error);
-                    document.getElementById('log-table-body').innerHTML = '<tr><td colspan="6" style="text-align:center;">加载日志失败</td></tr>';
-                }
+                if (error.name !== 'AbortError') { console.error("日志搜索失败:", error); document.getElementById('log-table-body').innerHTML = '<tr><td colspan="6" style="text-align:center;">加载日志失败</td></tr>'; }
             } finally {
                 state.isLoadingMore = false;
                 document.getElementById('log-loader').style.display = 'none';
@@ -514,25 +751,16 @@
         }
         
 	    async function loadMoreLogs() { 
-            if (state.isLoadingMore || !state.logPaginationInfo || state.currentPage >= state.logPaginationInfo.total_pages) {
-                return;
-            }
+            if (state.isLoadingMore || !state.logPaginationInfo || state.currentPage >= state.logPaginationInfo.total_pages) return;
             if (logRequestController) logRequestController.abort();
             logRequestController = new AbortController();
             const signal = logRequestController.signal;
-
             state.isLoadingMore = true; 
             document.getElementById('log-loader').style.display = 'block'; 
-            
-            // [修改] 使用 state 中保存的搜索条件
             const nextPage = state.currentPage + 1;
 
             try {
-                const response = await api.v2.getLogs(signal, { 
-                    q: state.currentLogSearch.query, 
-                    exact: state.currentLogSearch.exact, 
-                    page: nextPage 
-                });
+                const response = await api.v2.getLogs(signal, { q: state.currentLogSearch.query, exact: state.currentLogSearch.exact, page: nextPage });
                 state.logPaginationInfo = response.pagination;
                 state.currentPage = nextPage;
                 ui.renderLogTable(response.logs, true);
@@ -549,51 +777,378 @@
         function formatResponseCell(log) {
             const answers = log.answers || [];
             let mainText;
-
-            if (log.response_code !== 'NOERROR') {
-                mainText = log.response_code;
-            } else if (answers.length > 0) {
-                const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA');
-                const firstCname = answers.find(a => a.type === 'CNAME');
-                mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data);
-                if (answers.length > 1) {
-                    mainText += ` (+${answers.length - 1})`;
-                }
-            } else {
-                mainText = 'NOERROR';
-            }
-
+            if (log.response_code !== 'NOERROR') { mainText = log.response_code; } else if (answers.length > 0) { const firstIp = answers.find(a => a.type === 'A' || a.type === 'AAAA'); const firstCname = answers.find(a => a.type === 'CNAME'); mainText = firstIp ? firstIp.data : (firstCname ? firstCname.data : answers[0].data); if (answers.length > 1) { mainText += ` (+${answers.length - 1})`; } } else { mainText = 'NOERROR'; }
             const flags = log.response_flags || {};
             const flagItems = [];
-            if (flags.ra) flagItems.push('ra');
-            if (flags.aa) flagItems.push('aa');
-            if (flags.tc) flagItems.push('tc');
-
-            let tooltipHTML = `<h5>查询详情</h5>
-                <ul>
-                    <li><strong>状态:</strong> ${log.response_code}</li>
-                    ${flagItems.length > 0 ? `<li><strong>标志:</strong> ${flagItems.join(', ')}</li>` : ''}
-                    <li><strong>类别:</strong> ${log.query_class}</li>
-                    ${log.trace_id ? `<li><strong>Trace ID:</strong> <small>${log.trace_id}</small></li>` : ''}
-                </ul>`;
-
-            if (answers.length > 0) {
-                tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5>
-                    <ul>
-                        ${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}
-                    </ul>`;
-            }
-
+            if (flags.ra) flagItems.push('ra'); if (flags.aa) flagItems.push('aa'); if (flags.tc) flagItems.push('tc');
+            let tooltipHTML = `<h5>查询详情</h5><ul><li><strong>状态:</strong> ${log.response_code}</li>${flagItems.length > 0 ? `<li><strong>标志:</strong> ${flagItems.join(', ')}</li>` : ''}<li><strong>类别:</strong> ${log.query_class}</li>${log.domain_set ? `<li><strong>规则:</strong> ${log.domain_set}</li>` : ''}${log.trace_id ? `<li><strong>Trace ID:</strong> <small>${log.trace_id}</small></li>` : ''}</ul>`;
+            if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}</ul>`; }
             return `<div class="tooltip-container">${mainText}<div class="answers-tooltip">${tooltipHTML}</div></div>`;
         }
 
+        // --- 通用规则API获取逻辑 (复用自原有代码) ---
+        const ruleApiFetch = async (url, options = {}) => {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    let errorMsg = `API Error ${response.status}: ${response.statusText}`;
+                    try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} }
+                    // 对404 not found (插件不存在) 静默处理
+                    if (response.status !== 404) {
+                        ui.showToast(errorMsg, 'error');
+                    }
+                    throw new Error(errorMsg);
+                }
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) return response.json();
+                return response.text();
+            } catch (error) {
+                console.error('Rule API call failed:', error);
+                throw error;
+            }
+        };
+
+        // --- 在线黑名单管理 (Adguard) ---
+        const adguardPluginTag = 'adguard'; 
+        const adguardApiBaseUrl = `/plugins/${adguardPluginTag}`;
+        let adguardState = { rules: [], isInitialized: false };
+
+        const adguardApi = {
+            getRules: () => ruleApiFetch(`${adguardApiBaseUrl}/rules`),
+            addRule: (data) => ruleApiFetch(`${adguardApiBaseUrl}/rules`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+            updateRule: (id, data) => ruleApiFetch(`${adguardApiBaseUrl}/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+            deleteRule: (id) => ruleApiFetch(`${adguardApiBaseUrl}/rules/${id}`, { method: 'DELETE' }),
+            triggerUpdate: () => ruleApiFetch(`${adguardApiBaseUrl}/update`, { method: 'POST' }),
+        };
+
+        const adguardUI = {
+            renderTable: () => {
+                const tbody = document.getElementById('adguard-rules-table-body');
+                tbody.innerHTML = '';
+                if (adguardState.rules.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 2rem;">暂无规则，请点击 "添加黑名单" 新建一个。</td></tr>';
+                    return;
+                }
+                adguardState.rules.sort((a,b) => a.name.localeCompare(b.name)).forEach(rule => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.ruleId = rule.id;
+                    const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? formatDate(rule.last_updated) : '—';
+                    tr.innerHTML = `
+                        <td style="text-align:center;"><input type="checkbox" class="enabled-checkbox" ${rule.enabled ? 'checked' : ''}></td>
+                        <td>${rule.name}</td>
+                        <td class="url-cell" title="${rule.url}">${rule.url}</td>
+                        <td style="text-align:right;">${(rule.rule_count || 0).toLocaleString()}</td>
+                        <td>${lastUpdated}</td>
+                        <td class="action-buttons">
+                            <div class="grid">
+                                <button class="outline edit-btn">编辑</button>
+                                <button class="secondary outline delete-btn">删除</button>
+                            </div>
+                        </td>`;
+                    tbody.appendChild(tr);
+                });
+            },
+            openModal: (rule = null) => {
+                const modal = document.getElementById('adguard-rule-modal');
+                const form = document.getElementById('adguard-rule-form');
+                form.reset();
+                if (rule) {
+                    document.getElementById('adguard-modal-title').textContent = '修改规则';
+                    document.getElementById('adguard-rule-id').value = rule.id;
+                    document.getElementById('adguard-rule-name').value = rule.name;
+                    document.getElementById('adguard-rule-url').value = rule.url;
+                    document.getElementById('adguard-rule-auto-update').checked = rule.auto_update;
+                    document.getElementById('adguard-rule-update-interval').value = rule.update_interval_hours || 24;
+                } else {
+                    document.getElementById('adguard-modal-title').textContent = '添加规则';
+                    document.getElementById('adguard-rule-id').value = '';
+                    document.getElementById('adguard-rule-auto-update').checked = true;
+                    document.getElementById('adguard-rule-update-interval').value = 24;
+                }
+                modal.showModal();
+            },
+            closeModal: () => { document.getElementById('adguard-rule-modal').close(); }
+        };
+
+        async function loadAdguardRules() {
+            try {
+                const rules = await adguardApi.getRules();
+                adguardState.rules = rules || [];
+                adguardUI.renderTable();
+            } catch (error) { /* error already handled */ }
+        }
+
+        async function handleAdguardFormSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const saveBtn = document.getElementById('adguard-save-rule-btn');
+            ui.setLoading(saveBtn, true);
+
+            const id = form.elements['adguard-rule-id'].value;
+            const data = {
+                name: form.elements['adguard-rule-name'].value,
+                url: form.elements['adguard-rule-url'].value,
+                auto_update: form.elements['adguard-rule-auto-update'].checked,
+                update_interval_hours: parseInt(form.elements['adguard-rule-update-interval'].value, 10) || 24,
+            };
+
+            try {
+                if (id) {
+                    const originalRule = adguardState.rules.find(r => r.id === id);
+                    await adguardApi.updateRule(id, { ...originalRule, ...data });
+                    ui.showToast('规则更新成功');
+                    adguardUI.closeModal();
+                    await loadAdguardRules();
+                } else {
+                    data.enabled = true;
+                    await adguardApi.addRule(data);
+                    ui.showToast('规则添加成功');
+                    adguardUI.closeModal();
+                    await loadAdguardRules();
+                    ui.showToast('正在后台获取规则详情...');
+                    setTimeout(() => { loadAdguardRules(); }, 5000);
+                }
+            } finally {
+                ui.setLoading(saveBtn, false);
+            }
+        }
+        
+        async function handleAdguardTableClick(event) {
+            const target = event.target;
+            const tr = target.closest('tr');
+            if (!tr || !tr.dataset.ruleId) return;
+            const id = tr.dataset.ruleId;
+
+            if (target.classList.contains('edit-btn')) {
+                const rule = adguardState.rules.find(r => r.id === id);
+                if (rule) adguardUI.openModal(rule);
+            }
+            if (target.classList.contains('delete-btn')) {
+                if (confirm('确定要删除此规则吗？此操作不可恢复。')) {
+                    ui.setLoading(target, true);
+                    try {
+                        await adguardApi.deleteRule(id);
+                        ui.showToast('规则已删除');
+                        tr.remove();
+                    } finally {
+                        ui.setLoading(target, false);
+                    }
+                }
+            }
+            if (target.classList.contains('enabled-checkbox')) {
+                const rule = adguardState.rules.find(r => r.id === id);
+                if (rule) {
+                    const updatedRule = { ...rule, enabled: target.checked };
+                    target.disabled = true;
+                    try {
+                        await adguardApi.updateRule(id, updatedRule);
+                        rule.enabled = target.checked;
+                        ui.showToast(`规则 "${rule.name}" 已${target.checked ? '启用' : '禁用'}`);
+                    } catch (error) {
+                        target.checked = !target.checked;
+                    } finally {
+                        target.disabled = false;
+                    }
+                }
+            }
+        }
+        
+        // --- [RESTORED] 分流规则管理 (sd_set) ---
+        const sdSetInstanceMap = {
+            'geositecn': 'geosite_cn',
+            'geositenocn': 'geosite_no_cn',
+            'geoipcn': 'geoip_cn'
+        };
+        let diversionState = { rules: [], isInitialized: false };
+
+        const diversionApi = {
+            getRulesForTag: (tag) => ruleApiFetch(`/plugins/${tag}/config`),
+            updateRule: (tag, name, data) => ruleApiFetch(`/plugins/${tag}/config/${name}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            }),
+            deleteRule: (tag, name) => ruleApiFetch(`/plugins/${tag}/config/${name}`, { method: 'DELETE' }),
+            triggerUpdate: (tag, name) => ruleApiFetch(`/plugins/${tag}/update/${name}`, { method: 'POST' }),
+        };
+
+        const diversionUI = {
+            renderTable: () => {
+                const tbody = document.getElementById('diversion-rules-table-body');
+                tbody.innerHTML = '';
+                if (diversionState.rules.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem;">暂无分流规则。</td></tr>`;
+                    return;
+                }
+                diversionState.rules.sort((a,b) => a.name.localeCompare(b.name)).forEach(rule => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.ruleName = rule.name;
+                    const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? formatDate(rule.last_updated) : '—';
+                    tr.innerHTML = `
+                        <td style="text-align:center;"><input type="checkbox" class="enabled-checkbox" ${rule.enabled ? 'checked' : ''}></td>
+                        <td>${rule.name}</td>
+                        <td>${rule.type}</td>
+                        <td class="url-cell" title="${rule.url}">${rule.url}</td>
+                        <td style="text-align:right;">${(rule.rule_count || 0).toLocaleString()}</td>
+                        <td>${lastUpdated}</td>
+                        <td class="action-buttons">
+                            <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                <button class="outline update-btn" title="更新此规则">更新</button>
+                                <button class="outline edit-btn">编辑</button>
+                                <button class="secondary outline delete-btn">删除</button>
+                            </div>
+                        </td>`;
+                    tbody.appendChild(tr);
+                });
+            },
+            openModal: (rule = null) => {
+                const modal = document.getElementById('diversion-rule-modal');
+                const form = document.getElementById('diversion-rule-form');
+                const nameInput = document.getElementById('diversion-rule-name');
+                const typeInput = document.getElementById('diversion-rule-type');
+                form.reset();
+
+                if (rule) {
+                    document.getElementById('diversion-modal-title').textContent = '修改分流规则';
+                    nameInput.value = rule.name;
+                    nameInput.readOnly = true;
+                    typeInput.value = rule.type;
+                    typeInput.disabled = true;
+                    document.getElementById('diversion-rule-url').value = rule.url;
+                    document.getElementById('diversion-rule-files').value = rule.files;
+                    document.getElementById('diversion-rule-auto-update').checked = rule.auto_update;
+                    document.getElementById('diversion-rule-update-interval').value = rule.update_interval_hours || 24;
+                } else {
+                    document.getElementById('diversion-modal-title').textContent = '添加分流规则';
+                    nameInput.readOnly = false;
+                    typeInput.disabled = false;
+                    document.getElementById('diversion-rule-auto-update').checked = true;
+                    document.getElementById('diversion-rule-update-interval').value = 24;
+                }
+                modal.showModal();
+            },
+            closeModal: () => { document.getElementById('diversion-rule-modal').close(); }
+        };
+
+        async function loadDiversionRules() {
+            const promises = Object.values(sdSetInstanceMap).map(tag => diversionApi.getRulesForTag(tag));
+            const results = await Promise.allSettled(promises);
+            const allRules = results
+                .filter(result => result.status === 'fulfilled' && Array.isArray(result.value))
+                .flatMap(result => result.value);
+            diversionState.rules = allRules;
+            diversionUI.renderTable();
+        }
+
+        async function handleDiversionFormSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const saveBtn = document.getElementById('diversion-save-rule-btn');
+            ui.setLoading(saveBtn, true);
+
+            const ruleName = form.elements['diversion-rule-name'].value;
+            const ruleType = form.elements['diversion-rule-type'].value;
+
+            const targetPluginTag = sdSetInstanceMap[ruleType];
+            if (!targetPluginTag) {
+                ui.showToast('错误：请选择一个有效的规则类型', 'error');
+                ui.setLoading(saveBtn, false);
+                return;
+            }
+
+            const data = {
+                name: ruleName,
+                type: ruleType,
+                files: form.elements['diversion-rule-files'].value,
+                url: form.elements['diversion-rule-url'].value,
+                auto_update: form.elements['diversion-rule-auto-update'].checked,
+                update_interval_hours: parseInt(form.elements['diversion-rule-update-interval'].value, 10) || 24,
+                enabled: form.elements['diversion-rule-name'].readOnly ? diversionState.rules.find(r => r.name === ruleName).enabled : true,
+            };
+
+            try {
+                await diversionApi.updateRule(targetPluginTag, ruleName, data);
+                ui.showToast(`规则 "${ruleName}" 保存成功`);
+                diversionUI.closeModal();
+                await loadDiversionRules();
+                if (!form.elements['diversion-rule-name'].readOnly) {
+                    ui.showToast('正在后台获取规则详情...');
+                    setTimeout(() => loadDiversionRules(), 5000);
+                }
+            } finally {
+                ui.setLoading(saveBtn, false);
+            }
+        }
+
+        async function handleDiversionTableClick(event) {
+            const target = event.target;
+            const tr = target.closest('tr');
+            if (!tr || !tr.dataset.ruleName) return;
+            
+            const ruleName = tr.dataset.ruleName;
+            const rule = diversionState.rules.find(r => r.name === ruleName);
+            if (!rule) return;
+            
+            const targetPluginTag = sdSetInstanceMap[rule.type];
+
+            if (target.classList.contains('edit-btn')) {
+                diversionUI.openModal(rule);
+            }
+            if (target.classList.contains('delete-btn')) {
+                if (confirm(`确定要删除分流规则 "${ruleName}" 吗？此操作不可恢复。`)) {
+                    ui.setLoading(target, true);
+                    try {
+                        await diversionApi.deleteRule(targetPluginTag, ruleName);
+                        ui.showToast('分流规则已删除');
+                        await loadDiversionRules();
+                    } finally {
+                        ui.setLoading(target, false);
+                    }
+                }
+            }
+            if (target.classList.contains('update-btn')) {
+                ui.setLoading(target, true);
+                ui.showToast(`正在后台更新规则 "${rule.name}"...`);
+                try {
+                    await diversionApi.triggerUpdate(targetPluginTag, rule.name);
+                    ui.showToast('更新请求已发送，5秒后自动刷新', 'success');
+                    setTimeout(() => loadDiversionRules(), 5000);
+                } finally {
+                    ui.setLoading(target, false);
+                }
+            }
+            if (target.classList.contains('enabled-checkbox')) {
+                const updatedRule = { ...rule, enabled: target.checked };
+                target.disabled = true;
+                try {
+                    await diversionApi.updateRule(targetPluginTag, ruleName, updatedRule);
+                    rule.enabled = target.checked;
+                    ui.showToast(`规则 "${ruleName}" 已${target.checked ? '启用' : '禁用'}`);
+                } catch (error) {
+                    target.checked = !target.checked;
+                } finally {
+                    target.disabled = false;
+                }
+            }
+        }
+        
+        // --- 路由与初始化 ---
         function handleRouteChange() {
             const hash = window.location.hash || '#overview';
             document.querySelectorAll('.tab-link').forEach(el => el.classList.toggle('active', el.getAttribute('href') === hash));
             document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', `#${el.id.replace('-tab', '')}` === hash));
+            
             if (hash.startsWith('#log-query')) {
-                if (state.displayedLogs.length === 0) {
-                    applyLogFilterAndRender();
+                // [FIXED] Always trigger a fresh search when switching to the log tab
+                applyLogFilterAndRender();
+            } else if (hash === '#adguard') {
+                if (!adguardState.isInitialized) {
+                    loadAdguardRules();
+                    adguardState.isInitialized = true;
+                }
+                if (!diversionState.isInitialized) {
+                    loadDiversionRules();
+                    diversionState.isInitialized = true;
                 }
             }
         }
@@ -606,49 +1161,36 @@
             
             document.getElementById('toggle-audit-btn').addEventListener('click', async (e) => {
                 const btn = e.target;
-                btn.disabled = true;
                 ui.setLoading(btn, true, '处理中...');
-                try {
-                    if (state.isCapturing) {
-                        if (confirm('关闭审计会清空当前内存日志，确定吗? (v2 API 行为)')) {
-                            await api.stop();
-                        } else {
-                            ui.updateStatus(state.isCapturing);
-                            return;
-                        }
-                    } else {
-                        await api.start();
-                    }
-                } catch (error) {
-                    console.error("操作失败:", error);
-                }
+                try { if (state.isCapturing) { if (confirm('关闭审计会清空当前内存日志，确定吗? (v2 API 行为)')) { await api.stop(); } else { ui.updateStatus(state.isCapturing); return; } } else { await api.start(); } } catch (error) { console.error("操作失败:", error); }
                 await updatePageData();
             });
 
-            document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { 
-                if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { 
-                    const btn = e.target;
-                    btn.disabled = true;
-                    ui.setLoading(btn, true, '处理中...');
-                    try {
-                        await api.clear(); 
-                        await updatePageData();
-                        ui.showToast('审计日志已清空', 'success');
-                    } catch (error) {
-                        console.error("Failed to clear logs:", error);
-                    } finally {
-                        ui.setLoading(btn, false, '清空日志');
-                        btn.disabled = false;
-                    }
+            document.getElementById('clear-audit-btn').addEventListener('click', async (e) => { if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { const btn = e.target; ui.setLoading(btn, true, '处理中...'); try { await api.clear(); await updatePageData(); ui.showToast('审计日志已清空', 'success'); } catch (error) { console.error("Failed to clear logs:", error); } finally { ui.setLoading(btn, false, '清空日志'); } } });
+            document.getElementById('capacity-form').addEventListener('submit', async (e) => { e.preventDefault(); const capacityInput = document.getElementById('new-capacity'); const newCapacity = parseInt(capacityInput.value, 10); if (!newCapacity || newCapacity <= 0) return; if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { const btn = e.target.querySelector('button'); ui.setLoading(btn, true, '处理中...'); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); capacityInput.value = ''; } catch (error) { console.error("设置容量失败:", error); } finally { await updatePageData(); ui.setLoading(btn, false, '设置'); } } });
+            
+            // [FIXED] Add quotes for exact match and ensure hash change triggers search
+            document.getElementById('overview-tab').addEventListener('click', (e) => { 
+                const link = e.target.closest('.clickable-link'); 
+                if (link) { 
+                    e.preventDefault(); 
+                    document.getElementById('log-search').value = `"${link.dataset.filterValue}"`; 
+                    window.location.hash = '#log-query'; 
                 } 
             });
 
-            document.getElementById('capacity-form').addEventListener('submit', async (e) => { e.preventDefault(); const capacityInput = document.getElementById('new-capacity'); const newCapacity = parseInt(capacityInput.value, 10); if (!newCapacity || newCapacity <= 0) return; if (confirm(`确定要将容量设置为 ${newCapacity} 吗？\n注意：这将清空当前所有日志。`)) { const btn = e.target.querySelector('button'); btn.disabled = true; ui.setLoading(btn, true, '处理中...'); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity}`, 'success'); capacityInput.value = ''; } catch (error) { console.error("设置容量失败:", error); } finally { await updatePageData(); ui.setLoading(btn, false, '设置'); btn.disabled = false; } } });
-            document.getElementById('overview-tab').addEventListener('click', (e) => { const link = e.target.closest('.clickable-link'); if (link) { e.preventDefault(); document.getElementById('log-search').value = link.dataset.filterValue; window.location.hash = '#log-query'; } });
             document.getElementById('refresh-logs-btn').addEventListener('click', applyLogFilterAndRender);
             document.getElementById('log-search').addEventListener('input', debounce(applyLogFilterAndRender, 300));
             
-            window.addEventListener('scroll', () => { if (window.location.hash.startsWith('#log-query')) { const { scrollTop, scrollHeight, clientHeight } = document.documentElement; if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) { loadMoreLogs(); } } });
+            document.querySelector('.scrollable-table-container[style*="max-height: 550px"]').addEventListener('scroll', () => {
+                if (window.location.hash.startsWith('#log-query')) {
+                    const container = document.querySelector('.scrollable-table-container[style*="max-height: 550px"]');
+                    const { scrollTop, scrollHeight, clientHeight } = container;
+                    if (clientHeight + scrollTop >= scrollHeight - 200 && !state.isLoadingMore) {
+                        loadMoreLogs();
+                    }
+                }
+            });
 
             const aliasModal = document.getElementById('alias-modal');
             document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
@@ -657,12 +1199,77 @@
             const fileInput = document.getElementById('import-alias-file-input');
             document.getElementById('import-aliases-btn').addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
+            
+            // --- 修复 2 (新): 全局 Tooltip 逻辑 ---
+            const globalTooltip = document.getElementById('global-tooltip');
+            document.body.addEventListener('mouseover', (event) => {
+                const trigger = event.target.closest('.tooltip-container');
+                if (!trigger) return;
+
+                const sourceTooltip = trigger.querySelector('.answers-tooltip');
+                if (!sourceTooltip) return;
+
+                globalTooltip.innerHTML = sourceTooltip.innerHTML;
+                
+                const rect = trigger.getBoundingClientRect();
+                const top = rect.bottom + window.scrollY + 8; // 8px margin
+                const left = rect.left + window.scrollX + (rect.width / 2);
+                
+                globalTooltip.style.top = `${top}px`;
+                globalTooltip.style.left = `${left}px`;
+                globalTooltip.style.visibility = 'visible';
+                globalTooltip.style.opacity = '1';
+            });
+            document.body.addEventListener('mouseout', (event) => {
+                const trigger = event.target.closest('.tooltip-container');
+                if (trigger) {
+                    globalTooltip.style.visibility = 'hidden';
+                    globalTooltip.style.opacity = '0';
+                }
+            });
+            window.addEventListener('scroll', () => {
+                globalTooltip.style.visibility = 'hidden';
+                globalTooltip.style.opacity = '0';
+            }, true); // Use capture to catch scroll events early
         }
         
-        // --- 初始化 ---
+        function setupAdguardEventListeners() {
+            document.getElementById('add-rule-btn').addEventListener('click', () => adguardUI.openModal());
+            document.getElementById('check-updates-btn').addEventListener('click', async (e) => {
+                const updateBtn = e.currentTarget;
+                ui.setLoading(updateBtn, true);
+                ui.showToast('已开始在后台更新所有启用的规则...');
+                try {
+                    await adguardApi.triggerUpdate();
+                    ui.showToast('更新请求已发送，5秒后自动刷新列表...', 'success');
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    await loadAdguardRules();
+                    ui.showToast('规则列表已刷新！', 'success');
+                } catch (error) {
+                    console.error("更新流程出错:", error);
+                } finally {
+                    ui.setLoading(updateBtn, false);
+                }
+            });
+            document.getElementById('adguard-rules-table-body').addEventListener('click', handleAdguardTableClick);
+            document.getElementById('adguard-rule-form').addEventListener('submit', handleAdguardFormSubmit);
+            document.getElementById('close-adguard-modal').addEventListener('click', (e) => { e.preventDefault(); adguardUI.closeModal(); });
+            document.getElementById('cancel-adguard-modal-btn').addEventListener('click', (e) => { e.preventDefault(); adguardUI.closeModal(); });
+        }
+
+        function setupDiversionEventListeners() {
+            document.getElementById('add-diversion-rule-btn').addEventListener('click', () => diversionUI.openModal());
+            document.getElementById('diversion-rules-table-body').addEventListener('click', handleDiversionTableClick);
+            document.getElementById('diversion-rule-form').addEventListener('submit', handleDiversionFormSubmit);
+            document.getElementById('close-diversion-modal').addEventListener('click', (e) => { e.preventDefault(); diversionUI.closeModal(); });
+            document.getElementById('cancel-diversion-modal-btn').addEventListener('click', (e) => { e.preventDefault(); diversionUI.closeModal(); });
+        }
+
         function init() {
             aliasManager.load();
             setupEventListeners();
+            setupAdguardEventListeners();
+            setupDiversionEventListeners();
             handleRouteChange(); 
             updatePageData();
         }
