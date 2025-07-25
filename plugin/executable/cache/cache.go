@@ -254,7 +254,7 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 		return next.ExecNext(ctx, qCtx)
 	}
 
-	cachedResp, lazyHit := getRespFromCache(msgKey, c.backend, c.args.LazyCacheTTL > 0, expiredMsgTtl)
+	cachedResp, lazyHit, domainSet := getRespFromCache(msgKey, c.backend, c.args.LazyCacheTTL > 0, expiredMsgTtl)
 	if lazyHit {
 		c.lazyHitTotal.Inc()
 		c.doLazyUpdate(msgKey, qCtx, next)
@@ -263,6 +263,9 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 		c.hitTotal.Inc()
 		cachedResp.Id = q.Id
 		qCtx.SetResponse(cachedResp)
+		if domainSet != "" {
+			qCtx.StoreValue(query_context.KeyDomainSet, domainSet)
+		}
 		return nil
 	}
 
@@ -270,7 +273,7 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 	r := qCtx.R()
 
 	if r != nil && !c.containsExcluded(r) {
-		saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
+		saveRespToCache(msgKey, qCtx, c.backend, c.args.LazyCacheTTL)
 		c.updatedKey.Add(1)
 	}
 
@@ -294,7 +297,7 @@ func (c *Cache) doLazyUpdate(msgKey string, qCtx *query_context.Context, next se
 
 		r := qCtx.R()
 		if r != nil && !c.containsExcluded(r) {
-			saveRespToCache(msgKey, r, c.backend, c.args.LazyCacheTTL)
+			saveRespToCache(msgKey, qCtx, c.backend, c.args.LazyCacheTTL)
 			c.updatedKey.Add(1)
 		}
 		c.logger.Debug("lazy cache updated", qCtx.InfoField())
@@ -431,6 +434,9 @@ func (c *Cache) Api() *chi.Mux {
 
 			fmt.Fprintf(w, "----- Cache Entry -----\n")
 			fmt.Fprintf(w, "Key:           %s\n", keyToString(k))
+			if v.domainSet != "" {
+				fmt.Fprintf(w, "DomainSet:     %s\n", v.domainSet)
+			}
 			fmt.Fprintf(w, "StoredTime:    %s\n", v.storedTime.Format(time.RFC3339))
 			fmt.Fprintf(w, "MsgExpire:     %s\n", v.expirationTime.Format(time.RFC3339))
 			fmt.Fprintf(w, "CacheExpire:   %s\n", cacheExpirationTime.Format(time.RFC3339))
@@ -511,6 +517,7 @@ func (c *Cache) writeDump(w io.Writer) (int, error) {
 			MsgExpirationTime:   v.expirationTime.Unix(),
 			MsgStoredTime:       v.storedTime.Unix(),
 			Msg:                 msg,
+			DomainSet:           v.domainSet,
 		}
 		block.Entries = append(block.Entries, e)
 		if len(block.Entries) >= dumpBlockSize {
@@ -578,6 +585,7 @@ func (c *Cache) readDump(r io.Reader) (int, error) {
 				resp:           resp,
 				storedTime:     storedTime,
 				expirationTime: msgExpTime,
+				domainSet:      entry.GetDomainSet(),
 			}
 			c.backend.Store(key(entry.GetKey()), i, cacheExpTime)
 		}
