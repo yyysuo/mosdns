@@ -104,6 +104,7 @@
         .card > * { position: relative; z-index: 1; }
         .card-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         .card-body { padding: 1.75rem; }
+        .card-body.no-padding { padding: 0; }
         
         .card-header .header-actions { display: flex; gap: 0.75rem; align-items: center; }
 
@@ -146,33 +147,68 @@
         .button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
         .button svg { width: 1.2em; height: 1.2em; }
         
-        input[type="search"], input[type="text"], input[type="number"] { width: 100%; padding: 0.8rem 1.2rem; font-size: 1rem; background-color: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: var(--border-radius-sm); color: var(--color-text-primary); transition: var(--transition-fast); }
-        input:focus { outline: none; border-color: var(--color-accent-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 25%, transparent); }
+        input[type="search"], input[type="text"], input[type="number"], input[type="url"], select { 
+            width: 100%; 
+            padding: 0.8rem 1.2rem; 
+            font-size: 1rem; 
+            background-color: var(--color-bg-alt); 
+            border: 1px solid var(--color-border); 
+            border-radius: var(--border-radius-sm); 
+            color: var(--color-text-primary); 
+            transition: var(--transition-fast);
+            font-family: var(--font-family-sans);
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        select {
+             background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+             background-repeat: no-repeat;
+             background-position: right 0.75rem center;
+             background-size: 16px 12px;
+             padding-right: 2.5rem;
+        }
+        [data-theme="dark"] select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23c9d1d9' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        }
+        input:focus, select:focus { 
+            outline: none; 
+            border-color: var(--color-accent-primary); 
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-primary) 25%, transparent); 
+        }
         
         #search-results-info { 
             color: var(--color-text-secondary);
             font-size: 0.9rem;
             margin-bottom: 1rem;
-            height: 1.2em; /* Reserve space to prevent layout shift */
+            height: 1.2em;
             transition: opacity 0.3s;
         }
 
         .rankings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+        /* ========== CHANGE 1: The Fix for long domain layout issue ========== */
+        .rankings-grid > .card {
+            min-width: 0;
+        }
         .scrollable-table-container { 
             max-height: 400px; 
             overflow-y: auto; 
             position: relative;
         }
         #log-query-table-container { max-height: calc(100vh - 380px); min-height: 200px; }
+        #adguard-table-container, #diversion-table-container { max-height: calc(100vh - 280px); min-height: 300px; }
         
         table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; }
         th, td { padding: 0.8rem 1.25rem; text-align: left; border-bottom: 1px solid var(--color-border); transition: background-color var(--transition-fast); word-break: break-word; vertical-align: middle;}
         .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
 
         #top-domains-table th:last-child,
         #top-domains-table td:last-child,
         #top-clients-table th:last-child,
-        #top-clients-table td:last-child {
+        #top-clients-table td:last-child,
+        #shunt-results-table th:last-child,
+        #shunt-results-table td:last-child {
             width: 6rem;
             white-space: nowrap;
         }
@@ -222,7 +258,7 @@
         }
         @keyframes data-log-entry-animation { to { opacity: 1; transform: translateY(0); } }
 
-        .truncate-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .truncate-text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30ch; }
         
         tbody td a.clickable-link { position: relative; text-decoration: none; }
         tbody td a.clickable-link::after { content: ''; position: absolute; width: 0; height: 1px; bottom: -3px; left: 50%; transform: translateX(-50%); background-color: var(--color-accent-primary); transition: width var(--transition-fast); }
@@ -271,7 +307,7 @@
         .modal-header { padding: 1.25rem 1.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); } 
         .modal-body { padding: 1.75rem; max-height: 60vh; overflow-y: auto; scrollbar-gutter: stable; } 
         .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: 0.75rem; background-color: var(--color-bg-alt); } 
-        .modal-footer .footer-actions-right { display: flex; gap: 0.75rem; }
+        .modal-footer .footer-actions-right { display: flex; gap: 0.75rem; margin-left: auto; }
         
         .alias-item { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } 
         .alias-item:nth-child(even) { background-color: var(--color-bg-alt); }
@@ -287,10 +323,11 @@
         .control-module { background-color: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--border-radius-md); padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
         .control-module h3 { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); text-transform: none; letter-spacing: 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--color-border); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.6rem; }
         .control-module h3 svg { width: 1.1em; height: 1.1em; color: var(--color-accent-primary); opacity: 0.8; }
+        .form-field { margin-bottom: 1.25rem; }
+        .form-field label { display: block; font-weight: 500; margin-bottom: 0.5rem; }
 
         .fab { display: none; }
 
-        /* --- 全面优化的响应式布局 --- */
         @media (max-width: 992px) {
             .page-header { justify-content: center; }
             h1 { flex-basis: 100%; text-align: center; margin-bottom: 0.5rem; }
@@ -303,6 +340,7 @@
             h1 { font-size: 1.8rem; }
             .card-header { padding: 1rem 1.25rem; }
             .card-body { padding: 1.25rem; }
+            .card-body.no-padding { padding: 0; }
             .rankings-grid { grid-template-columns: 1fr; gap: 2rem; }
             
             .hide-on-mobile { display: none !important; }
@@ -345,7 +383,10 @@
             }
 
             #slowest-queries-card .scrollable-table-container,
-            #log-query-table-container {
+            #shunt-results-card .scrollable-table-container,
+            #log-query-table-container,
+            #adguard-table-container,
+            #diversion-table-container {
                 padding: 0.75rem;
                 background-color: var(--color-bg-alt);
                 border-radius: var(--border-radius-md);
@@ -358,7 +399,8 @@
             #top-clients-card thead th {
                 top: -1.25rem;
             }
-            #slowest-queries-card .scrollable-table-container {
+            #slowest-queries-card .scrollable-table-container,
+            #shunt-results-card .scrollable-table-container {
                 padding-left: 0; padding-right: 0;
             }
             
@@ -378,8 +420,7 @@
             .alias-item input { text-align: center; }
         }
     </style>
-</head>
-<body>
+</head><body>
     <div id="initial-loader"><div class="spinner"></div></div>
 
     <main class="container">
@@ -391,6 +432,7 @@
                         <div class="main-nav-slider"></div>
                         <a href="#overview" class="tab-link active" data-tab="overview" role="tab">概览</a>
                         <a href="#log-query" class="tab-link" data-tab="log-query" role="tab">查询日志</a>
+                        <a href="#rules" class="tab-link" data-tab="rules" role="tab">在线规则管理</a>
                         <a href="#system-control" class="tab-link" data-tab="system-control" role="tab">
                             <span class="status-indicator"></span>
                             <span>系统</span>
@@ -432,6 +474,63 @@
         </dialog>
         <input type="file" id="import-alias-file-input" accept=".json" style="display: none;">
         
+        <dialog id="rule-modal">
+            <header class="modal-header">
+                <h2 id="modal-title">添加规则</h2>
+                <button class="button secondary" id="close-rule-modal" aria-label="Close" style="min-width:auto; padding:0.3rem 0.5rem;">✕</button>
+            </header>
+            <form id="rule-form">
+                <div class="modal-body">
+                    <input type="hidden" id="rule-id" name="id">
+                    <input type="hidden" id="rule-mode" name="mode"> <!-- 用于区分 adguard/diversion -->
+
+                    <!-- 仅分流规则显示 -->
+                    <div class="form-field" id="rule-type-wrapper" style="display: none;">
+                        <label for="rule-type">类型</label>
+                        <select id="rule-type" name="type" required>
+                            <option value="" disabled selected>请选择类型</option>
+                            <option value="geositecn">geositecn</option>
+                            <option value="geositenocn">geositenocn</option>
+                            <option value="geoipcn">geoipcn</option>
+                        </select>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rule-name">名称</label>
+                        <input type="text" id="rule-name" name="name" placeholder="例如：My Custom Rules" required>
+                    </div>
+
+                    <!-- 仅分流规则显示 -->
+                    <div class="form-field" id="rule-files-wrapper" style="display: none;">
+                        <label for="rule-files">本地文件路径</label>
+                        <input type="text" id="rule-files" name="files" placeholder="例如: /mosdns/geosite-cn.srs" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="rule-url">清单网址 (URL)</label>
+                        <input type="url" id="rule-url" name="url" placeholder="https://example.com/rules.txt" required>
+                    </div>
+                    <div class="form-field control-item" style="justify-content: space-between;">
+                        <strong>自动更新</strong>
+                        <label class="switch">
+                            <input type="checkbox" id="rule-auto-update" name="auto_update">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="form-field">
+                        <label for="rule-update-interval">更新间隔 (小时)</label>
+                        <input type="number" id="rule-update-interval" name="update_interval_hours" min="1" value="24" style="width: 120px;">
+                    </div>
+                </div>
+                <footer class="modal-footer">
+                    <div class="footer-actions-right">
+                        <button type="button" id="cancel-rule-modal-btn" class="button secondary"><span>取消</span></button>
+                        <button type="submit" id="save-rule-btn" class="button primary" data-default-text="保存"><span>保存</span></button>
+                    </div>
+                </footer>
+            </form>
+        </dialog>
+
         <section id="overview-tab" class="tab-content active" role="tabpanel">
             <div class="stats-grid">
                 <div class="stat-card" id="stat-card-1">
@@ -481,12 +580,31 @@
                 <div class="card-body">
                      <div class="scrollable-table-container">
                         <table id="slowest-queries-table" class="mobile-card-layout">
-                            <thead><tr><th class="hide-on-mobile">时间</th><th>域名 / 响应</th><th class="hide-on-mobile text-right">耗时 (ms)</th><th class="hide-on-mobile">客户端</th></tr></thead>
+                            <thead><tr><th class="hide-on-mobile">时间</th><th>域名 / 响应</th><th class="hide-on-mobile">查询类型</th><th class="hide-on-mobile text-right">耗时 (ms)</th><th class="hide-on-mobile">客户端</th></tr></thead>
                             <tbody id="slowest-queries-body"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
+            
+            <!-- ADDED: Shunt Result Statistics Card -->
+            <div class="card" id="shunt-results-card" style="margin-top: 2.5rem;">
+                <header class="card-header">
+                    <h2>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M18.5 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm-10 0a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Zm0 10a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM6 10v4a1 1 0 0 0 1 1h4.5v-1.5H7.5a.5.5 0 0 1-.5-.5v-3h7.5a2.5 2.5 0 0 0 2.5-2.5V5H8.75A4.5 4.5 0 0 0 6 7.25V10Z"></path></svg>
+                        <span>分流结果统计</span>
+                    </h2>
+                </header>
+                <div class="card-body">
+                    <div class="scrollable-table-container">
+                        <table id="shunt-results-table" class="mobile-compact-table">
+                            <thead><tr><th>分流规则</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
+                            <tbody id="shunt-results-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- END ADDED -->
         </section>
 
         <section id="log-query-tab" class="tab-content">
@@ -498,7 +616,7 @@
                     </div>
                 </header>
                 <div class="card-body">
-                    <input type="search" id="log-search" placeholder="全局搜索... (使用 &quot;引号&quot; 进行精确匹配)" style="margin-bottom: 0.5rem;">
+                    <input type="search" id="log-search" placeholder="全局搜索... (使用 "引号" 进行精确匹配)" style="margin-bottom: 0.5rem;">
                     <div id="search-results-info"></div>
                     <div class="scrollable-table-container" id="log-query-table-container">
                         <table id="log-table" class="mobile-card-layout">
@@ -514,6 +632,73 @@
                             <tbody id="log-table-body"></tbody>
                         </table>
                         <div id="log-loader"><div class="spinner" style="width:1.5rem; height:1.5rem; border-width:3px;"></div></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rules-tab" class="tab-content">
+            <div class="card" style="margin-bottom: 2.5rem;">
+                <header class="card-header">
+                    <h2>在线广告拦截</h2>
+                    <div class="header-actions">
+                         <button id="add-adguard-rule-btn" class="button primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"></path></svg>
+                            <span>添加拦截规则</span>
+                        </button>
+                        <button id="check-adguard-updates-btn" class="button secondary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C16.1333 2 19.536 4.30641 21.1009 7.82362L18.3294 8.76801C17.1523 6.22352 14.7951 4.5 12 4.5C7.85786 4.5 4.5 7.85786 4.5 12C4.5 16.1421 7.85786 19.5 12 19.5C15.2443 19.5 17.9739 17.4478 18.9472 14.5H16.5V12.5H22V18.5H20V15.118C18.6468 19.068 15.5849 22 12 22Z"></path></svg>
+                            <span>检查更新</span>
+                        </button>
+                    </div>
+                </header>
+                <div class="card-body no-padding">
+                    <div class="scrollable-table-container" id="adguard-table-container">
+                        <table id="adguard-rules-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center" style="width: 6rem;">启用</th>
+                                    <th>名称</th>
+                                    <th>清单网址</th>
+                                    <th class="text-right" style="width: 7rem;">规则数</th>
+                                    <th style="width: 12rem;">上次更新</th>
+                                    <th class="text-center" style="width: 12rem;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adguard-rules-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <header class="card-header">
+                    <h2>在线分流规则（不要删除和禁用！！！）</h2>
+                    <div class="header-actions">
+                        <button id="add-diversion-rule-btn" class="button primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11 11V5H13V11H19V13H13V19H11V13H5V11H11Z"></path></svg>
+                            <span>添加规则</span>
+                        </button>
+                    </div>
+                </header>
+                <div class="card-body no-padding">
+                    <div class="scrollable-table-container" id="diversion-table-container">
+                        <table id="diversion-rules-table">
+                            <thead>
+                                <tr>
+                                    <th class="text-center" style="width: 6rem;">启用</th>
+                                    <th>名称</th>
+                                    <th>类型</th>
+                                    <th>清单网址</th>
+                                    <th class="text-right" style="width: 7rem;">规则数</th>
+                                    <th style="width: 12rem;">上次更新</th>
+                                    <th class="text-center" style="width: 16rem;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="diversion-rules-tbody">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -588,13 +773,22 @@
     <button id="fab-refresh" class="fab" aria-label="刷新数据" aria-busy="false">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
     </button>
-    
-
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- 1. 核心常量、状态、元素 ---
         const CONSTANTS = { API_BASE_URL: '', LOGS_PER_PAGE: 50, HISTORY_LENGTH: 30, DEFAULT_AUTO_REFRESH_INTERVAL: 15, ANIMATION_DURATION: 1000, MOBILE_BREAKPOINT: 768, TOAST_DURATION: 3000 };
-        let state = { isUpdating: false, isCapturing: false, isMobile: false, isTouchDevice: false, currentLogPage: 1, isLogLoading: false, logPaginationInfo: null, displayedLogs: [], currentLogSearchTerm: '', clientAliases: {}, topDomains: [], topClients: [], slowestQueries: [], logSort: { key: 'query_time', order: 'desc' }, autoRefresh: { enabled: true, intervalId: null, intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL }, data: { totalQueries: { current: null, previous: 0 }, avgDuration: { current: null, previous: 0 } }, history: { totalQueries: [], avgDuration: [] }, lastUpdateTime: null };
+        let state = { 
+            isUpdating: false, isCapturing: false, isMobile: false, isTouchDevice: false, 
+            currentLogPage: 1, isLogLoading: false, logPaginationInfo: null, displayedLogs: [], 
+            currentLogSearchTerm: '', clientAliases: {}, topDomains: [], topClients: [], slowestQueries: [], domainSetRank: [],
+            logSort: { key: 'query_time', order: 'desc' }, 
+            autoRefresh: { enabled: true, intervalId: null, intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL }, 
+            data: { totalQueries: { current: null, previous: 0 }, avgDuration: { current: null, previous: 0 } }, 
+            history: { totalQueries: [], avgDuration: [] }, 
+            lastUpdateTime: null,
+            adguardRules: [],
+            diversionRules: [],
+        };
         const elements = { 
             html: document.documentElement, body: document.body, container: document.querySelector('.container'), initialLoader: document.getElementById('initial-loader'), 
             lightThemeBtn: document.getElementById('light-theme-btn'), darkThemeBtn: document.getElementById('dark-theme-btn'), colorSwatches: document.querySelectorAll('.color-swatch'), 
@@ -610,6 +804,7 @@
             auditStatus: document.getElementById('audit-status'), toggleAuditBtn: document.getElementById('toggle-audit-btn'), clearAuditBtn: document.getElementById('clear-audit-btn'), 
             auditCapacity: document.getElementById('audit-capacity'), capacityForm: document.getElementById('capacity-form'), newCapacityInput: document.getElementById('new-capacity'), 
             topDomainsBody: document.getElementById('top-domains-body'), topClientsBody: document.getElementById('top-clients-body'), slowestQueriesBody: document.getElementById('slowest-queries-body'), 
+            shuntResultsBody: document.getElementById('shunt-results-body'),
             logTable: document.getElementById('log-table'), logTableHead: document.getElementById('log-table-head'), logTableBody: document.getElementById('log-table-body'),
             slowestQueriesTable: document.getElementById('slowest-queries-table'),
             logSearch: document.getElementById('log-search'), logQueryTableContainer: document.getElementById('log-query-table-container'), logLoader: document.getElementById('log-loader'), 
@@ -617,11 +812,28 @@
             toast: document.getElementById('toast'), 
             aliasModal: document.getElementById('alias-modal'), manualAliasForm: document.getElementById('manual-alias-form'), 
             aliasListContainer: document.getElementById('alias-list-container'), importAliasInput: document.getElementById('import-alias-file-input'), saveAllAliasesBtn: document.getElementById('save-all-aliases-btn'), 
-            systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator') 
+            systemControlTabIndicator: document.querySelector('a[data-tab="system-control"] .status-indicator'),
+            rulesTab: document.getElementById('rules-tab'),
+            addAdguardRuleBtn: document.getElementById('add-adguard-rule-btn'),
+            checkAdguardUpdatesBtn: document.getElementById('check-adguard-updates-btn'),
+            adguardRulesTable: document.getElementById('adguard-rules-table'),
+            adguardRulesTbody: document.getElementById('adguard-rules-tbody'),
+            addDiversionRuleBtn: document.getElementById('add-diversion-rule-btn'),
+            diversionRulesTable: document.getElementById('diversion-rules-table'),
+            diversionRulesTbody: document.getElementById('diversion-rules-tbody'),
+            ruleModal: document.getElementById('rule-modal'),
+            modalTitle: document.getElementById('modal-title'),
+            ruleForm: document.getElementById('rule-form'),
+            closeRuleModalBtn: document.getElementById('close-rule-modal'),
+            cancelRuleModalBtn: document.getElementById('cancel-rule-modal-btn'),
+            saveRuleBtn: document.getElementById('save-rule-btn'),
+            ruleMode: document.getElementById('rule-mode'),
+            ruleTypeWrapper: document.getElementById('rule-type-wrapper'),
+            ruleFilesWrapper: document.getElementById('rule-files-wrapper'),
+            ruleNameInput: document.getElementById('rule-name'),
         };
         let toastTimeout;
         
-        // --- 2. 工具函数 ---
         const debounce = (func, wait) => {
             let timeout;
             return function executedFunction(...args) {
@@ -634,18 +846,19 @@
             };
         };
 
-        // --- 3. 轻量级表头对齐管理器 ---
         const tableHeaderAligner = {
             scrollbarWidth: 0,
             containersToAlign: [],
-
             init() {
                 this.scrollbarWidth = this.getScrollbarWidth();
                 this.containersToAlign = [
                     elements.logQueryTableContainer,
                     document.querySelector('#slowest-queries-card .scrollable-table-container'),
                     document.querySelector('#top-domains-card .scrollable-table-container'),
-                    document.querySelector('#top-clients-card .scrollable-table-container')
+                    document.querySelector('#top-clients-card .scrollable-table-container'),
+                    document.querySelector('#shunt-results-card .scrollable-table-container'),
+                    document.getElementById('adguard-table-container'),
+                    document.getElementById('diversion-table-container'),
                 ].filter(Boolean);
                 
                 window.addEventListener('resize', debounce(() => this.updateAll(), 150));
@@ -653,7 +866,6 @@
                     container.addEventListener('scroll', () => this.update(container));
                 });
             },
-
             getScrollbarWidth() {
                 const outer = document.createElement('div');
                 outer.style.visibility = 'hidden';
@@ -665,27 +877,20 @@
                 outer.parentNode.removeChild(outer);
                 return scrollbarWidth > 0 ? scrollbarWidth : 17;
             },
-
             update(container) {
                 if (!container || state.isMobile) return;
                 const thead = container.querySelector('thead');
                 if (!thead) return;
-
                 const hasScrollbar = container.scrollHeight > container.clientHeight;
-                
                 thead.style.paddingRight = hasScrollbar ? `${this.scrollbarWidth}px` : '0px';
             },
-
-            updateAll() {
-                this.containersToAlign.forEach(container => this.update(container));
-            }
+            updateAll() { this.containersToAlign.forEach(container => this.update(container)); }
         };
 
-        // --- 4. 主要模块 ---
-        const api = { fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`); const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { ui.showToast(`网络请求失败: ${error.message}`, 'error'); console.error(error); } throw error; } }, getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }), getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }), start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }), stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }), clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }), setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }), v2: { getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }), getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }), getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }), getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }), getLogs: (signal, params = {}) => { const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params }); for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } } return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal }); } } };
+        const api = { fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) { let errorMsg = `API Error: ${response.status} ${response.statusText}`; try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} } if (response.status !== 404) { ui.showToast(errorMsg, 'error'); } throw new Error(errorMsg); } const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { console.error(error); } throw error; } }, getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }), getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }), start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }), stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }), clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }), setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }), v2: { getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }), getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }), getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }), getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }), getDomainSetRank: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain_set?limit=${limit}`, { signal }), getLogs: (signal, params = {}) => { const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params }); for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } } return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal }); } } };
         const ui = {
             showToast(message, type = 'success') { if (!elements.toast) return; clearTimeout(toastTimeout); const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; const hideToast = () => { elements.toast.className = elements.toast.className.replace('show', ''); }; elements.toast.onmouseenter = () => clearTimeout(toastTimeout); elements.toast.onmouseleave = () => toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); },
-            setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
+            setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; button.setAttribute('aria-busy', String(isLoading)); const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
             updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } },
             updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; },
             updateOverviewStats() { animateValue(elements.totalQueries, state.data.totalQueries.previous, state.data.totalQueries.current, CONSTANTS.ANIMATION_DURATION); animateValue(elements.avgDuration, state.data.avgDuration.previous, state.data.avgDuration.current, CONSTANTS.ANIMATION_DURATION); state.history.totalQueries.push(state.data.totalQueries.current ?? 0); state.history.avgDuration.push(state.data.avgDuration.current ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); if (state.history.avgDuration.length > CONSTANTS.HISTORY_LENGTH) state.history.avgDuration.shift(); historyManager.save(); if (elements.sparklineTotal) elements.sparklineTotal.innerHTML = generateSparklineSVG(state.history.totalQueries); if (elements.sparklineAvg) elements.sparklineAvg.innerHTML = generateSparklineSVG(state.history.avgDuration, true); },
@@ -724,17 +929,354 @@
                 } else {
                     elements.searchResultsInfo.innerHTML = '';
                 }
+            },
+            openRuleModal(mode, rule = null) {
+                elements.ruleForm.reset();
+                const form = elements.ruleForm;
+                elements.ruleMode.value = mode;
+                
+                form.dataset.originalName = rule ? rule.name : '';
+
+                if (mode === 'adguard') {
+                    elements.modalTitle.textContent = rule ? '修改拦截规则' : '添加拦截规则';
+                    // 隐藏UI元素
+                    elements.ruleTypeWrapper.style.display = 'none';
+                    elements.ruleFilesWrapper.style.display = 'none';
+                    // 【关键修正】禁用对应的表单控件，使其不参与验证
+                    form.elements['type'].disabled = true;
+                    form.elements['files'].disabled = true;
+                    
+                    elements.ruleNameInput.readOnly = false;
+                    
+                    if (rule) {
+                        form.elements['id'].value = rule.id;
+                        form.elements['name'].value = rule.name;
+                        form.elements['url'].value = rule.url;
+                        form.elements['auto_update'].checked = rule.auto_update;
+                        form.elements['update_interval_hours'].value = rule.update_interval_hours || 24;
+                    } else {
+                         form.elements['id'].value = '';
+                         form.elements['auto_update'].checked = true;
+                         form.elements['update_interval_hours'].value = 24;
+                    }
+                } else if (mode === 'diversion') {
+                    elements.modalTitle.textContent = rule ? '修改分流规则' : '添加分流规则';
+                    // 显示UI元素
+                    elements.ruleTypeWrapper.style.display = 'block';
+                    elements.ruleFilesWrapper.style.display = 'block';
+                    // 【关键修正】启用对应的表单控件，使其参与验证
+                    form.elements['type'].disabled = false;
+                    form.elements['files'].disabled = false;
+
+                    elements.ruleNameInput.readOnly = false;
+
+                    if (rule) {
+                        form.elements['id'].value = rule.name;
+                        form.elements['name'].value = rule.name;
+                        form.elements['type'].value = rule.type;
+                        form.elements['files'].value = rule.files;
+                        form.elements['url'].value = rule.url;
+                        form.elements['auto_update'].checked = rule.auto_update;
+                        form.elements['update_interval_hours'].value = rule.update_interval_hours || 24;
+                    } else {
+                        form.elements['id'].value = '';
+                        form.elements['type'].value = "";
+                        form.elements['auto_update'].checked = true;
+                        form.elements['update_interval_hours'].value = 24;
+                    }
+                }
+                
+                elements.ruleModal.showModal();
+            },
+            closeRuleModal() {
+                elements.ruleModal.close();
             }
         };
-        const aliasManager = { load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; }, save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); }, getDisplayName: (ip) => state.clientAliases[ip] || ip, getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip, getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; }, set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } }, async saveAll() { const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item'); let changed = false; aliasItems.forEach(item => { const ip = item.dataset.ip; const input = item.querySelector('input'); const newValue = input.value.trim(); const originalValue = input.dataset.originalValue; if (newValue !== originalValue) { this.set(ip, newValue); changed = true; } }); if(changed) { this.save(); ui.showToast('所有别名更改已保存', 'success'); await updatePageData(); await this.renderEditableList(); } else { ui.showToast('没有检测到任何更改', 'success'); } }, async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = [...new Set(topClients.map(client => client.key))].sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.dataset.ip = ip; const currentAlias = this.getDisplayName(ip); const aliasValue = currentAlias === ip ? '' : currentAlias; item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${aliasValue}" data-original-value="${aliasValue}">`; const input = item.querySelector('input'); input.addEventListener('input', () => { input.classList.toggle('changed', input.value.trim() !== input.dataset.originalValue); }); elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } }, export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); }, import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); }, };
+
+        const diversionManager = {
+            sdSetInstanceMap: {
+                'geositecn': 'geosite_cn',
+                'geositenocn': 'geosite_no_cn',
+                'geoipcn': 'geoip_cn'
+            },
+            
+            api: {
+                getRulesForTag: (tag) => api.fetch(`/plugins/${tag}/config`),
+                addRule: (tag, data) => api.fetch(`/plugins/${tag}/config/${data.name}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+                updateRule: (tag, id, data) => api.fetch(`/plugins/${tag}/config/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+                deleteRule: (tag, id) => api.fetch(`/plugins/${tag}/config/${id}`, { method: 'DELETE' }),
+                triggerUpdate: (tag, id) => api.fetch(`/plugins/${tag}/update/${id}`, { method: 'POST' }),
+            },
+            
+            async loadRules() {
+                const promises = Object.values(this.sdSetInstanceMap).map(tag => this.api.getRulesForTag(tag));
+                const results = await Promise.allSettled(promises);
+                
+                const successfulRules = results
+                    .filter(result => result.status === 'fulfilled' && Array.isArray(result.value))
+                    .flatMap(result => result.value);
+
+                state.diversionRules = successfulRules;
+                this.renderTable();
+                 requestAnimationFrame(() => tableHeaderAligner.update(document.getElementById('diversion-table-container')));
+            },
+
+            renderTable() {
+                const sortedRules = [...state.diversionRules].sort((a,b) => a.name.localeCompare(b.name));
+
+                renderTable(elements.diversionRulesTbody, sortedRules, (rule) => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.ruleId = rule.name;
+                    tr.dataset.ruleType = rule.type;
+                    
+                    const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01')
+                        ? new Date(rule.last_updated).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-')
+                        : '—';
+
+                    tr.innerHTML = `
+                        <td class="text-center">
+                            <label class="switch" style="display:inline-block; vertical-align: middle;">
+                                <input type="checkbox" class="diversion-enabled-toggle" ${rule.enabled ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td>${rule.name}</td>
+                        <td><span class="response-tag other">${rule.type}</span></td>
+                        <td><span class="truncate-text" title="${rule.url}">${rule.url}</span></td>
+                        <td class="text-right">${(rule.rule_count || 0).toLocaleString()}</td>
+                        <td>${lastUpdated}</td>
+                        <td class="text-center">
+                            <div style="display: inline-flex; gap: 0.5rem; white-space: nowrap;">
+                                <button class="button secondary diversion-update-btn" style="padding: 0.4rem 0.8rem;" title="更新此规则"><span>更新</span></button>
+                                <button class="button secondary diversion-edit-btn" style="padding: 0.4rem 0.8rem;"><span>编辑</span></button>
+                                <button class="button danger diversion-delete-btn" style="padding: 0.4rem 0.8rem;"><span>删除</span></button>
+                            </div>
+                        </td>
+                    `;
+                    return tr;
+                }, 'diversion');
+            },
+
+            async handleFormSubmit(event) {
+                const form = event.target;
+                const originalName = form.dataset.originalName;
+                const newName = form.elements['name'].value;
+                const id = form.elements['id'].value;
+                
+                const data = {
+                    name: newName,
+                    url: form.elements['url'].value,
+                    type: form.elements['type'].value,
+                    files: form.elements['files'].value,
+                    auto_update: form.elements['auto_update'].checked,
+                    update_interval_hours: parseInt(form.elements['update_interval_hours'].value, 10) || 24,
+                };
+                
+                const targetPluginTag = this.sdSetInstanceMap[data.type];
+                if (!targetPluginTag) {
+                    ui.showToast('错误: 无效的规则类型', 'error');
+                    return Promise.reject();
+                }
+
+                if (id) {
+                    const originalRule = state.diversionRules.find(r => r.name === id);
+                    if (newName !== originalName) {
+                        const confirmed = confirm(`规则名称已从 "${originalName}" 更改为 "${newName}"。\n\n这将删除旧规则并创建一个新规则，确定要继续吗？`);
+                        if (!confirmed) {
+                           return Promise.reject('User cancelled name change.');
+                        }
+                        await this.api.deleteRule(targetPluginTag, originalName);
+                        data.enabled = originalRule ? originalRule.enabled : true;
+                        await this.api.addRule(targetPluginTag, data);
+                        ui.showToast('规则名称已更新 (通过重新创建)');
+                    } else {
+                        await this.api.updateRule(targetPluginTag, id, { ...originalRule, ...data });
+                        ui.showToast('分流规则更新成功');
+                    }
+                } else {
+                    data.enabled = true;
+                    await this.api.addRule(targetPluginTag, data);
+                    ui.showToast('分流规则添加成功');
+                }
+
+                ui.closeRuleModal();
+                await this.loadRules();
+
+                if (!id || newName !== originalName) {
+                    ui.showToast('正在后台获取规则详情...');
+                    setTimeout(() => { this.loadRules(); }, 5000);
+                }
+            },
+            
+            async handleTableClick(event) {
+                const target = event.target.closest('button, input');
+                if (!target) return;
+                const tr = target.closest('tr');
+                if (!tr) return;
+                const id = tr.dataset.ruleId;
+                const type = tr.dataset.ruleType;
+                const rule = state.diversionRules.find(r => r.name === id);
+                const pluginTag = this.sdSetInstanceMap[type];
+
+                if (!rule || !pluginTag) return;
+
+                if (target.classList.contains('diversion-edit-btn')) {
+                    ui.openRuleModal('diversion', rule);
+                } else if (target.classList.contains('diversion-delete-btn')) {
+                    if (confirm(`确定要删除分流规则 "${rule.name}" 吗？此操作不可恢复。`)) {
+                        ui.setLoading(target, true);
+                        try {
+                            await this.api.deleteRule(pluginTag, id);
+                            ui.showToast('规则已删除');
+                            await this.loadRules();
+                        } catch(e) {}
+                    }
+                } else if (target.classList.contains('diversion-update-btn')) {
+                    ui.setLoading(target, true);
+                    ui.showToast(`正在后台更新规则 "${rule.name}"...`);
+                    try {
+                        await this.api.triggerUpdate(pluginTag, id);
+                        ui.showToast('更新请求已发送, 5秒后自动刷新', 'success');
+                        setTimeout(() => this.loadRules(), 5000);
+                    } catch(e) {} finally {
+                        ui.setLoading(target, false);
+                    }
+                } else if (target.classList.contains('diversion-enabled-toggle')) {
+                    const updatedRule = { ...rule, enabled: target.checked };
+                    target.disabled = true;
+                    try {
+                        await this.api.updateRule(pluginTag, id, updatedRule);
+                        rule.enabled = target.checked;
+                        ui.showToast(`规则 "${rule.name}" 已${target.checked ? '启用' : '禁用'}`);
+                    } catch (error) {
+                        target.checked = !target.checked;
+                    } finally {
+                        target.disabled = false;
+                    }
+                }
+            },
+
+            init() {
+                elements.addDiversionRuleBtn.addEventListener('click', () => ui.openRuleModal('diversion'));
+                elements.diversionRulesTbody.addEventListener('click', (e) => this.handleTableClick(e));
+            }
+        };
+
+        const adguardManager = {
+            pluginTag: 'adguard',
+            api: {
+                _getBaseUrl() { return `${CONSTANTS.API_BASE_URL}/plugins/${adguardManager.pluginTag}`; },
+                getRules: () => api.fetch(`${adguardManager.api._getBaseUrl()}/rules`),
+                addRule: (data) => api.fetch(`${adguardManager.api._getBaseUrl()}/rules`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+                updateRule: (id, data) => api.fetch(`${adguardManager.api._getBaseUrl()}/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }),
+                deleteRule: (id) => api.fetch(`${adguardManager.api._getBaseUrl()}/rules/${id}`, { method: 'DELETE' }),
+                triggerUpdate: () => api.fetch(`${adguardManager.api._getBaseUrl()}/update`, { method: 'POST' }),
+            },
+            async loadRules() {
+                try {
+                    const rules = await this.api.getRules();
+                    state.adguardRules = rules || [];
+                    this.renderTable();
+                } catch (error) { this.renderTable(); } 
+                finally { requestAnimationFrame(() => tableHeaderAligner.update(document.getElementById('adguard-table-container'))); }
+            },
+            renderTable() {
+                renderTable(elements.adguardRulesTbody, state.adguardRules, (rule, index) => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.ruleId = rule.id;
+                    const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? new Date(rule.last_updated).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : '—';
+                    tr.innerHTML = `
+                        <td class="text-center"><label class="switch" style="display:inline-block; vertical-align: middle;"><input type="checkbox" class="adguard-enabled-toggle" ${rule.enabled ? 'checked' : ''}><span class="slider"></span></label></td>
+                        <td>${rule.name}</td>
+                        <td><span class="truncate-text" title="${rule.url}">${rule.url}</span></td>
+                        <td class="text-right">${(rule.rule_count || 0).toLocaleString()}</td>
+                        <td>${lastUpdated}</td>
+                        <td class="text-center"><div style="display: inline-flex; gap: 0.5rem;"><button class="button secondary adguard-edit-btn" style="padding: 0.4rem 0.8rem;"><span>编辑</span></button><button class="button danger adguard-delete-btn" style="padding: 0.4rem 0.8rem;"><span>删除</span></button></div></td>`;
+                    return tr;
+                }, 'adguard');
+            },
+            async handleFormSubmit(event) {
+                const form = event.target;
+                const id = form.elements['id'].value;
+                const data = { name: form.elements['name'].value, url: form.elements['url'].value, auto_update: form.elements['auto_update'].checked, update_interval_hours: parseInt(form.elements['update_interval_hours'].value, 10) || 24, };
+                if (id) {
+                    const originalRule = state.adguardRules.find(r => r.id === id);
+                    await this.api.updateRule(id, { ...originalRule, ...data });
+                    ui.showToast('拦截规则更新成功');
+                } else {
+                    data.enabled = true;
+                    await this.api.addRule(data);
+                    ui.showToast('拦截规则添加成功');
+                }
+                ui.closeRuleModal();
+                await this.loadRules();
+                if (!id) {
+                    ui.showToast('正在后台获取规则详情...');
+                    setTimeout(() => { this.loadRules(); }, 5000);
+                }
+            },
+            async handleTableClick(event) {
+                const target = event.target.closest('button, input');
+                if (!target) return;
+                const tr = target.closest('tr');
+                if (!tr) return;
+                const id = tr.dataset.ruleId;
+                const rule = state.adguardRules.find(r => r.id === id);
+                if (target.classList.contains('adguard-edit-btn')) {
+                    if (rule) ui.openRuleModal('adguard', rule);
+                } else if (target.classList.contains('adguard-delete-btn')) {
+                    if (confirm(`确定要删除拦截规则 "${rule.name}" 吗？此操作不可恢复。`)) {
+                        ui.setLoading(target, true);
+                        try {
+                            await this.api.deleteRule(id);
+                            ui.showToast('规则已删除');
+                            await this.loadRules();
+                        } catch (e) {}
+                    }
+                } else if (target.classList.contains('adguard-enabled-toggle')) {
+                    if (rule) {
+                        const updatedRule = { ...rule, enabled: target.checked };
+                        target.disabled = true;
+                        try {
+                            await this.api.updateRule(id, updatedRule);
+                            rule.enabled = target.checked;
+                            ui.showToast(`规则 "${rule.name}" 已${target.checked ? '启用' : '禁用'}`);
+                        } catch (error) {
+                            target.checked = !target.checked;
+                        } finally {
+                            target.disabled = false;
+                        }
+                    }
+                }
+            },
+            async handleUpdateCheck() {
+                ui.setLoading(elements.checkAdguardUpdatesBtn, true);
+                ui.showToast('已开始在后台更新所有启用的拦截规则...');
+                try {
+                    await this.api.triggerUpdate();
+                    ui.showToast('更新请求已发送，5秒后自动刷新列表...', 'success');
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    await this.loadRules();
+                    ui.showToast('拦截规则列表已刷新！', 'success');
+                } catch (e) {} finally {
+                    ui.setLoading(elements.checkAdguardUpdatesBtn, false);
+                }
+            },
+            init() {
+                elements.addAdguardRuleBtn.addEventListener('click', () => ui.openRuleModal('adguard'));
+                elements.checkAdguardUpdatesBtn.addEventListener('click', () => this.handleUpdateCheck());
+                elements.adguardRulesTbody.addEventListener('click', (e) => this.handleTableClick(e));
+            }
+        };        const aliasManager = { load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; }, save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); }, getDisplayName: (ip) => state.clientAliases[ip] || ip, getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip, getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; }, set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } }, async saveAll() { const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item'); let changed = false; aliasItems.forEach(item => { const ip = item.dataset.ip; const input = item.querySelector('input'); const newValue = input.value.trim(); const originalValue = input.dataset.originalValue; if (newValue !== originalValue) { this.set(ip, newValue); changed = true; } }); if(changed) { this.save(); ui.showToast('所有别名更改已保存', 'success'); await updatePageData(); await this.renderEditableList(); } else { ui.showToast('没有检测到任何更改', 'success'); } }, async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = [...new Set(topClients.map(client => client.key))].sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.dataset.ip = ip; const currentAlias = this.getDisplayName(ip); const aliasValue = currentAlias === ip ? '' : currentAlias; item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${aliasValue}" data-original-value="${aliasValue}">`; const input = item.querySelector('input'); input.addEventListener('input', () => { input.classList.toggle('changed', input.value.trim() !== input.dataset.originalValue); }); elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } }, export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); }, import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); }, };
         const historyManager = { load: () => { const saved = JSON.parse(localStorage.getItem('mosdnsHistory')); if (saved) { state.history.totalQueries = saved.totalQueries || []; state.history.avgDuration = saved.avgDuration || []; } }, save: () => { localStorage.setItem('mosdnsHistory', JSON.stringify(state.history)); } };
         const themeManager = { init() { const savedTheme = localStorage.getItem('mosdns-theme') || 'dark'; const savedColor = localStorage.getItem('mosdns-color') || 'indigo'; this.setTheme(savedTheme, false); this.setColor(savedColor, false); elements.lightThemeBtn?.addEventListener('click', () => this.setTheme('light')); elements.darkThemeBtn?.addEventListener('click', () => this.setTheme('dark')); elements.colorSwatches.forEach(swatch => { swatch.addEventListener('click', () => this.setColor(swatch.dataset.color)); }); }, setTheme(theme, save = true) { elements.html.setAttribute('data-theme', theme); if (elements.lightThemeBtn) { elements.lightThemeBtn.classList.toggle('active', theme === 'light'); elements.darkThemeBtn.classList.toggle('active', theme === 'dark'); } if (save) localStorage.setItem('mosdns-theme', theme); }, setColor(color, save = true) { elements.html.setAttribute('data-color-scheme', color); document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active')); document.querySelectorAll(`.color-swatch[data-color="${color}"]`).forEach(s => s.classList.add('active')); if (save) localStorage.setItem('mosdns-color', color); if (color === 'indigo') { if (elements.statCard1) elements.statCard1.className = 'stat-card default-gradient-1'; if (elements.statCard2) elements.statCard2.className = 'stat-card default-gradient-2'; } else { if (elements.statCard1) elements.statCard1.className = 'stat-card theme-gradient'; if (elements.statCard2) elements.statCard2.className = 'stat-card theme-gradient'; } } };
         const animateValue = (element, start, end, duration) => { if (!element || start === null || end === null) return; if (start === end) { element.textContent = (element.id === 'avg-duration' ? parseFloat(end).toFixed(2) : Math.floor(end).toLocaleString()); return; } let startTimestamp = null; const step = (timestamp) => { if (!startTimestamp) startTimestamp = timestamp; const progress = Math.min((timestamp - startTimestamp) / duration, 1); const current = start + progress * (end - start); element.textContent = (element.id === 'avg-duration' ? parseFloat(current).toFixed(2) : Math.floor(current).toLocaleString()); if (progress < 1) window.requestAnimationFrame(step); }; window.requestAnimationFrame(step); };
         const setupGlowEffect = () => { elements.container?.addEventListener('mousemove', (e) => { const card = e.target.closest('.card'); if (card) { const rect = card.getBoundingClientRect(); card.style.setProperty('--glow-x', `${e.clientX - rect.left}px`); card.style.setProperty('--glow-y', `${e.clientY - rect.top}px`); } }); };
         const generateSparklineSVG = (data, isFloat = false, width = 300, height = 60) => { if (!data || data.length < 2) return ''; const numericData = data.map(Number); const maxVal = Math.max(...numericData); const minVal = Math.min(...numericData); const range = maxVal - minVal === 0 ? 1 : maxVal - minVal; const points = numericData.map((d, i) => { const x = (i / (data.length - 1)) * width; const y = height - ((d - minVal) / range) * height; return `${x.toFixed(2)},${y.toFixed(2)}`; }); const pathD = `M ${points.join(' L ')}`; const fillPathD = `${pathD} L ${width},${height} L 0,${height} Z`; return `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><defs><linearGradient id="sparkline-gradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0.5" /><stop offset="100%" stop-color="var(--color-accent-text, #fff)" stop-opacity="0" /></linearGradient></defs><path d="${fillPathD}" fill="url(#sparkline-gradient)" /><path d="${pathD}" class="sparkline-path" fill="none" /></svg>`; };
-        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const isSearchEmpty = tableType === 'log-query' && state.currentLogSearchTerm; const message = isSearchEmpty ? `沒有找到与 "<strong>${state.currentLogSearchTerm}</strong>" 匹配的记录。` : '请确保审计功能已开启。'; const ctaButton = isSearchEmpty ? '' : '<button class="button primary tab-link-action" data-tab="system-control">前往系统控制</button>'; const colspan = state.isMobile ? 1 : (tbody.previousElementSibling?.rows[0]?.cells.length || 2); const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p>${ctaButton}</div></td>`; tbody.appendChild(emptyRow); return; } const fragment = document.createDocumentFragment(); data.forEach((item, index) => { const row = renderRow(item, index); row.classList.add('data-log-entry'); row.style.animationDelay = `${index * 30}ms`; fragment.appendChild(row); }); tbody.appendChild(fragment); };
-        const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain'; tr.innerHTML = `<td><span class="truncate-text">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-domains');
-        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getAliasedClientHTML(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
+        const renderTable = (tbody, data, renderRow, tableType) => { if (!tbody) return; tbody.innerHTML = ''; if (!data || data.length === 0) { const isSearchEmpty = tableType === 'log-query' && state.currentLogSearchTerm; const isAdguardOrDiversionEmpty = tableType === 'adguard' || tableType === 'diversion'; let message = '请确保审计功能已开启。'; let ctaButton = '<button class="button primary tab-link-action" data-tab="system-control">前往系统控制</button>'; if (isSearchEmpty) { message = `沒有找到与 "<strong>${state.currentLogSearchTerm.query}</strong>" 匹配的记录。`; ctaButton = ''; } else if (isAdguardOrDiversionEmpty) { message = '暂无规则，请点击 "添加规则" 新建一个。'; let btnId = `empty-state-add-${tableType}-rule-btn`; ctaButton = `<button class="button primary" id="${btnId}">添加规则</button>`; } const colspan = state.isMobile ? 1 : (tbody.previousElementSibling?.rows[0]?.cells.length || 2); const emptyRow = document.createElement('tr'); emptyRow.className = 'empty-state-row'; emptyRow.innerHTML = `<td colspan="${colspan}"><div class="empty-state-content"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>${message}</p>${ctaButton}</div></td>`; tbody.appendChild(emptyRow); if (tableType === 'adguard') { document.getElementById(`empty-state-add-adguard-rule-btn`)?.addEventListener('click', () => ui.openRuleModal('adguard')); } else if (tableType === 'diversion') { document.getElementById(`empty-state-add-diversion-rule-btn`)?.addEventListener('click', () => ui.openRuleModal('diversion')); } return; } const fragment = document.createDocumentFragment(); data.forEach((item, index) => { const row = renderRow(item, index); row.classList.add('data-log-entry'); row.style.animationDelay = `${index * 30}ms`; fragment.appendChild(row); }); tbody.appendChild(fragment); };
+        const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain'; tr.innerHTML = `<td><span class="truncate-text" style="max-width:none;">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-domains');
+        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getAliasedClientHTML(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-exact-search="true" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'top-clients');
+        const renderDomainSetRank = (data) => renderTable(elements.shuntResultsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain_set'; tr.innerHTML = `<td><span class="truncate-text" style="max-width:none;">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-exact-search="true" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'shunt-results');
         const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, renderSlowestQueryItemHTML, 'slowest-queries');
         
         let updateController;
@@ -747,9 +1289,10 @@
             elements.globalRefreshBtn.setAttribute('aria-busy', 'true');
             elements.fabRefresh.setAttribute('aria-busy', 'true');
             try {
-                const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([
+                const [statusRes, capacityRes, statsRes, topDomainsRes, topClientsRes, slowestRes, domainSetRankRes] = await Promise.allSettled([
                     api.getStatus(signal), api.getCapacity(signal), api.v2.getStats(signal),
-                    api.v2.getTopDomains(signal), api.v2.getTopClients(signal), api.v2.getSlowest(signal, 50)
+                    api.v2.getTopDomains(signal), api.v2.getTopClients(signal), api.v2.getSlowest(signal, 50),
+                    api.v2.getDomainSetRank(signal, 50)
                 ]);
                 
                 ui.updateStatus(statusRes.status === 'fulfilled' ? statusRes.value?.capturing : null);
@@ -767,12 +1310,20 @@
                 if (topDomainsRes.status === 'fulfilled') { state.topDomains = topDomainsRes.value || []; renderTopDomains(state.topDomains); }
                 if (topClientsRes.status === 'fulfilled') { state.topClients = topClientsRes.value || []; renderTopClients(state.topClients); }
                 if (slowestRes.status === 'fulfilled') { state.slowestQueries = slowestRes.value || []; renderSlowestQueries(state.slowestQueries); }
+                if (domainSetRankRes.status === 'fulfilled') { state.domainSetRank = domainSetRankRes.value || []; renderDomainSetRank(state.domainSetRank); }
                 
                 state.lastUpdateTime = new Date();
                 updateLastUpdated();
 
                 const activeTabLink = document.querySelector('.tab-link.active');
-                if (activeTabLink && activeTabLink.dataset.tab === 'log-query') { fetchAndRenderLogs(1, false); }
+                if (activeTabLink) {
+                    const activeTabId = activeTabLink.dataset.tab;
+                    if (activeTabId === 'log-query') { fetchAndRenderLogs(1, false); }
+                    else if (activeTabId === 'rules') {
+                        adguardManager.loadRules();
+                        diversionManager.loadRules();
+                    }
+                }
             } catch (error) { if (error.name !== 'AbortError') console.error("Page update failed:", error); } 
             finally { 
                 elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); 
@@ -845,7 +1396,7 @@
                     const result = valA < valB ? -1 : valA > valB ? 1 : 0;
                     return order === 'asc' ? result : -result;
                 });
-                ui.renderLogTable(logs, false); // Re-render the table with sorted data
+                ui.renderLogTable(logs, false);
             },
             updateHeaders() { document.querySelectorAll('#log-table-head th[data-sortable]').forEach(th => { th.classList.remove('sorted'); const indicator = th.querySelector('.sort-indicator'); if(indicator) { if (th.dataset.sortKey === state.logSort.key) { th.classList.add('sorted'); indicator.textContent = state.logSort.order === 'asc' ? '▲' : '▼'; } else { indicator.textContent = ' '; } } }); }
         };
@@ -862,7 +1413,6 @@
                 exact = true;
             }
 
-            // Also check for alias if it's not an exact search
             if (!exact) {
                 const ipFromAlias = aliasManager.getIpByAlias(query);
                 if (ipFromAlias) {
@@ -913,6 +1463,7 @@
             if(source === 'slowest') data = state.slowestQueries[logIndex];
             else if(source === 'domain') data = state.topDomains[rankIndex];
             else if(source === 'client') data = state.topClients[rankIndex];
+            else if(source === 'domain_set') data = state.domainSetRank[rankIndex];
             else if(logIndex !== null) data = state.displayedLogs[logIndex];
             
             if (!data) return;
@@ -973,19 +1524,12 @@
             if (state.isMobile) {
                 tr.innerHTML = `<td><div class="mobile-log-row"><div class="domain">${log.query_name}</div><div class="time">${formatRelativeTime(log.query_time)}</div><div class="meta"><span class="client">${aliasManager.getDisplayName(log.client_ip)}</span><span class="duration">${log.duration_ms.toFixed(0)}ms</span>${getResponseTagHTML(log)}</div></div></td>`;
             } else {
-                tr.innerHTML = `
-                    <td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td>
-                    <td>${renderDomainResponseCellHTML(log)}</td>
-                    <td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td>
-                    <td class="hide-on-mobile">${aliasManager.getAliasedClientHTML(log.client_ip)}</td>
-                `;
+                tr.innerHTML = `<td class="hide-on-mobile">${formatRelativeTime(log.query_time)}</td><td>${renderDomainResponseCellHTML(log)}</td><td class="hide-on-mobile">${log.query_type}</td><td class="hide-on-mobile text-right">${log.duration_ms.toFixed(2)}</td><td class="hide-on-mobile">${aliasManager.getAliasedClientHTML(log.client_ip)}</td>`;
             }
             return tr;
         }
 
-        function getTooltipHTML(data, source) { if (!data) return ''; const queryInfo = {}; const responseInfo = {}; let answers = []; if (source === 'domain' || source === 'client') { queryInfo['请求数'] = data.count.toLocaleString(); } else { const flags = data.response_flags || {}; const flagItems = []; if (flags.ra) flagItems.push('RA'); if (flags.aa) flagItems.push('AA'); if (flags.tc) flagItems.push('TC'); queryInfo['精确时间'] = formatDate(data.query_time); queryInfo['客户端'] = aliasManager.getDisplayName(data.client_ip); queryInfo['类型'] = data.query_type || 'N/A'; if (data.query_class) queryInfo['类别'] = data.query_class; responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`; responseInfo['状态'] = data.response_code || 'N/A'; if (flagItems.length > 0) responseInfo['标志'] = flagItems.join(', '); if (data.trace_id) { const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`; queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`; } answers = data.answers || []; } const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join(''); let tooltipHTML = ``; if (Object.keys(queryInfo).length > 0) tooltipHTML += `<h5>查询信息</h5><ul>${buildList(queryInfo)}</ul>`; if (Object.keys(responseInfo).length > 0) tooltipHTML += `<h5 style="margin-top:0.75rem;">响应信息</h5><ul>${buildList(responseInfo)}</ul>`; if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.75rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} <small>(TTL: ${ans.ttl}s)</small></li>`).join('')}</ul>`; } return tooltipHTML; }
-        
-        const autoRefreshManager = {
+        function getTooltipHTML(data, source) { if (!data) return ''; const queryInfo = {}; const responseInfo = {}; let answers = []; if (source === 'domain' || source === 'client' || source === 'domain_set') { queryInfo['请求数'] = data.count.toLocaleString(); } else { const flags = data.response_flags || {}; const flagItems = []; if (flags.ra) flagItems.push('RA'); if (flags.aa) flagItems.push('AA'); if (flags.tc) flagItems.push('TC'); queryInfo['精确时间'] = formatDate(data.query_time); queryInfo['客户端'] = aliasManager.getDisplayName(data.client_ip); queryInfo['类型'] = data.query_type || 'N/A'; if (data.query_class) queryInfo['类别'] = data.query_class; if (data.domain_set) queryInfo['规则'] = data.domain_set; responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`; responseInfo['状态'] = data.response_code || 'N/A'; if (flagItems.length > 0) responseInfo['标志'] = flagItems.join(', '); if (data.trace_id) { const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`; queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`; } answers = data.answers || []; } const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join(''); let tooltipHTML = ``; if (Object.keys(queryInfo).length > 0) tooltipHTML += `<h5>查询信息</h5><ul>${buildList(queryInfo)}</ul>`; if (Object.keys(responseInfo).length > 0) tooltipHTML += `<h5 style="margin-top:0.75rem;">响应信息</h5><ul>${buildList(responseInfo)}</ul>`; if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.75rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} <small>(TTL: ${ans.ttl}s)</small></li>`).join('')}</ul>`; } return tooltipHTML; }        const autoRefreshManager = {
             start() { this.stop(); if (state.autoRefresh.enabled && state.autoRefresh.intervalSeconds >= 5) { state.autoRefresh.intervalId = setInterval(updatePageData, state.autoRefresh.intervalSeconds * 1000); } },
             stop() { if (state.autoRefresh.intervalId) { clearInterval(state.autoRefresh.intervalId); state.autoRefresh.intervalId = null; } },
             updateSettings(enabled, seconds) { state.autoRefresh.enabled = enabled; state.autoRefresh.intervalSeconds = Math.max(seconds, 5); localStorage.setItem('mosdnsAutoRefresh', JSON.stringify({ enabled: state.autoRefresh.enabled, intervalSeconds: state.autoRefresh.intervalSeconds })); this.start(); ui.showToast(`自动刷新已${enabled ? `开启, 频率: ${state.autoRefresh.intervalSeconds}秒` : '关闭'}`, 'success'); },
@@ -1013,6 +1557,9 @@
             
             if (activeTabId === 'log-query' && state.displayedLogs.length === 0) {
                 applyLogFilterAndRender();
+            } else if (activeTabId === 'rules') {
+                if (state.adguardRules.length === 0) adguardManager.loadRules();
+                if (state.diversionRules.length === 0) diversionManager.loadRules();
             }
         }
         
@@ -1029,12 +1576,32 @@
                     ui.renderLogTable(state.displayedLogs); 
                 } else if (activeTab === 'overview') {
                     renderSlowestQueries(state.slowestQueries);
+                } else if (activeTab === 'rules') {
+                    adguardManager.renderTable();
+                    diversionManager.renderTable();
                 }
             }
 
             if (state.isTouchDevice) { elements.body.classList.add('touch'); } else { elements.body.classList.remove('touch'); }
             const activeLink = document.querySelector('.tab-link.active');
             if (activeLink) { setTimeout(() => handleNavigation(activeLink), 50); }
+        }
+
+        async function handleRuleFormSubmit(event) {
+            event.preventDefault();
+            ui.setLoading(elements.saveRuleBtn, true);
+            const mode = elements.ruleMode.value;
+
+            try {
+                if (mode === 'adguard') {
+                    await adguardManager.handleFormSubmit(event);
+                } else if (mode === 'diversion') {
+                    await diversionManager.handleFormSubmit(event);
+                }
+            } catch(e) {
+            } finally {
+                ui.setLoading(elements.saveRuleBtn, false);
+            }
         }
 
         function setupEventListeners() {
@@ -1071,7 +1638,18 @@
                 const clickableLink = e.target.closest('.clickable-link');
                 const tabLinkAction = e.target.closest('.tab-link-action');
                 const copyBtn = e.target.closest('.copy-btn');
-                if (clickableLink) { e.preventDefault(); if (elements.logSearch) { elements.logSearch.value = clickableLink.dataset.filterValue; } const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); applyLogFilterAndRender(); return; }
+                if (clickableLink) { 
+                    e.preventDefault(); 
+                    if (elements.logSearch) {
+                        const value = clickableLink.dataset.filterValue;
+                        const isExact = clickableLink.dataset.exactSearch === 'true';
+                        elements.logSearch.value = isExact ? `"${value}"` : value;
+                    } 
+                    const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); 
+                    if (logQueryLink) handleNavigation(logQueryLink); 
+                    applyLogFilterAndRender(); 
+                    return; 
+                }
                 if (tabLinkAction) { e.preventDefault(); const tabId = tabLinkAction.dataset.tab; const targetLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`); if(targetLink) handleNavigation(targetLink); return; }
                 if (copyBtn) {
                     e.stopPropagation();
@@ -1122,6 +1700,10 @@
                 elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
                 elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); const btn = e.currentTarget.querySelector('button'); ui.setLoading(btn, true); const ipInput = document.getElementById('manual-alias-ip'); const nameInput = document.getElementById('manual-alias-name'); const ip = ipInput.value.trim(); const name = nameInput.value.trim(); if(ip && name) { aliasManager.set(ip, name); aliasManager.save(); ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success'); ipInput.value = ''; nameInput.value = ''; await aliasManager.renderEditableList(); await updatePageData(); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(btn, false); });
             }
+
+            elements.ruleForm.addEventListener('submit', handleRuleFormSubmit);
+            elements.closeRuleModalBtn.addEventListener('click', () => ui.closeRuleModal());
+            elements.cancelRuleModalBtn.addEventListener('click', () => ui.closeRuleModal());
         }
         
         async function init() {
@@ -1132,6 +1714,10 @@
             historyManager.load();
             autoRefreshManager.loadSettings();
             tableSorter.init();
+            
+            adguardManager.init();
+            diversionManager.init();
+
             setupEventListeners();
             setupGlowEffect();
             
