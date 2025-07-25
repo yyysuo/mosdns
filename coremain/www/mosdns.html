@@ -105,14 +105,14 @@
         .control-separator {
             width: 1px; height: 24px; background-color: var(--control-border); margin: 0 0.5rem;
         }
-        #refresh-now-btn, #start-capture-btn, #get-logs-btn { 
+        #refresh-now-btn, #start-capture-btn, #get-logs-btn, #dns-log-page-btn { 
             background-color: var(--control-bg); color: var(--control-text);
             border: 1px solid var(--control-border); padding: 0.6rem 1.2rem; 
             font-weight: 500; font-size: 0.95rem; border-radius: var(--radius-control); cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 0.5rem; 
             height: 38px; box-sizing: border-box; 
         }
-        #refresh-now-btn:hover, #start-capture-btn:hover, #get-logs-btn:hover { 
+        #refresh-now-btn:hover, #start-capture-btn:hover, #get-logs-btn:hover, #dns-log-page-btn:hover { 
             background-color: var(--control-hover-bg); border-color: var(--accent-color);
             transform: translateY(-2px);
         }
@@ -132,7 +132,7 @@
             -webkit-appearance: none; margin: 0;
         }
         #capture-duration-input:focus-visible, .duration-unit:hover { border-color: var(--accent-color); }
-        #refresh-now-btn .fas, #start-capture-btn .fas, #get-logs-btn .fas { font-size: 1em; }
+        #refresh-now-btn .fas, #start-capture-btn .fas, #get-logs-btn .fas, #dns-log-page-btn .fas { font-size: 1em; }
 
         .auto-refresh-control { display: flex; align-items: center; gap: 0.8rem; cursor: pointer; }
         .auto-refresh-control .switch-label-text { font-size: 0.95rem; font-weight: 500; color: var(--control-text); }
@@ -550,7 +550,10 @@
                             <span class="duration-unit">秒</span>
                             <i class="fas fa-info-circle info-tooltip-icon" data-tooltip="点击开始抓取。到期后debug会自动关闭，日志在获取一次后自动清空。"></i>
                             <button id="get-logs-btn" class="btn">
-                                <i class="fas fa-search"></i> 获取日志
+                                <i class="fas fa-search"></i> 分析日志
+                            </button>
+                            <button id="dns-log-page-btn" class="btn">
+                                <i class="fas fa-list-alt"></i> DNS请求记录
                             </button>
                         </div>
                     </div>
@@ -703,6 +706,7 @@
             { tag: 'switch6', name: 'IPV6屏蔽开关', desc: '屏蔽AAAA请求类型', tip: '无IPV6网络环境建议开启', icon: 'fa-ban', valueForOn: 'A' },
             { tag: 'switch2', name: '指定 Client 开关', desc: '对特定客户端 IP 应用分流策略', tip: '按需开启。需要 MosDNS 监听53端口，并正确配置 client_ip 名单。', icon: 'fa-user-secret', valueForOn: 'A' },
             { tag: 'switch4', name: '过期缓存开关', desc: '启用 Lazy Cache（乐观缓存）', tip: '建议开启，可以提升重复查询的响应速度，即使缓存已过期。', icon: 'fa-history', valueForOn: 'A' },
+            { tag: 'switch7', name: '广告屏蔽开关', desc: '启用Adguard广告屏蔽在线规则支持', tip: '此开关开启后，勾选的在线列表才会生效。', icon: 'fa-history', valueForOn: 'A' },
         ];
         
         const ipSetProfiles = [ 
@@ -1382,15 +1386,19 @@
                 currentModalData.type = 'accordion';
                 currentModalData.rawEntries = entries.map((entryText, index) => {
                     const questionMatch = entryText.match(/;; QUESTION SECTION:\s*;\s*([^\s]+)/);
-                    const keyMatch = entryText.match(/Key:\s*([^\s]+)\s+\d+\s+([A-Z\d]+)/);
+                    const domainSetMatch = entryText.match(/DomainSet:\s*(.+)/); // Look for DomainSet
                     let headerTitle;
-                    if (questionMatch && keyMatch) {
-                        headerTitle = `${questionMatch[1]}` + (keyMatch[2] ? ` (${keyMatch[2]})` : '');
-                    } else if (questionMatch) {
-                        headerTitle = `${questionMatch[1]}`;
+
+                    if (questionMatch) {
+                        headerTitle = `${questionMatch[1].replace(/\.$/, '')}`; // Get domain name
                     } else {
                         headerTitle = `缓存条目 #${index + 1}`;
                     }
+                    
+                    if (domainSetMatch) {
+                        headerTitle += ` [${domainSetMatch[1].trim()}]`; // Append DomainSet to the title
+                    }
+                    
                     return {
                         headerTitle: headerTitle,
                         fullText: entryText,
@@ -1406,7 +1414,8 @@
                 dataModalSearchInput.oninput = () => {
                     const searchTerm = dataModalSearchInput.value.toLowerCase();
                     currentModalData.filteredEntries = currentModalData.rawEntries.filter(item => 
-                        item.headerTitle.toLowerCase().includes(searchTerm)
+                        item.headerTitle.toLowerCase().includes(searchTerm) ||
+                        item.fullText.toLowerCase().includes(searchTerm) // Also search in full text
                     );
                     renderAccordionData(currentModalData.filteredEntries);
                 };
@@ -1496,6 +1505,14 @@
             createApiAction('flush-rules-btn', ruleListPaths, '【危险操作】确定清空所有分流规则吗?', '分流规则已清空。');
             getById('flush-cache-btn').addEventListener('click', async () => { if (!confirm('确定清空全部缓存吗? 此操作将根据当前核心运行模式清空对应的缓存。')) { return; } const cacheToFlush = coreMode === 'B' ? 'cache_all_noleak' : 'cache_all'; const path = `/plugins/${cacheToFlush}/flush`; try { const response = await fetch(path); if (!response.ok) { const errorText = await response.text(); throw new Error(`清空缓存失败于 ${path}: ${errorText || response.statusText}`); } showToast('全部缓存已清空，正在刷新数据...', 'success'); await refreshData(false, true); } catch (e) { showToast('清空缓存操作失败！', 'error'); showErrorModal(e.message); } });
             getById('restart-mosdns-btn').onclick = async () => { if (confirm('【危险操作】此操作将首先保存所有分流规则，然后重启 MosDNS。确定要继续吗?')) { const saveSuccess = await saveAllRulesAndNotify(); if (saveSuccess) { showToast('规则已保存，正在发送重启命令...', 'success'); try { const response = await fetch('/plugins/my_fakeiplist/restartall'); if (!response.ok) { const errorText = await response.text(); throw new Error(errorText || `重启命令请求失败，状态码: ${response.status}`); } showToast('MosDNS 正在重启，页面即将刷新...'); setTimeout(() => location.reload(), 2000); } catch (e) { showToast('重启命令发送失败', 'error'); showErrorModal(e.message); } } else { showToast('由于规则保存失败，重启操作已取消。', 'error'); } } };
+            
+            // === MODIFIED START ===
+            getById('dns-log-page-btn').onclick = () => { 
+                // 直接使用相对于根的路径，并附加哈希
+                const url = '/log#overview';
+                window.open(url, '_blank'); 
+            };
+            // === MODIFIED END ===
             
             const showEndpoints = { '请求排行': 'top_domains','fakeip 域名': 'my_fakeiplist', 'realip 域名': 'my_realiplist', '无 V4 域名': 'my_nov4list', '无 V6 域名': 'my_nov6list', '全部缓存（兼容）': 'cache_all', '全部缓存（安全）': 'cache_all_noleak','国内缓存': 'cache_cn', '国外缓存（兼容）': 'cache_google', '国外缓存（安全）': 'cache_google_node','节点缓存': 'cache_node' };
             const dvContainer = getById('data-view-buttons'); dvContainer.innerHTML = ''; 
