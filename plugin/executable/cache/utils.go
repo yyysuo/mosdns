@@ -25,6 +25,7 @@ import (
 
 	"github.com/IrineSistiana/mosdns/v5/pkg/cache"
 	"github.com/IrineSistiana/mosdns/v5/pkg/dnsutils"
+	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/pkg/utils"
 	"github.com/miekg/dns"
 	"golang.org/x/exp/constraints"
@@ -78,6 +79,7 @@ type item struct {
 	resp           *dns.Msg
 	storedTime     time.Time
 	expirationTime time.Time
+	domainSet      string
 }
 
 func copyNoOpt(m *dns.Msg) *dns.Msg {
@@ -133,7 +135,7 @@ func min[T constraints.Ordered](a, b T) T {
 // The ttl of returned msg will be changed properly.
 // Returned bool indicates whether this response is hit by lazy cache.
 // Note: Caller SHOULD change the msg id because it's not same as query's.
-func getRespFromCache(msgKey string, backend *cache.Cache[key, *item], lazyCacheEnabled bool, lazyTtl int) (*dns.Msg, bool) {
+func getRespFromCache(msgKey string, backend *cache.Cache[key, *item], lazyCacheEnabled bool, lazyTtl int) (*dns.Msg, bool, string) {
 	// Lookup cache
 	v, _, _ := backend.Get(key(msgKey))
 
@@ -145,7 +147,7 @@ func getRespFromCache(msgKey string, backend *cache.Cache[key, *item], lazyCache
 		if now.Before(v.expirationTime) {
 			r := v.resp.Copy()
 			dnsutils.SubtractTTL(r, uint32(now.Sub(v.storedTime).Seconds()))
-			return r, false
+			return r, false, v.domainSet
 		}
 
 		// Msg expired but cache isn't. This is a lazy cache enabled entry.
@@ -153,17 +155,18 @@ func getRespFromCache(msgKey string, backend *cache.Cache[key, *item], lazyCache
 		if lazyCacheEnabled {
 			r := v.resp.Copy()
 			dnsutils.SetTTL(r, uint32(lazyTtl))
-			return r, true
+			return r, true, v.domainSet
 		}
 	}
 
 	// cache miss
-	return nil, false
+	return nil, false, ""
 }
 
 // saveRespToCache saves r to cache backend. It returns false if r
 // should not be cached and was skipped.
-func saveRespToCache(msgKey string, r *dns.Msg, backend *cache.Cache[key, *item], lazyCacheTtl int) bool {
+func saveRespToCache(msgKey string, qCtx *query_context.Context, backend *cache.Cache[key, *item], lazyCacheTtl int) bool {
+	r := qCtx.R()
 	if r.Truncated != false {
 		return false
 	}
@@ -202,6 +205,13 @@ func saveRespToCache(msgKey string, r *dns.Msg, backend *cache.Cache[key, *item]
 		storedTime:     now,
 		expirationTime: now.Add(msgTtl),
 	}
+
+	if val, ok := qCtx.GetValue(query_context.KeyDomainSet); ok {
+		if name, isString := val.(string); isString {
+			v.domainSet = name
+		}
+	}
+
 	backend.Store(key(msgKey), v, now.Add(cacheTtl))
 	return true
 }
