@@ -24,6 +24,8 @@ import (
 	// data provider
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/data_provider/domain_set"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/data_provider/ip_set"
+	_ "github.com/IrineSistiana/mosdns/v5/plugin/data_provider/sd_set"
+	_ "github.com/IrineSistiana/mosdns/v5/plugin/data_provider/si_set"
 
 	// matcher
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/matcher/client_ip"
@@ -70,6 +72,7 @@ import (
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/switcher9"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/aliapi"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/cname_remover"
+	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/adguard"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence/fallback"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sleep"
