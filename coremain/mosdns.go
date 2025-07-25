@@ -37,8 +37,9 @@ import (
 	"go.uber.org/zap"
 )
 
-//go:embed www/mosdns.html www/mosdnsp.html www/log.html www/log_plain.html www/rlog.html
-var content embed.FS // --- ADDED: "www/rlog.html" ---
+// --- STEP 1: ADD YOUR FILE TO THE EMBED LIST ---
+//go:embed www/mosdns.html www/mosdnsp.html www/log.html www/log_plain.html www/rlog.html www/adguard.html
+var content embed.FS
 
 type Mosdns struct {
 	logger *zap.Logger // non-nil logger.
@@ -295,6 +296,20 @@ func (m *Mosdns) initHttpMux() {
 			m.logger.Error("Error writing response", zap.Error(err))
 		}
 	}
+
+	// --- STEP 2: ADD A NEW HANDLER FOR /adguard ---
+	adguardHandler := func(w http.ResponseWriter, r *http.Request) {
+		data, err := content.ReadFile("www/adguard.html") // 读取 /www/adguard.html
+		if err != nil {
+			m.logger.Error("Error reading embedded file", zap.String("file", "www/adguard.html"), zap.Error(err))
+			http.Error(w, "Error reading the embedded file", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, err := w.Write(data); err != nil {
+			m.logger.Error("Error writing response", zap.Error(err))
+		}
+	}
     
     // [修改] 为每个路由注册对应的 handler
     m.httpMux.Get("/", rootHandler)
@@ -302,6 +317,8 @@ func (m *Mosdns) initHttpMux() {
     m.httpMux.Get("/log", logHandler)
     m.httpMux.Get("/plog", plainLogHandler)
 	m.httpMux.Get("/rlog", rlogHandler) // --- ADDED: Register the new /rlog route ---
+	// --- STEP 3: REGISTER THE NEW /adguard ROUTE ---
+	m.httpMux.Get("/adguard", adguardHandler)
 
 
     // Register pprof.
