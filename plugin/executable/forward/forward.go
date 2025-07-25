@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+ */ 
 
 package fastforward
 
@@ -64,11 +64,11 @@ type Args struct {
 }
 
 type UpstreamConfig struct {
-	Tag               string `yaml:"tag"`
-	Addr              string `yaml:"addr"` // Required.
-	DialAddr          string `yaml:"dial_addr"`
-	IdleTimeout       int    `yaml:"idle_timeout"`
-	UpstreamQueryTimeout int `yaml:"upstream_query_timeout"` // New option for upstream timeout.
+	Tag                  string `yaml:"tag"`
+	Addr                 string `yaml:"addr"` // Required.
+	DialAddr             string `yaml:"dial_addr"`
+	IdleTimeout          int    `yaml:"idle_timeout"`
+	UpstreamQueryTimeout int    `yaml:"upstream_query_timeout"` // New option for upstream timeout.
 
 	// Deprecated: This option has no affect.
 	// TODO: (v6) Remove this option.
@@ -235,6 +235,10 @@ func (f *Forward) Close() error {
 	return nil
 }
 
+// ===============================================================================
+// ===== VVVV  The only modified function is `exchange` below. VVVV =====
+// ===============================================================================
+
 func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us []*upstreamWrapper) (*dns.Msg, error) {
 	if len(us) == 0 {
 		return nil, errors.New("no upstream to exchange")
@@ -263,7 +267,12 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 	done := make(chan struct{})
 	defer close(done)
 
-	var lastValidRes *dns.Msg
+	// --- MODIFICATION START ---
+	// Variables to store the best available "fallback" results according to priority.
+	var lastSuccessOrNXRes *dns.Msg // Priority 2: Stores NOERROR or NXDOMAIN responses.
+	var lastOtherRes *dns.Msg       // Priority 3: Stores other responses like SERVFAIL.
+	var lastError error              // Priority 4: Stores the first encountered network error.
+	// --- MODIFICATION END ---
 
 	r := rand.Intn(len(us))
 	for i := 0; i < concurrent; i++ {
@@ -303,10 +312,16 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 		select {
 		case res := <-resChan:
 			r, err := res.r, res.err
+
+			// --- MODIFICATION START ---
 			if err != nil {
-				continue
+				if lastError == nil { // Record the first network error encountered.
+					lastError = err
+				}
+				continue // Move to the next result.
 			}
 
+			// Priority 1: A response with an IP address is always the best. Return immediately.
 			if len(r.Answer) > 0 {
 				for _, ans := range r.Answer {
 					if a, ok := ans.(*dns.A); ok && len(a.A) > 0 {
@@ -318,23 +333,46 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 				}
 			}
 
+			// If no IP, classify and store other valid responses for later decision.
+			// Priority 2: A definitive response (NOERROR or NXDOMAIN).
 			if r.Rcode == dns.RcodeSuccess || r.Rcode == dns.RcodeNameError {
-				if lastValidRes == nil {
-					lastValidRes = r
+				if lastSuccessOrNXRes == nil {
+					lastSuccessOrNXRes = r
+				}
+			} else { // Priority 3: Other responses like SERVFAIL, REFUSED, etc.
+				if lastOtherRes == nil {
+					lastOtherRes = r
 				}
 			}
+			// --- MODIFICATION END ---
 
 		case <-ctx.Done():
 			return nil, context.Cause(ctx)
 		}
 	}
 
-	if lastValidRes != nil {
-		return lastValidRes, nil
+	// --- MODIFICATION START ---
+	// After all concurrent queries are done, return the best result we found based on priority.
+	if lastSuccessOrNXRes != nil {
+		return lastSuccessOrNXRes, nil
+	}
+	if lastOtherRes != nil {
+		return lastOtherRes, nil
+	}
+	if lastError != nil {
+		// Priority 4: If all we got were network errors, propagate the first error up.
+		return nil, lastError
 	}
 
-	return nil, nil // Don't log "all upstream servers failed or returned no IP address"
+	// Fallback: This case should be rare but is more informative than returning `nil, nil`.
+	return nil, errors.New("all upstreams failed or returned no usable response")
+	// --- MODIFICATION END ---
 }
+
+// ===============================================================================
+// ===== ^^^^ The only modified function is `exchange` above. ^^^^ =====
+// ===============================================================================
+
 
 func quickSetup(bq sequence.BQ, s string) (any, error) {
 	args := new(Args)
