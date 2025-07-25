@@ -29,7 +29,6 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/pkg/pool"
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
-	"github.com/miekg/dns"
 	"go.uber.org/zap"
 )
 
@@ -108,7 +107,7 @@ func (f *fallback) Exec(ctx context.Context, qCtx *query_context.Context) error 
 }
 
 func (f *fallback) doFallback(ctx context.Context, qCtx *query_context.Context) error {
-	respChan := make(chan *dns.Msg, 2) // resp could be nil.
+	respChan := make(chan *query_context.Context, 2) // resp could be nil.
 	primFailed := make(chan struct{})
 	primDone := make(chan struct{})
 
@@ -129,7 +128,7 @@ func (f *fallback) doFallback(ctx context.Context, qCtx *query_context.Context) 
 			respChan <- nil
 		} else {
 			close(primDone)
-			respChan <- r
+			respChan <- qCtx
 		}
 	}()
 
@@ -141,6 +140,7 @@ func (f *fallback) doFallback(ctx context.Context, qCtx *query_context.Context) 
 		if !f.alwaysStandby { // not always standby, wait here.
 			select {
 			case <-primDone: // primary is done, no need to exec this.
+				respChan <- nil // Send a nil to unblock the main loop.
 				return
 			case <-primFailed: // primary failed
 			case <-timer.C: // timed out
@@ -158,27 +158,38 @@ func (f *fallback) doFallback(ctx context.Context, qCtx *query_context.Context) 
 		}
 
 		r := qCtx.R()
+		if r == nil {
+			respChan <- nil
+			return
+		}
+
 		// always standby is enabled. Wait until secondary resp is needed.
-		if f.alwaysStandby && r != nil {
+		if f.alwaysStandby {
 			select {
 			case <-ctx.Done():
+				// Context cancelled, do nothing.
 			case <-primDone:
+				// Primary succeeded, do nothing.
 			case <-primFailed: // only send secondary result when primary is failed.
+				respChan <- qCtx
 			case <-timer.C: // or timed out.
+				respChan <- qCtx
 			}
+		} else {
+			respChan <- qCtx
 		}
-		respChan <- r
 	}()
 
 	for i := 0; i < 2; i++ {
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case r := <-respChan:
-			if r == nil { // One of goroutines finished but failed.
+		case successCtx := <-respChan:
+			if successCtx == nil { // One of goroutines finished but failed or was skipped.
 				continue
 			}
-			qCtx.SetResponse(r)
+			// Copy all data from the successful context to the original context.
+			successCtx.CopyTo(qCtx)
 			return nil
 		}
 	}
