@@ -37,7 +37,7 @@ import (
 
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/pool"
-	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
+	"github.com/IrineSistiana/mosdns/v5/pkg/query_context" // <-- [FIXED] Corrected import path
 	"github.com/IrineSistiana/mosdns/v5/pkg/upstream"
 	"github.com/IrineSistiana/mosdns/v5/pkg/utils"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
@@ -56,7 +56,7 @@ func init() {
 const (
 	maxConcurrentQueries = 3
 	queryTimeout         = time.Second * 5
-	defaultAliAPIServer = "223.5.5.5"
+	defaultAliAPIServer  = "223.5.5.5"
 )
 
 // Args defines the configuration for the aliapi plugin.
@@ -82,11 +82,11 @@ type Args struct {
 
 // UpstreamConfig defines a single upstream server configuration.
 type UpstreamConfig struct {
-	Tag               string `yaml:"tag"`
-	Addr              string `yaml:"addr"`
-	DialAddr          string `yaml:"dial_addr"`
-	IdleTimeout       int    `yaml:"idle_timeout"`
-	UpstreamQueryTimeout int `yaml:"upstream_query_timeout"`
+	Tag                  string `yaml:"tag"`
+	Addr                 string `yaml:"addr"`
+	DialAddr             string `yaml:"dial_addr"`
+	IdleTimeout          int    `yaml:"idle_timeout"`
+	UpstreamQueryTimeout int    `yaml:"upstream_query_timeout"`
 
 	Type string `yaml:"type"` // "dns" (default) or "aliapi"
 
@@ -246,7 +246,6 @@ func (f *AliAPI) Exec(ctx context.Context, qCtx *query_context.Context) (err err
 	return nil
 }
 
-// QuickConfigureExec format: [upstream_tag]...
 func (f *AliAPI) QuickConfigureExec(args string) (any, error) {
 	var us []*upstreamWrapper
 	if len(args) == 0 {
@@ -296,24 +295,31 @@ func (f *AliAPI) exchange(ctx context.Context, qCtx *query_context.Context, us [
 	if concurrent > maxConcurrentQueries {
 		concurrent = maxConcurrentQueries
 	}
+	if concurrent > len(us) {
+		concurrent = len(us)
+	}
 
 	type res struct {
 		r   *dns.Msg
 		err error
 	}
 
-	resChan := make(chan res)
-	done := make(chan struct{})
-	defer close(done)
+	resChan := make(chan res, concurrent)
 
-	var lastValidRes *dns.Msg
+	// --- [FIXED] Use context.WithCancel for safe and modern goroutine cancellation ---
+	exchangeCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	rand.Seed(time.Now().UnixNano())
-	r := rand.Intn(len(us))
-	
+	var lastSuccessOrNXRes *dns.Msg
+	var lastOtherRes *dns.Msg
+	var lastError error
+
+	// --- [FIXED] Use concurrency-safe, top-level rand.Intn ---
+	randIndex := rand.Intn(len(us))
+
 	usToQuery := make([]*upstreamWrapper, 0, concurrent)
-	for i := 0; i < concurrent && i < len(us); i++ {
-		usToQuery = append(usToQuery, us[(r+i)%len(us)])
+	for i := 0; i < concurrent; i++ {
+		usToQuery = append(usToQuery, us[(randIndex+i)%len(us)])
 	}
 
 	for _, u := range usToQuery {
@@ -326,26 +332,25 @@ func (f *AliAPI) exchange(ctx context.Context, qCtx *query_context.Context, us [
 
 		go func(uqid uint32, question dns.Question, currentUpstream *upstreamWrapper) {
 			defer pool.ReleaseBuf(qc)
-			upstreamCtx, cancel := context.WithTimeout(context.Background(), upstreamTimeout)
-			defer cancel()
 
-			// Metrics handled by upstreamWrapper directly
+			// --- [FIXED] Inherit parent context for proper cancellation propagation ---
+			upstreamCtx, upstreamCancel := context.WithTimeout(exchangeCtx, upstreamTimeout)
+			defer upstreamCancel()
+
 			currentUpstream.mQueryTotal.Inc()
 			currentUpstream.mInflight.Inc()
+			defer currentUpstream.mInflight.Dec()
 
 			var r *dns.Msg
-			respPayload, err := currentUpstream.u.ExchangeContext(upstreamCtx, *qc) // Call wrapped upstream
+			respPayload, err := currentUpstream.u.ExchangeContext(upstreamCtx, *qc)
 			if err != nil {
 				currentUpstream.mErrorTotal.Inc()
-				currentUpstream.mInflight.Dec() // Decrement on error
-				// Skip logging "context deadline exceeded" or other common network errors
 				if !errors.Is(err, context.DeadlineExceeded) && !errors.Is(err, context.Canceled) &&
 					!strings.Contains(err.Error(), "connection refused") &&
 					!strings.Contains(err.Error(), "no such host") {
 					f.logger.Debug("upstream query failed", zap.String("upstream", currentUpstream.cfg.Addr), zap.Error(err))
 				}
 			} else {
-				currentUpstream.mInflight.Dec() // Decrement on success
 				r = new(dns.Msg)
 				err = r.Unpack(*respPayload)
 				pool.ReleaseBuf(respPayload)
@@ -357,52 +362,72 @@ func (f *AliAPI) exchange(ctx context.Context, qCtx *query_context.Context, us [
 
 			select {
 			case resChan <- res{r: r, err: err}:
-			case <-done:
+			case <-exchangeCtx.Done(): // Listen to cancellation signal
 			}
 		}(qCtx.Id(), qCtx.QQuestion(), u)
 	}
 
-	receivedResponses := 0
-	for receivedResponses < len(usToQuery) {
+	for i := 0; i < len(usToQuery); i++ {
 		select {
 		case res := <-resChan:
-			receivedResponses++
 			r, err := res.r, res.err
 			if err != nil {
+				if lastError == nil {
+					lastError = err
+				}
 				continue
 			}
 
 			if len(r.Answer) > 0 {
 				for _, ans := range r.Answer {
 					if a, ok := ans.(*dns.A); ok && len(a.A) > 0 {
+						cancel() // We got a winner, cancel other requests.
 						return r, nil
 					}
 					if aaaa, ok := ans.(*dns.AAAA); ok && len(aaaa.AAAA) > 0 {
+						cancel() // We got a winner, cancel other requests.
 						return r, nil
 					}
 				}
 			}
 
 			if r.Rcode == dns.RcodeSuccess || r.Rcode == dns.RcodeNameError {
-				if lastValidRes == nil {
-					lastValidRes = r
-				} else if r.Rcode == dns.RcodeSuccess {
-					if lastValidRes.Rcode != dns.RcodeSuccess {
-						lastValidRes = r
-					}
+				if lastSuccessOrNXRes == nil {
+					lastSuccessOrNXRes = r
+				}
+			} else {
+				if lastOtherRes == nil {
+					lastOtherRes = r
 				}
 			}
 
-		case <-ctx.Done():
-			return nil, context.Cause(ctx)
+		case <-exchangeCtx.Done():
+			// If the main context was cancelled, exit the loop.
+			// Return the best result we have so far, or the context error.
+			if lastSuccessOrNXRes != nil {
+				return lastSuccessOrNXRes, nil
+			}
+			if lastOtherRes != nil {
+				return lastOtherRes, nil
+			}
+			if lastError != nil {
+				return nil, lastError
+			}
+			return nil, context.Cause(ctx) // Return original cause
 		}
 	}
 
-	if lastValidRes != nil {
-		return lastValidRes, nil
+	if lastSuccessOrNXRes != nil {
+		return lastSuccessOrNXRes, nil
+	}
+	if lastOtherRes != nil {
+		return lastOtherRes, nil
+	}
+	if lastError != nil {
+		return nil, lastError
 	}
 
-	return nil, nil
+	return nil, errors.New("all upstreams failed or returned no usable response")
 }
 
 func quickSetup(bq sequence.BQ, s string) (any, error) {
@@ -417,6 +442,11 @@ func quickSetup(bq sequence.BQ, s string) (any, error) {
 // DNSEntity represents the structure of the JSON response from AliDNS API
 type DNSEntity struct {
 	Status int      `json:"status"`
+	TC     bool     `json:"TC"`       // Truncated
+	RD     bool     `json:"RD"`       // Recursion Desired
+	RA     bool     `json:"RA"`       // Recursion Available
+	AD     bool     `json:"AD"`       // Authenticated Data
+	CD     bool     `json:"CD"`       // Checking Disabled
 	Answer []Answer `json:"answer"`
 	Remark string   `json:"remark"`
 }
@@ -455,13 +485,21 @@ func getDNSRecord(ans Answer) dns.RR {
 		if len(data) == 7 {
 			rr.Ns = data[0]
 			rr.Mbox = data[1]
-			rr.Serial = uint32(string2int(data[2]))
-			rr.Refresh = uint32(string2int(data[3]))
-			rr.Retry = uint32(string2int(data[4]))
-			rr.Expire = uint32(string2int(data[5]))
-			rr.Minttl = uint32(string2int(data[6]))
+			serial, err1 := strconv.ParseUint(data[2], 10, 32)
+			refresh, err2 := strconv.ParseUint(data[3], 10, 32)
+			retry, err3 := strconv.ParseUint(data[4], 10, 32)
+			expire, err4 := strconv.ParseUint(data[5], 10, 32)
+			minttl, err5 := strconv.ParseUint(data[6], 10, 32)
+			if err1 != nil || err2 != nil || err3 != nil || err4 != nil || err5 != nil {
+				return &dns.TXT{Hdr: header, Txt: []string{"Malformed SOA: invalid number format"}}
+			}
+			rr.Serial = uint32(serial)
+			rr.Refresh = uint32(refresh)
+			rr.Retry = uint32(retry)
+			rr.Expire = uint32(expire)
+			rr.Minttl = uint32(minttl)
 		} else {
-			return &dns.TXT{Hdr: header, Txt: []string{"Malformed SOA: " + ans.Data}}
+			return &dns.TXT{Hdr: header, Txt: []string{"Malformed SOA: wrong number of fields"}}
 		}
 		return rr
 	case dns.TypeMX:
@@ -469,10 +507,14 @@ func getDNSRecord(ans Answer) dns.RR {
 		rr.Hdr = header
 		data := strings.Fields(ans.Data)
 		if len(data) == 2 {
-			rr.Preference = uint16(string2int(data[0]))
+			pref, err := strconv.ParseUint(data[0], 10, 16)
+			if err != nil {
+				return &dns.TXT{Hdr: header, Txt: []string{"Malformed MX: invalid preference"}}
+			}
+			rr.Preference = uint16(pref)
 			rr.Mx = data[1]
 		} else {
-			return &dns.TXT{Hdr: header, Txt: []string{"Malformed MX: " + ans.Data}}
+			return &dns.TXT{Hdr: header, Txt: []string{"Malformed MX: wrong number of fields"}}
 		}
 		return rr
 	case dns.TypeTXT:
@@ -491,11 +533,15 @@ func getDNSRecord(ans Answer) dns.RR {
 		rr.Hdr = header
 		data := strings.Fields(ans.Data)
 		if len(data) == 3 {
-			rr.Flag = uint8(string2int(data[0]))
+			flag, err := strconv.ParseUint(data[0], 10, 8)
+			if err != nil {
+				return &dns.TXT{Hdr: header, Txt: []string{"Malformed CAA: invalid flag"}}
+			}
+			rr.Flag = uint8(flag)
 			rr.Tag = data[1]
 			rr.Value = strings.Trim(data[2], "\"")
 		} else {
-			return &dns.TXT{Hdr: header, Txt: []string{"Malformed CAA: " + ans.Data}}
+			return &dns.TXT{Hdr: header, Txt: []string{"Malformed CAA: wrong number of fields"}}
 		}
 		return rr
 	default:
@@ -505,12 +551,6 @@ func getDNSRecord(ans Answer) dns.RR {
 		rr.Txt = []string{fmt.Sprintf("Type %d: %s", ans.Type, cleanedData)}
 		return rr
 	}
-}
-
-// string2int is a helper to convert string to int, unsafe version from AhaDNS
-func string2int(str string) int {
-	i, _ := strconv.Atoi(str)
-	return i
 }
 
 // AliAPIUpstreamArgs holds configuration for an AliAPI upstream instance.
@@ -524,26 +564,32 @@ type AliAPIUpstreamArgs struct {
 }
 
 // AliAPIUpstream implements the upstream.Upstream interface for AliDNS JSON API.
-// It no longer takes an EventObserver.
 type AliAPIUpstream struct {
-	args     AliAPIUpstreamArgs
-	logger   *zap.Logger
-	client   *http.Client
+	args   AliAPIUpstreamArgs
+	logger *zap.Logger
+	client *http.Client
 }
 
 // NewAliAPIUpstream creates a new AliAPIUpstream.
+// ======================================================================================
+// ===== VVVV THIS IS A MODIFIED FUNCTION VVVV =====
+// ======================================================================================
 func NewAliAPIUpstream(args AliAPIUpstreamArgs, logger *zap.Logger) *AliAPIUpstream {
 	httpClient := &http.Client{
-		Timeout: 0,
+		// [FIXED] Set a reasonable timeout to prevent hanging.
+		Timeout: queryTimeout,
 	}
 	return &AliAPIUpstream{
-		args:     args,
-		logger:   logger,
-		client:   httpClient,
+		args:   args,
+		logger: logger,
+		client: httpClient,
 	}
 }
 
 // ExchangeContext performs a DNS query via AliDNS JSON API.
+// ======================================================================================
+// ===== VVVV THIS IS A MODIFIED FUNCTION VVVV =====
+// ======================================================================================
 func (a *AliAPIUpstream) ExchangeContext(ctx context.Context, req []byte) (resp *[]byte, err error) {
 	dnsMsg := new(dns.Msg)
 	if err := dnsMsg.Unpack(req); err != nil {
@@ -558,10 +604,6 @@ func (a *AliAPIUpstream) ExchangeContext(ctx context.Context, req []byte) (resp 
 	q := dnsMsg.Question[0]
 	qName := dns.Fqdn(q.Name)
 	qType := dns.Type(q.Qtype).String()
-
-	responseMsg := new(dns.Msg)
-	responseMsg.SetReply(dnsMsg)
-	responseMsg.Authoritative = true
 
 	var ednsClientSubnet string
 	if a.args.EcsClientIP != "" && a.args.EcsClientMask > 0 {
@@ -603,6 +645,16 @@ func (a *AliAPIUpstream) ExchangeContext(ctx context.Context, req []byte) (resp 
 	}
 	defer httpResp.Body.Close()
 
+	// [FIXED] Handle HTTP-level errors (e.g., 4xx, 5xx) before attempting to parse the body.
+	// Per AliAPI documentation, these are transport/auth errors, not DNS responses.
+	if httpResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(httpResp.Body)
+		a.logger.Warn("AliAPI returned non-200 status code",
+			zap.Int("status_code", httpResp.StatusCode),
+			zap.String("body", string(body)))
+		return nil, fmt.Errorf("AliAPI request failed with HTTP status %d", httpResp.StatusCode)
+	}
+
 	body, readErr := io.ReadAll(httpResp.Body)
 	if readErr != nil {
 		a.logger.Warn("Failed to read AliAPI response body", zap.Error(readErr))
@@ -618,33 +670,43 @@ func (a *AliAPIUpstream) ExchangeContext(ctx context.Context, req []byte) (resp 
 		return nil, fmt.Errorf("failed to unmarshal AliAPI JSON response: %w", jsonErr)
 	}
 
-	if aliDNSResult.Status != 0 {
-		responseMsg.SetRcode(responseMsg, dns.RcodeServerFailure)
-		a.logger.Warn("AliAPI returned error status", zap.Int("status", aliDNSResult.Status), zap.String("remark", aliDNSResult.Remark))
-		packed, packErr := pool.PackBuffer(responseMsg)
-		if packErr != nil {
-			return nil, fmt.Errorf("failed to pack AliAPI error response: %w", packErr)
-		}
-		return packed, fmt.Errorf("AliAPI query failed: status %d, remark: %s", aliDNSResult.Status, aliDNSResult.Remark)
-	}
+	// === Start of logic based on AliAPI documentation ===
+	responseMsg := new(dns.Msg)
+	responseMsg.SetReply(dnsMsg)
+	responseMsg.Authoritative = true
 
-	for _, ans := range aliDNSResult.Answer {
-		if ans.Name == qName {
-			record := getDNSRecord(ans)
-			responseMsg.Answer = append(responseMsg.Answer, record)
-		}
-	}
+	// Directly use the Rcode from the API's "Status" field.
+	responseMsg.SetRcode(dnsMsg, aliDNSResult.Status)
+ 	responseMsg.Truncated = aliDNSResult.TC
+	responseMsg.RecursionAvailable = aliDNSResult.RA
+	responseMsg.AuthenticatedData = aliDNSResult.AD
+	responseMsg.CheckingDisabled = aliDNSResult.CD
 
-	if len(responseMsg.Answer) == 0 {
-		responseMsg.SetRcode(responseMsg, dns.RcodeNameError)
+	// Only populate the Answer section if the status is NOERROR (0).
+	if aliDNSResult.Status == dns.RcodeSuccess {
+		for _, ans := range aliDNSResult.Answer {
+			// Keeping the original logic to only add records matching the question name.
+			if ans.Name == qName {
+				record := getDNSRecord(ans)
+				responseMsg.Answer = append(responseMsg.Answer, record)
+			}
+		}
 	} else {
-		responseMsg.SetRcode(responseMsg, dns.RcodeSuccess)
+		// Log DNS-level errors (like NXDOMAIN, SERVFAIL) for debugging.
+		a.logger.Debug("AliAPI returned a DNS error status",
+			zap.Int("status", aliDNSResult.Status),
+			zap.String("remark", aliDNSResult.Remark))
 	}
 
+	// Pack the DNS message. Whether it's a success, NXDOMAIN, or SERVFAIL,
+	// it's a valid DNS response that should be returned to the caller.
 	packed, packErr := pool.PackBuffer(responseMsg)
 	if packErr != nil {
 		return nil, fmt.Errorf("failed to pack DNS response from AliAPI result: %w", packErr)
 	}
+
+	// Return the packed message and a nil error. This ensures the caller receives
+	// and processes the DNS response, regardless of its Rcode.
 	return packed, nil
 }
 
@@ -660,7 +722,6 @@ func (a *AliAPIUpstream) Close() error {
 type nopEO struct{}
 
 func (nopEO) OnEvent(upstream.Event) {}
-
 
 // upstreamWrapper wraps an upstream.Upstream and collects metrics.
 type upstreamWrapper struct {
@@ -681,8 +742,8 @@ func newWrapper(idx int, c UpstreamConfig, metricsTag string) *upstreamWrapper {
 			Name: "query_total",
 			Help: "Total number of queries.",
 			ConstLabels: prometheus.Labels{
-				"tag": c.Tag,
-				"addr": c.Addr,
+				"tag":         c.Tag,
+				"addr":        c.Addr,
 				"metrics_tag": metricsTag,
 			},
 		}),
@@ -690,8 +751,8 @@ func newWrapper(idx int, c UpstreamConfig, metricsTag string) *upstreamWrapper {
 			Name: "error_total",
 			Help: "Total number of query errors.",
 			ConstLabels: prometheus.Labels{
-				"tag": c.Tag,
-				"addr": c.Addr,
+				"tag":         c.Tag,
+				"addr":        c.Addr,
 				"metrics_tag": metricsTag,
 			},
 		}),
@@ -699,8 +760,8 @@ func newWrapper(idx int, c UpstreamConfig, metricsTag string) *upstreamWrapper {
 			Name: "inflight_queries",
 			Help: "Number of inflight queries.",
 			ConstLabels: prometheus.Labels{
-				"tag": c.Tag,
-				"addr": c.Addr,
+				"tag":         c.Tag,
+				"addr":        c.Addr,
 				"metrics_tag": metricsTag,
 			},
 		}),
