@@ -5,10 +5,10 @@ go 1.24.5
 require (
 	github.com/IrineSistiana/go-bytes-pool v0.0.0-20230918115058-c72bd9761c57
 	github.com/go-chi/chi/v5 v5.2.2
-	github.com/go-viper/mapstructure/v2 v2.3.0
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/nftables v0.3.0
 	github.com/google/uuid v1.6.0
-	github.com/kardianos/service v1.2.2
+	github.com/kardianos/service v1.2.4
 	github.com/klauspost/compress v1.18.0
 	github.com/miekg/dns v1.1.67
 	github.com/nadoo/ipset v0.5.0
