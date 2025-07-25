@@ -23,11 +23,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
-	"go.uber.org/zap"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
+	"go.uber.org/zap"
 )
 
 // ADDED: A struct to hold a matcher and its name for logging.
@@ -93,8 +94,60 @@ checkMatchesLoop:
 				}
 			}
 
-			if !ok {
-				// Skip this node if condition was not matched.
+			if ok {
+				// Check if a domain_set name has already been stored.
+				// This ensures we only capture the *first* one.
+				if _, exists := qCtx.GetValue(query_context.KeyDomainSet); !exists {
+					// START OF MODIFICATION
+					// Priority 1: Check for switch6 match to identify BANAAAA.
+					if strings.Contains(namedMatch.Name, "anonymous_match(switch6:") {
+						if len(qCtx.Q().Question) > 0 && qCtx.Q().Question[0].Qtype == 28 { // 28 is dns.TypeAAAA
+							qCtx.StoreValue(query_context.KeyDomainSet, "BANAAAA")
+						}
+					// Priority 2: Check for switch5 match to identify BANSOA, BANPTR, BANHTTPS.
+					} else if strings.Contains(namedMatch.Name, "anonymous_match(switch5:") {
+						if len(qCtx.Q().Question) > 0 {
+							qtype := qCtx.Q().Question[0].Qtype
+							var domainSetName string
+							switch qtype {
+							case 6: // dns.TypeSOA
+								domainSetName = "BANSOA"
+							case 12: // dns.TypePTR
+								domainSetName = "BANPTR"
+							case 65: // dns.TypeHTTPS
+								domainSetName = "BANHTTPS"
+							}
+							if domainSetName != "" {
+								qCtx.StoreValue(query_context.KeyDomainSet, domainSetName)
+							}
+						}
+					// Priority 3: Original logic for qname match.
+					} else {
+						var ruleName string
+						const suffix = ")"
+
+						// Handle "qname: $rule" format
+						const prefixWithDollar = "anonymous_match(qname: $"
+						if strings.HasPrefix(namedMatch.Name, prefixWithDollar) {
+							ruleName = strings.TrimPrefix(namedMatch.Name, prefixWithDollar)
+							ruleName = strings.TrimSuffix(ruleName, suffix)
+						} else {
+							// Handle "qname: rule" format
+							const prefixWithoutDollar = "anonymous_match(qname: "
+							if strings.HasPrefix(namedMatch.Name, prefixWithoutDollar) {
+								ruleName = strings.TrimPrefix(namedMatch.Name, prefixWithoutDollar)
+								ruleName = strings.TrimSuffix(ruleName, suffix)
+							}
+						}
+
+						if ruleName != "" {
+							qCtx.StoreValue(query_context.KeyDomainSet, ruleName)
+						}
+					}
+					// END OF MODIFICATION
+				}
+			} else {
+				// Skip this node if a condition was not met.
 				p++
 				continue checkMatchesLoop
 			}
