@@ -44,6 +44,9 @@ func RegisterAuditAPIV2(router *chi.Mux) {
 		r.Get("/stats", handleV2GetStats)
 		r.Get("/rank/domain", handleV2GetDomainRank)
 		r.Get("/rank/client", handleV2GetClientRank)
+		// --- ADDED START ---
+		r.Get("/rank/domain_set", handleV2GetDomainSetRank)
+		// --- ADDED END ---
 		r.Get("/rank/slowest", handleV2GetSlowestQueries)
 		r.Get("/logs", handleV2GetLogs)
 	})
@@ -82,7 +85,20 @@ func handleV2GetClientRank(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// 4. Handler for: Get slowest queries
+// --- ADDED START ---
+// 4. Handler for: Get domain_set query ranking
+func handleV2GetDomainSetRank(w http.ResponseWriter, r *http.Request) {
+	limit := parseQueryInt(r, "limit", 20) // Default to top 20
+	rank := GlobalAuditCollector.CalculateRank(RankByDomainSet, limit)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(rank); err != nil {
+		mlog.L().Error("failed to encode v2 domain_set rank", zap.Error(err))
+	}
+}
+// --- ADDED END ---
+
+
+// 5. Handler for: Get slowest queries
 func handleV2GetSlowestQueries(w http.ResponseWriter, r *http.Request) {
 	limit := parseQueryInt(r, "limit", 100) // Default to 100 slowest
 	logs := GlobalAuditCollector.GetSlowestQueries(limit)
@@ -92,7 +108,7 @@ func handleV2GetSlowestQueries(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// 5. Handler for: Get logs with advanced filtering and pagination
+// 6. Handler for: Get logs with advanced filtering and pagination
 func handleV2GetLogs(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	
