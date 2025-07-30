@@ -1537,7 +1537,7 @@
                     tooltipManager.hide(); return;
                 }
                 e.preventDefault(); 
-                if (interactiveTarget.matches('.clickable-link')) { const value = interactiveTarget.dataset.filterValue; const isExact = interactiveTarget.dataset.exactSearch === 'true'; elements.logSearch.value = isExact ? `"${value}"` : value; const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); } 
+		if (interactiveTarget.matches('.clickable-link')) { const value = interactiveTarget.dataset.filterValue; const isExact = interactiveTarget.dataset.exactSearch === 'true'; elements.logSearch.value = isExact ? `"${value}"` : value; const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) { if (!logQueryLink.classList.contains('active')) { handleNavigation(logQueryLink); } applyLogFilterAndRender(); } }
                 else if (interactiveTarget.matches('.tab-link-action')) { const link = document.querySelector(`.tab-link[data-tab="${interactiveTarget.dataset.tab}"]`); if(link) handleNavigation(link); } 
             });
             
