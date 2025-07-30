@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 仪表盘 V3.2.1 Optimized</title>
+    <title>Mosdns 仪表盘 V3.2.2 Optimized</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Georgia&display=swap" rel="stylesheet">
     <style>
-        /* --- UI CSS (V3.2.1 "Hybrid" Optimized) --- */
+        /* --- UI CSS (V3.2.2 "Hybrid" Optimized) --- */
         :root { 
             --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             --font-family-mono: "Fira Code", "SF Mono", "Consolas", monospace;
@@ -167,7 +167,9 @@
         .overview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; margin-top: 2.5rem; }
 
         .scrollable-table-container { max-height: 400px; overflow-y: auto; position: relative; }
-        .overview-grid .scrollable-table-container { max-height: 300px; }
+        
+        .overview-grid .scrollable-table-container { max-height: 350px; }
+        
         #log-query-table-container { max-height: calc(100vh - 380px); min-height: 200px; }
         #adguard-table-container, #diversion-table-container { max-height: calc(100vh - 350px); min-height: 300px; }
         
@@ -262,7 +264,14 @@
         .modal-body { padding: 1.75rem; max-height: 60vh; overflow-y: auto; scrollbar-gutter: stable; } 
         .modal-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--color-border); display: flex; justify-content: space-between; gap: 0.75rem; background-color: var(--color-bg-alt); border-bottom-left-radius: var(--border-radius-xl); border-bottom-right-radius: var(--border-radius-xl); } 
         .modal-footer .footer-actions-right { display: flex; gap: 0.75rem; margin-left: auto; }
-        
+
+        #log-detail-modal .modal-body ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+        #log-detail-modal .modal-body li { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+        #log-detail-modal .modal-body li strong { flex-shrink: 0; color: var(--color-text-secondary); }
+        #log-detail-modal .modal-body li span { word-break: break-all; text-align: right; }
+        #log-detail-modal .modal-body h5 { margin: 1.25rem 0 0.75rem; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem; }
+        #log-detail-modal .modal-body h5:first-child { margin-top: 0; }
+
         .alias-item { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; align-items: center; padding: 0.75rem; border-radius: var(--border-radius-sm); } 
         .alias-item:nth-child(even) { background-color: var(--color-bg-alt); }
         #manual-alias-form { padding: 1.25rem; background: var(--color-bg-alt); border-radius: var(--border-radius-md); margin-bottom: 1.5rem; display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: center; border: 1px solid var(--color-border); }
@@ -314,6 +323,11 @@
         .legend-label { color: var(--color-text-secondary); flex-grow: 1; margin-right: 1rem; }
         .legend-value { font-weight: 600; white-space: nowrap; }
 
+        #slowest-queries-table th:last-child,
+        #slowest-queries-table td:last-child {
+            white-space: nowrap;
+        }
+
         [data-layout="compact"] .container { padding-top: 1rem; padding-bottom: 1rem; }
         [data-layout="compact"] .overview-grid, [data-layout="compact"] .control-panel-grid { gap: 1rem; }
         [data-layout="compact"] th, [data-layout="compact"] td { padding: 0.5rem 1rem; }
@@ -323,7 +337,74 @@
         @media (min-width: 1600px) { [data-layout="comfortable"] .container { max-width: 1500px; } [data-layout="comfortable"] .overview-grid { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); } [data-layout="comfortable"] .control-panel-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (min-width: 2000px) { [data-layout="comfortable"] .container { max-width: 1900px; } }
         @media (max-width: 992px) { .page-header { justify-content: center; gap: 0.75rem; } h1 { flex-basis: 100%; text-align: center; margin-bottom: 0.5rem; } .header-main-actions { order: 1; flex-grow: 1; justify-content: center; } .overview-grid { grid-template-columns: 1fr; } }
-        @media (max-width: 768px) { html { font-size: 15px; } .container { padding: 1.5rem 1rem 4rem; } h1 { font-size: 1.8rem; } .card-header { padding: 1rem 1.25rem; } .card-body { padding: 1.25rem; } .card-body.no-padding { padding: 0; } .hide-on-mobile { display: none !important; } .show-on-mobile { display: block !important; } #log-search-container-original { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem; } #log-search-container-original #manage-aliases-btn-mobile { flex-shrink: 0; } .mobile-card-layout thead, .mobile-rule-card-layout thead { display: none; } .mobile-card-layout, .mobile-card-layout tbody, .mobile-rule-card-layout, .mobile-rule-card-layout tbody { display: block; } .mobile-card-layout tr { display: block; background-color: var(--color-bg-card); padding: 1rem; border-radius: var(--border-radius-md); margin-bottom: 0.75rem; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); } .mobile-card-layout td { display: block; border: none; padding: 0; } .mobile-card-layout tr:nth-child(even) { background-color: var(--color-bg-card); } .mobile-log-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "domain time" "meta meta"; gap: 0.25rem 1rem; font-size: 0.9rem; } .mobile-log-row .domain { grid-area: domain; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: center;} .mobile-log-row .time { grid-area: time; text-align: right; color: var(--color-text-secondary); font-size: 0.8rem; align-self: center; } .mobile-log-row .meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; color: var(--color-text-secondary); font-size: 0.85rem; padding-top: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--color-border);} .mobile-log-row .meta .client { max-width: 15ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .mobile-log-row .meta .duration { font-weight: 500; } .mobile-compact-table th:not(:first-child), .mobile-compact-table td:not(:first-child) { display: none; } .mobile-compact-table th:first-child, .mobile-compact-table td:first-child { width: 100%; } #log-query-table-container, .rules-card .sub-tab-content { padding: 0.75rem; background-color: var(--color-bg-alt); border-radius: var(--border-radius-md); } .rules-card .sub-nav { margin: 0 1.25rem 1.5rem; } .rules-card .card-body { padding: 0; } #adguard-table-container, #diversion-table-container { max-height: calc(100vh - 400px); padding: 0; background: none; } .control-panel-grid { grid-template-columns: 1fr; gap: 1.5rem; } .control-module { padding: 1.25rem; } .control-item { flex-direction: column; align-items: flex-start; gap: 0.75rem; } .control-item > div, .control-item > form, .control-item > button, .control-item > select { margin-left: 0; width: 100%; } .button-group, #capacity-form { grid-template-columns: 1fr; gap: 0.75rem; } .auto-refresh-form { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; } #manual-alias-form { grid-template-columns: 1fr; } .alias-item { grid-template-columns: 1fr; } }
+        
+        /* --- FINAL MOBILE STYLES (REBUILT FOR CONSISTENCY) --- */
+        @media (max-width: 768px) { 
+            html { font-size: 15px; } 
+            .container { padding: 1.5rem 1rem 4rem; } 
+            h1 { font-size: 1.8rem; } 
+            .card-header { padding: 1rem 1.25rem; } 
+            .card-body { padding: 1.25rem; } 
+            .card-body.no-padding { padding: 0; } 
+            .hide-on-mobile { display: none !important; } 
+            .show-on-mobile { display: block !important; } 
+            #log-search-container-original { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem; } 
+            #log-search-container-original #manage-aliases-btn-mobile { flex-shrink: 0; } 
+            
+            /* Unified Mobile Layout for all tables */
+            .mobile-card-layout thead, .mobile-rule-card-layout thead { display: none; } 
+            .mobile-card-layout, .mobile-card-layout tbody, .mobile-rule-card-layout, .mobile-rule-card-layout tbody { display: block; } 
+            .mobile-card-layout tr, .mobile-rule-card-layout .rule-card { 
+                display: block; 
+                background-color: var(--color-bg-card); 
+                padding: 1rem; 
+                border-radius: var(--border-radius-md); 
+                margin-bottom: 0.75rem; 
+                border: 1px solid var(--color-border); 
+                box-shadow: var(--shadow-sm); 
+            } 
+            .mobile-card-layout td { 
+                display: block; 
+                border: none; 
+                padding: 0; 
+                min-width: 0; /* FIX: Critical for allowing child elements to shrink */
+            } 
+            .mobile-card-layout tr:nth-child(even) { background-color: var(--color-bg-card); } 
+            
+            /* The robust grid system for all mobile list items */
+            .mobile-log-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "domain time" "meta meta"; gap: 0.25rem 1rem; font-size: 0.9rem; } 
+
+            .mobile-log-row .domain { 
+                grid-area: domain; 
+                font-weight: 600; 
+                color: var(--color-text-primary); 
+                overflow: hidden; 
+                text-overflow: ellipsis; 
+                white-space: nowrap; 
+                align-self: center;
+                min-width: 0; /* FIX: Critical for making text-overflow work in a grid */
+            } 
+
+            .mobile-log-row .time { grid-area: time; text-align: right; color: var(--color-text-secondary); font-size: 0.8rem; align-self: center; } 
+            .mobile-log-row .meta { grid-area: meta; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; color: var(--color-text-secondary); font-size: 0.85rem; padding-top: 0.5rem; margin-top: 0.5rem; border-top: 1px solid var(--color-border);} 
+            .mobile-log-row .meta .client { max-width: 15ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } 
+            .mobile-log-row .meta .duration { font-weight: 500; } 
+            
+            /* Other mobile adjustments */
+            #log-query-table-container, .rules-card .sub-tab-content { padding: 0.75rem; background-color: var(--color-bg-alt); border-radius: var(--border-radius-md); } 
+            .rules-card .sub-nav { margin: 0 1.25rem 1.5rem; } 
+            .rules-card .card-body { padding: 0; } 
+            #adguard-table-container, #diversion-table-container { max-height: calc(100vh - 400px); padding: 0; background: none; } 
+            .control-panel-grid { grid-template-columns: 1fr; gap: 1.5rem; } 
+            .control-module { padding: 1.25rem; } 
+            .control-item { flex-direction: column; align-items: flex-start; gap: 0.75rem; } 
+            .control-item > div, .control-item > form, .control-item > button, .control-item > select { margin-left: 0; width: 100%; } 
+            .button-group, #capacity-form { grid-template-columns: 1fr; gap: 0.75rem; } 
+            .auto-refresh-form { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; } 
+            #manual-alias-form { grid-template-columns: 1fr; } 
+            .alias-item { grid-template-columns: 1fr; } 
+        }
+
         @media (max-width: 576px) { .donut-chart-wrapper { flex-direction: column; gap: 1.5rem; } .donut-legend { width: 100%; max-width: 320px; } }
         @media (max-width: 480px) { .alias-item { text-align: center; } .alias-item input { text-align: center; } .rule-actions-wrapper { justify-content: center; } }
         
@@ -341,7 +422,7 @@
         [data-theme="sakura"] main::before { left: 10%; animation-delay: 0s; }
         [data-theme="sakura"] main::after { left: 30%; animation-delay: -5s; content: '💮'; font-size: 1.5rem; }
         [data-theme="evergreen"] { --color-bg: #1a2e26; --color-bg-card: rgba(20, 38, 31, 0.7); --color-bg-alt: rgba(14, 27, 22, 0.8); --color-text-primary: #e2e8f0; --color-text-secondary: #94a3b8; --color-border: #4ade80; --color-accent-primary: #4ade80; --color-accent-primary-hover: #86efac; --color-accent-text: #064e3b; --glow-color: rgba(74, 222, 128, 0.15); --glow-border-color: #86efac; --color-success: #4ade80; --color-danger: #f87171; --color-warning: #fbbf24; }
-        [data-theme="evergreen"] body { background: #1a2e26 url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Cg fill-rule="evenodd"%3E%3Cg fill="%232c5d4c" fill-opacity="0.2"%3E%3Cpath opacity=".5" d="M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4H1v-4H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4z"/%3E%3Cpath d="M6 6h2v2H6V6zm2-2h2v2H8V4zM4 2h2v2H4V2zM2 4h2v2H2V4z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E'); }
+        [data-theme="evergreen"] body { background: #1a2e26 url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"%3E%3Cg fill-rule="evenodd"%3E%3Cg fill="%232c5d4c" fill-opacity="0.2"%3E%3Cpath opacity=".5" d="M96 95h4v1h-4v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4v-9H0v-1h4V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v9h4v1h-4v4h-1v-4h-9v4h-1v-4h-h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4h-1v-4h-9v4H1v-4H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1v-9H0v-1h1V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4h9V0h1v4z"/%3E%3Cpath d="M6 6h2v2H6V6zm2-2h2v2H8V4zM4 2h2v2H4V2zM2 4h2v2H2V4z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E'); }
         [data-theme="evergreen"] .card, [data-theme="evergreen"] dialog { backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.2); }
         [data-theme="evergreen"] .stat-card { background: var(--color-bg-card); color: var(--color-text-primary); border: 1px solid rgba(74, 222, 128, 0.4); }
         [data-theme="evergreen"] .stat-card h3 { color: var(--color-text-primary); }
@@ -397,6 +478,16 @@
         </header>
 
         <div id="toast" role="status" aria-live="polite"></div>
+
+        <dialog id="log-detail-modal" class="card">
+            <header class="modal-header">
+                <h2>查询详情</h2>
+                <button class="button secondary" id="close-log-detail-modal" aria-label="Close" style="min-width:auto; padding:0.3rem 0.5rem;">✕</button>
+            </header>
+            <div id="log-detail-modal-body" class="modal-body">
+                <!-- Content will be injected by JavaScript -->
+            </div>
+        </dialog>
 
         <dialog id="alias-modal" class="card">
             <header class="modal-header">
@@ -507,7 +598,7 @@
                     <div class="card-body">
                         <div class="lazy-placeholder"><div class="spinner"></div></div>
                         <div class="scrollable-table-container">
-                            <table class="mobile-compact-table">
+                            <table class="mobile-card-layout">
                                 <thead><tr><th>域名</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
                                 <tbody id="top-domains-body"></tbody>
                             </table>
@@ -520,7 +611,7 @@
                     <div class="card-body">
                         <div class="lazy-placeholder"><div class="spinner"></div></div>
                         <div class="scrollable-table-container">
-                            <table class="mobile-compact-table">
+                            <table class="mobile-card-layout">
                                 <thead><tr><th>客户端</th><th class="text-right hide-on-mobile">请求数</th></tr></thead>
                                 <tbody id="top-clients-body"></tbody>
                             </table>
@@ -529,12 +620,18 @@
                 </div>
            
                 <div class="card lazy-load-card" id="slowest-queries-card">
-                    <header class="card-header"><h2><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM11.1716 12.8284L15.0858 16.7426L16.5 15.3284L13.2929 12.1213C13.6834 11.5 14 10.7071 14 9.82843C14 7.87563 12.4477 6.32328 10.5 6.32328C8.55228 6.32328 7 7.87563 7 9.82843C7 11.7812 8.55228 13.3336 10.5 13.3336C10.7071 13.3336 10.95 13.1517 11.1716 12.8284Z"></path></svg>最慢查询</h2></header>
+                    <header class="card-header"><h2><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 17.5228 2 12 2ZM11.1716 12.8284L15.0858 16.7426L16.5 15.3284L13.2929 12.1213C13.6834 11.5 14 10.7071 14 9.82843C14 7.87563 12.4477 6.32328 10.5 6.32328C8.55228 6.32328 7 7.87563 7 9.82843C7 11.7812 8.55228 13.3336 10.5 13.3336C10.7071 13.3336 10.95 13.1517 11.1716 12.8284Z"></path></svg>最慢查询</h2></header>
                     <div class="card-body">
                         <div class="lazy-placeholder"><div class="spinner"></div></div>
                          <div class="scrollable-table-container">
                             <table id="slowest-queries-table" class="mobile-card-layout">
-                                <thead><tr><th style="width: 50%;">域名 / 响应</th><th style="width: 35%;">客户端</th><th class="text-right" style="width: 15%;">耗时 (ms)</th></tr></thead>
+                                <thead>
+                                    <tr>
+                                        <th style="width: 45%;">域名 / 响应</th>
+                                        <th style="width: 35%;">客户端</th>
+                                        <th class="text-right" style="width: 20%;">耗时 (ms)</th>
+                                    </tr>
+                                </thead>
                                 <tbody id="slowest-queries-body"></tbody>
                             </table>
                         </div>
@@ -774,6 +871,9 @@
             ruleFilesWrapper: document.getElementById('rule-files-wrapper'),
             rulesSubNavLinks: document.querySelectorAll('.sub-nav-link'),
             rulesSubTabContents: document.querySelectorAll('.sub-tab-content'),
+            logDetailModal: document.getElementById('log-detail-modal'),
+            logDetailModalBody: document.getElementById('log-detail-modal-body'),
+            closeLogDetailModalBtn: document.getElementById('close-log-detail-modal'),
         };
         let toastTimeout;
         
@@ -814,6 +914,19 @@
                 tbody.appendChild(fragment);
             },
             updateSearchResultsInfo(pagination) { if (!elements.searchResultsInfo) return; if (state.currentLogSearchTerm?.query && pagination) { elements.searchResultsInfo.innerHTML = `为您找到 <strong>${pagination.total_items.toLocaleString()}</strong> 条相关结果`; } else { elements.searchResultsInfo.innerHTML = ''; } },
+            openLogDetailModal(triggerElement) {
+                const logIndex = triggerElement.dataset.logIndex ? parseInt(triggerElement.dataset.logIndex, 10) : null;
+                const source = triggerElement.dataset.logSource || 'log';
+                let data;
+
+                if (source === 'slowest' && logIndex !== null) data = state.slowestQueries[logIndex];
+                else if (logIndex !== null) data = state.displayedLogs[logIndex];
+                
+                if (!data) return;
+
+                elements.logDetailModalBody.innerHTML = getDetailContentHTML(data);
+                elements.logDetailModal.showModal();
+            },
             openRuleModal(mode, rule = null) {
                 const form = elements.ruleForm;
                 form.reset();
@@ -921,14 +1034,8 @@
         
         const renderTable = (tbody, data, renderRow, tableType) => { 
             if (!tbody) return; 
-
-            // *** BUG FIX ***: Use a more robust selector to find the placeholder.
-            // This ensures the spinner is found and hidden correctly in lazy-loaded cards.
             const placeholder = tbody.closest('.card')?.querySelector('.lazy-placeholder');
-            if (placeholder) {
-                placeholder.style.display = 'none';
-            }
-
+            if (placeholder) placeholder.style.display = 'none';
             tbody.innerHTML = ''; 
             if (!data || data.length === 0) { 
                 let message = '请确保审计功能已开启。'; 
@@ -945,7 +1052,6 @@
                     message = '没有可显示的数据。';
                     ctaButton = '';
                 }
-
                 const colspan = state.isMobile ? 1 : (tbody.previousElementSibling?.rows[0]?.cells.length || 2); 
                 const emptyRow = document.createElement('tr'); 
                 emptyRow.className = 'empty-state-row'; 
@@ -979,26 +1085,64 @@
             tbody.appendChild(fragment);
         }
         
-        const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'domain'; tr.innerHTML = `<td><span class="truncate-text" title="${item.key}">${item.key}</span></td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'lazy');
-        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => { const tr = document.createElement('tr'); tr.dataset.rankIndex = index; tr.dataset.rankSource = 'client'; tr.innerHTML = `<td>${aliasManager.getAliasedClientHTML(item.key)}</td><td class="text-right hide-on-mobile"><a href="#log-query" class="clickable-link" data-exact-search="true" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`; return tr; }, 'lazy');
+        const renderTopDomains = (data) => renderTable(elements.topDomainsBody, data, (item, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.rankIndex = index;
+            tr.dataset.rankSource = 'domain';
+
+            if (state.isMobile) {
+                tr.innerHTML = `
+                    <td>
+                        <div class="mobile-log-row" style="grid-template-areas: 'domain time'; gap: 0.5rem 1rem;">
+                            <div class="domain" title="${item.key}">${item.key}</div>
+                            <div class="time" style="font-size: 1rem; font-weight: 600;">
+                                <a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a>
+                            </div>
+                        </div>
+                    </td>`;
+            } else {
+                tr.innerHTML = `
+                    <td><span class="truncate-text" title="${item.key}">${item.key}</span></td>
+                    <td class="text-right"><a href="#log-query" class="clickable-link" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`;
+            }
+            return tr;
+        }, 'lazy');
+
+        const renderTopClients = (data) => renderTable(elements.topClientsBody, data, (item, index) => {
+            const tr = document.createElement('tr');
+            tr.dataset.rankIndex = index;
+            tr.dataset.rankSource = 'client';
+
+            if (state.isMobile) {
+                tr.innerHTML = `
+                     <td>
+                        <div class="mobile-log-row" style="grid-template-areas: 'domain time'; gap: 0.5rem 1rem;">
+                            <div class="domain">${aliasManager.getAliasedClientHTML(item.key)}</div>
+                            <div class="time" style="font-size: 1rem; font-weight: 600;">
+                               <a href="#log-query" class="clickable-link" data-exact-search="true" data-filter-value="${item.key}">${item.count.toLocaleString()}</a>
+                            </div>
+                        </div>
+                    </td>`;
+            } else {
+                tr.innerHTML = `
+                    <td>${aliasManager.getAliasedClientHTML(item.key)}</td>
+                    <td class="text-right"><a href="#log-query" class="clickable-link" data-exact-search="true" data-filter-value="${item.key}">${item.count.toLocaleString()}</a></td>`;
+            }
+            return tr;
+        }, 'lazy');
+        
         const renderSlowestQueries = (data) => renderTable(elements.slowestQueriesBody, data, renderSlowestQueryItemHTML, 'lazy');
         
         const chartColors = ['#6d9dff', '#f778ba', '#2dd4bf', '#fb923c', '#a78bfa', '#fde047', '#ff8c8c'];
         const renderDonutChart = (data) => {
             const placeholder = elements.shuntResultsBody.querySelector('.lazy-placeholder');
             if (placeholder) placeholder.style.display = 'none';
-
             if (!data || data.length === 0) {
                 elements.shuntResultsBody.innerHTML = `<div class="empty-state-content" style="padding: 2rem 0;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.71,3.29C21.32,2.9,20.69,2.9,20.3,3.29L3.29,20.3c-0.39,0.39-0.39,1.02,0,1.41C3.48,21.9,3.74,22,4,22s0.52-0.1,0.71-0.29L21.71,4.7C22.1,4.31,22.1,3.68,21.71,3.29z M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,20c-4.41,0-8-3.59-8-8c0-2.33,1-4.45,2.65-5.92l11.27,11.27C16.45,19,14.33,20,12,20z"></path></svg><strong>暂无数据</strong><p>没有检测到分流结果。</p></div>`;
                 return;
             }
             const total = data.reduce((sum, item) => sum + item.count, 0);
-            const radius = 72;
-            const circumference = 2 * Math.PI * radius;
-            let offset = 0;
-            
-            state.shuntColors = {};
-
+            const radius = 72; const circumference = 2 * Math.PI * radius; let offset = 0; state.shuntColors = {};
             const paths = data.map((item, index) => {
                 const percent = (item.count / total);
                 const strokeDashoffset = circumference - (percent * circumference);
@@ -1008,48 +1152,28 @@
                 offset += percent;
                 return path;
             }).join('');
-            
             const legend = data.map((item, index) => {
                 const percent = ((item.count / total) * 100).toFixed(1);
                 const color = chartColors[index % chartColors.length];
-                return `<li class="donut-legend-item">
-                            <span class="legend-color-box" style="background-color: ${color};"></span>
-                            <span class="legend-label truncate-text" title="${item.key}">${item.key}</span>
-                            <span class="legend-value">${item.count.toLocaleString()} (${percent}%)</span>
-                        </li>`;
+                return `<li class="donut-legend-item"><span class="legend-color-box" style="background-color: ${color};"></span><span class="legend-label truncate-text" title="${item.key}">${item.key}</span><span class="legend-value">${item.count.toLocaleString()} (${percent}%)</span></li>`;
             }).join('');
-            
-            elements.shuntResultsBody.innerHTML = `
-                <div class="donut-chart-wrapper">
-                    <div class="donut-chart">
-                        <svg viewBox="0 0 160 160">${paths}</svg>
-                        <div class="donut-chart-center-text">
-                            <div class="total">${total.toLocaleString()}</div>
-                            <div class="label">总计</div>
-                        </div>
-                    </div>
-                    <ul class="donut-legend">${legend}</ul>
-                </div>`;
+            elements.shuntResultsBody.innerHTML = `<div class="donut-chart-wrapper"><div class="donut-chart"><svg viewBox="0 0 160 160">${paths}</svg><div class="donut-chart-center-text"><div class="total">${total.toLocaleString()}</div><div class="label">总计</div></div></div><ul class="donut-legend">${legend}</ul></div>`;
         };
 
         let updateController;
-        async function updatePageData(forceAll = false) {
+            async function updatePageData(forceAll = false) {
             if (state.isUpdating) return;
             state.isUpdating = true;
             if (updateController) updateController.abort();
             updateController = new AbortController();
             const { signal } = updateController;
             elements.globalRefreshBtn.setAttribute('aria-busy', 'true');
-
             const activeTab = document.querySelector('.tab-link.active')?.dataset.tab;
-            
             try {
-                const [statusRes, capacityRes, statsRes] = await Promise.allSettled([
-                    api.getStatus(signal),
-                    api.getCapacity(signal),
-                    api.v2.getStats(signal)
-                ]);
-                
+                // MODIFICATION START: Add getDomainSetRank to the initial fetch
+                const [statusRes, capacityRes, statsRes, domainSetRankRes] = await Promise.allSettled([api.getStatus(signal), api.getCapacity(signal), api.v2.getStats(signal), api.v2.getDomainSetRank(signal, 100)]);
+                // MODIFICATION END
+
                 ui.updateStatus(statusRes.status === 'fulfilled' ? statusRes.value?.capturing : null);
                 ui.updateCapacity(capacityRes.status === 'fulfilled' ? capacityRes.value?.capacity : null);
 
@@ -1062,33 +1186,30 @@
                     ui.updateOverviewStats();
                     historyManager.add(stats.total_queries, stats.average_duration_ms);
                 }
+
+                // MODIFICATION START: Process domainSetRankRes right away to populate colors
+                if (domainSetRankRes.status === 'fulfilled') { 
+                    state.domainSetRank = domainSetRankRes.value || []; 
+                    renderDonutChart(state.domainSetRank); 
+                }
+                // MODIFICATION END
                 
                 if (forceAll) {
-                    const [topDomainsRes, topClientsRes, slowestRes, domainSetRankRes] = await Promise.allSettled([
-                        api.v2.getTopDomains(signal, 100),
-                        api.v2.getTopClients(signal, 100),
-                        api.v2.getSlowest(signal, 100),
-                        api.v2.getDomainSetRank(signal, 100)
-                    ]);
-                    if (domainSetRankRes.status === 'fulfilled') { state.domainSetRank = domainSetRankRes.value || []; renderDonutChart(state.domainSetRank); }
+                    // MODIFICATION START: Remove getDomainSetRank from here
+                    const [topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([api.v2.getTopDomains(signal, 100), api.v2.getTopClients(signal, 100), api.v2.getSlowest(signal, 100)]);
+                    // MODIFICATION END
+                    
+                    // The renderDonutChart call is no longer needed here as it's done above.
                     if (topDomainsRes.status === 'fulfilled') { state.topDomains = topDomainsRes.value || []; renderTopDomains(state.topDomains); }
                     if (topClientsRes.status === 'fulfilled') { state.topClients = topClientsRes.value || []; renderTopClients(state.topClients); }
                     if (slowestRes.status === 'fulfilled') { state.slowestQueries = slowestRes.value || []; renderSlowestQueries(state.slowestQueries); }
                 }
-
                 state.lastUpdateTime = new Date();
                 updateLastUpdated();
-
-                if (activeTab === 'log-query') {
-                    await fetchAndRenderLogs(1, false);
-                } else if (activeTab === 'rules') {
-                    await Promise.all([adguardManager.load(), diversionManager.load()]);
-                }
+                if (activeTab === 'log-query') await fetchAndRenderLogs(1, false);
+                else if (activeTab === 'rules') await Promise.all([adguardManager.load(), diversionManager.load()]);
             } catch (error) { if (error.name !== 'AbortError') console.error("Page update failed:", error); } 
-            finally { 
-                elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); 
-                state.isUpdating = false; 
-            }
+            finally { elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); state.isUpdating = false; }
         }
         
         let logRequestController;
@@ -1096,13 +1217,9 @@
             if (state.isLogLoading && !append) return;
             state.isLogLoading = true;
             if (elements.logLoader) elements.logLoader.style.display = 'block';
-            
-            if (!append) {
-                renderSkeletonRows(elements.logTableBody, CONSTANTS.LOGS_PER_PAGE, state.isMobile ? 1 : 5);
-            }
+            if (!append) renderSkeletonRows(elements.logTableBody, CONSTANTS.LOGS_PER_PAGE, state.isMobile ? 1 : 5);
             if (!append && logRequestController) logRequestController.abort();
             logRequestController = new AbortController();
-
             const params = { page, limit: CONSTANTS.LOGS_PER_PAGE, q: state.currentLogSearchTerm.query, exact: state.currentLogSearchTerm.exact };
             try {
                 const response = await api.v2.getLogs(logRequestController.signal, params);
@@ -1112,12 +1229,8 @@
                 state.currentLogPage = pagination.current_page;
                 if(!append) ui.updateSearchResultsInfo(pagination);
                 ui.renderLogTable(logs || [], append);
-            } catch (error) {
-                if (error.name !== 'AbortError') { console.error("Failed to fetch logs:", error); ui.showToast('获取日志失败', 'error'); }
-            } finally { 
-                state.isLogLoading = false; 
-                if (elements.logLoader) elements.logLoader.style.display = 'none'; 
-            }
+            } catch (error) { if (error.name !== 'AbortError') { console.error("Failed to fetch logs:", error); ui.showToast('获取日志失败', 'error'); }
+            } finally { state.isLogLoading = false; if (elements.logLoader) elements.logLoader.style.display = 'none'; }
         }
         
         const tableSorter = {
@@ -1127,22 +1240,16 @@
                 const { key, order } = state.logSort;
                 const tbody = elements.logTableBody;
                 const rows = Array.from(tbody.querySelectorAll('tr[data-log-index]'));
-                
                 if (rows.length === 0) return;
-
                 rows.sort((a, b) => {
                     const logA = state.displayedLogs[parseInt(a.dataset.logIndex, 10)];
                     const logB = state.displayedLogs[parseInt(b.dataset.logIndex, 10)];
-                    
                     if (!logA || !logB) return 0;
-                    
                     let valA = logA[key], valB = logB[key];
                     if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
-                    
                     const result = valA < valB ? -1 : (valA > valB ? 1 : 0);
                     return order === 'asc' ? result : -result;
                 });
-
                 const fragment = document.createDocumentFragment();
                 rows.forEach(row => fragment.appendChild(row));
                 tbody.appendChild(fragment);
@@ -1183,58 +1290,53 @@
         const tooltipManager = (() => {
             const tooltip = elements.tooltip;
             let showTimeout, hideTimeout;
-
             const _display = (targetElement) => {
                 const logIndex = targetElement.dataset.logIndex ? parseInt(targetElement.dataset.logIndex, 10) : null;
                 const rankIndex = targetElement.dataset.rankIndex ? parseInt(targetElement.dataset.rankIndex, 10) : null;
                 const source = targetElement.dataset.logSource || targetElement.dataset.rankSource;
-                
                 let data;
                 if (source === 'slowest' && logIndex !== null) data = state.slowestQueries[logIndex];
                 else if (source === 'domain' && rankIndex !== null) data = state.topDomains[rankIndex];
                 else if (source === 'client' && rankIndex !== null) data = state.topClients[rankIndex];
                 else if (source === 'domain_set' && rankIndex !== null) data = state.domainSetRank[rankIndex];
                 else if (logIndex !== null) data = state.displayedLogs[logIndex];
-                
                 if (!data) return;
-                
                 tooltip.innerHTML = getTooltipHTML(data, source);
-                tooltip.style.visibility = 'hidden'; 
-                tooltip.classList.add('visible');   
-
+                tooltip.style.visibility = 'hidden'; tooltip.classList.add('visible');   
                 requestAnimationFrame(() => { 
                     const targetRect = targetElement.getBoundingClientRect();
                     const tooltipRect = tooltip.getBoundingClientRect();
                     let top = targetRect.bottom + 10, left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
-
                     if (top + tooltipRect.height > window.innerHeight - 10) top = targetRect.top - tooltipRect.height - 10;
                     if (left < 10) left = 10;
                     else if (left + tooltipRect.width > window.innerWidth - 10) left = window.innerWidth - tooltipRect.width - 10;
-
-                    tooltip.style.top = `${top}px`;
-                    tooltip.style.left = `${left}px`;
-                    tooltip.style.visibility = 'visible';
+                    tooltip.style.top = `${top}px`; tooltip.style.left = `${left}px`; tooltip.style.visibility = 'visible';
                 });
             };
-            
-            const _hide = () => {
-                tooltip.classList.remove('visible');
-                tooltip.addEventListener('transitionend', () => {
-                    if (!tooltip.classList.contains('visible')) {
-                        tooltip.style.visibility = 'hidden';
-                    }
-                }, { once: true });
-            };
-            
-            return {
-                handleTriggerEnter(targetElement) { clearTimeout(hideTimeout); showTimeout = setTimeout(() => _display(targetElement), CONSTANTS.TOOLTIP_SHOW_DELAY); },
-                handleTriggerLeave() { clearTimeout(showTimeout); hideTimeout = setTimeout(_hide, CONSTANTS.TOOLTIP_HIDE_DELAY); },
-                handleTooltipEnter() { clearTimeout(hideTimeout); },
-                handleTooltipLeave() { hideTimeout = setTimeout(_hide, CONSTANTS.TOOLTIP_HIDE_DELAY); },
-                show(targetElement) { _display(targetElement); },
-                hide() { _hide(); }
-            };
+            const _hide = () => { tooltip.classList.remove('visible'); tooltip.addEventListener('transitionend', () => { if (!tooltip.classList.contains('visible')) tooltip.style.visibility = 'hidden'; }, { once: true }); };
+            return { handleTriggerEnter(targetElement) { clearTimeout(hideTimeout); showTimeout = setTimeout(() => _display(targetElement), CONSTANTS.TOOLTIP_SHOW_DELAY); }, handleTriggerLeave() { clearTimeout(showTimeout); hideTimeout = setTimeout(_hide, CONSTANTS.TOOLTIP_HIDE_DELAY); }, handleTooltipEnter() { clearTimeout(hideTimeout); }, handleTooltipLeave() { hideTimeout = setTimeout(_hide, CONSTANTS.TOOLTIP_HIDE_DELAY); }, show(targetElement) { _display(targetElement); }, hide() { _hide(); } };
         })();
+
+        function getDetailContentHTML(data) {
+            if (!data) return '';
+            const queryInfo = {}, responseInfo = {}; let answers = [];
+            const { ra, aa, tc } = data.response_flags || {}; const flagItems = [ra && 'RA', aa && 'AA', tc && 'TC'].filter(Boolean); 
+            queryInfo['域名'] = `<span>${data.query_name}</span>`; queryInfo['时间'] = `<span>${formatDate(data.query_time)}</span>`; queryInfo['客户端'] = `<span>${aliasManager.getDisplayName(data.client_ip)} (${data.client_ip})</span>`; queryInfo['类型'] = `<span>${data.query_type || 'N/A'}</span>`;
+            if (data.query_class) queryInfo['类别'] = `<span>${data.query_class}</span>`; 
+            if (data.domain_set) queryInfo['分流规则'] = `<span>${data.domain_set}</span>`;
+            if (data.trace_id) queryInfo['Trace ID'] = `<span>${data.trace_id}</span>`;
+            responseInfo['耗时'] = `<span>${data.duration_ms.toFixed(2)} ms</span>`; 
+            let statusText = data.response_code || 'N/A';
+            if(data.is_blocked) statusText += ' (已拦截)';
+            responseInfo['状态'] = `<span>${statusText}</span>`; 
+            if (flagItems.length) responseInfo['标志'] = `<span>${flagItems.join(', ')}</span>`; 
+            answers = data.answers || []; 
+            const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}</strong> ${value}</li>`).join('');
+            let html = '<h5>查询信息</h5><ul>' + buildList(queryInfo) + '</ul>';
+            html += '<h5>响应信息</h5><ul>' + buildList(responseInfo) + '</ul>';
+            if (answers.length) html += `<h5>应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li><strong>${ans.type}</strong> <span>${ans.data}<br><small>(TTL: ${ans.ttl}s)</small></span></li>`).join('')}</ul>`;
+            return html;
+        }
 
         const getContrastingTextColor = (hexColor) => { if (!hexColor || hexColor.length < 4) return '#0f172a'; let r = parseInt(hexColor.substr(1, 2), 16), g = parseInt(hexColor.substr(3, 2), 16), b = parseInt(hexColor.substr(5, 2), 16); const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000; return (yiq >= 128) ? '#0f172a' : '#ffffff'; };
         function getRuleTagHTML(log) { if (!log || !log.domain_set) return ''; const ruleName = log.domain_set; const bgColor = state.shuntColors[ruleName]; if (!bgColor) return ''; const textColor = getContrastingTextColor(bgColor); return `<span class="rule-tag" style="background-color: ${bgColor}; color: ${textColor};" title="分流规则: ${ruleName}">${ruleName}</span>`; }
@@ -1246,91 +1348,73 @@
             const domainStyle = (source === 'slowest' && ruleColor) ? `style="color: ${ruleColor}; font-weight: 700;"` : '';
             const domainTitle = (source === 'slowest' && ruleColor) ? `${log.query_name} (规则: ${log.domain_set})` : log.query_name;
             const ruleTag = (source === 'slowest' && ruleColor) ? '' : getRuleTagHTML(log);
-
-            return `<div class="domain-response-cell">
-                        <span class="domain-name truncate-text" ${domainStyle} title="${domainTitle}">${log.query_name}</span>
-                        <div class="response-meta">
-                            <span class="response-summary">${getResponseSummary(log)}</span>
-                            ${ruleTag}
-                        </div>
-                    </div>`;
+            return `<div class="domain-response-cell"><span class="domain-name truncate-text" ${domainStyle} title="${domainTitle}">${log.query_name}</span><div class="response-meta"><span class="response-summary">${getResponseSummary(log)}</span>${ruleTag}</div></div>`;
         }
-        function getLogRowClass(log) {
-            if (log.is_blocked) return 'is-blocked';
-            if (['SERVFAIL', 'NXDOMAIN', 'REFUSED'].includes(log.response_code)) return 'is-fail';
-            return '';
-        }
+        function getLogRowClass(log) { if (log.is_blocked) return 'is-blocked'; if (['SERVFAIL', 'NXDOMAIN', 'REFUSED'].includes(log.response_code)) return 'is-fail'; return ''; }
 
         function renderLogItemHTML(log, globalIndex) { 
-            const tr = document.createElement('tr'); 
-            tr.dataset.logIndex = globalIndex;
-            tr.className = getLogRowClass(log);
-            if (state.isMobile) { 
-                tr.innerHTML = `<td><div class="mobile-log-row"><div class="domain" title="${log.query_name}">${log.query_name}</div><div class="time">${formatRelativeTime(log.query_time)}</div><div class="meta"><span class="client">${aliasManager.getDisplayName(log.client_ip)}</span><span class="duration">${log.duration_ms.toFixed(0)}ms</span>${getResponseTagHTML(log)}${getRuleTagHTML(log)}</div></div></td>`; 
-            } else { 
-                tr.innerHTML = `<td>${formatRelativeTime(log.query_time)}</td><td>${renderDomainResponseCellHTML(log)}</td><td>${log.query_type}</td><td class="text-right">${log.duration_ms.toFixed(2)}</td><td>${aliasManager.getAliasedClientHTML(log.client_ip)}</td>`; 
-            } 
+            const tr = document.createElement('tr'); tr.dataset.logIndex = globalIndex; tr.className = getLogRowClass(log);
+            if (state.isMobile) {
+                tr.innerHTML = `
+                    <td>
+                        <div class="mobile-log-row">
+                            <div class="domain" title="${log.query_name}">${log.query_name}</div>
+                            <div class="time">${formatRelativeTime(log.query_time)}</div>
+                            <div class="meta">
+                                <span class="client">${aliasManager.getDisplayName(log.client_ip)}</span>
+                                <span class="duration">${log.duration_ms.toFixed(0)}ms</span>
+                                ${getResponseTagHTML(log)}
+                                ${getRuleTagHTML(log)}
+                            </div>
+                        </div>
+                    </td>`; 
+            } else {
+                 tr.innerHTML = `
+                    <td>${formatRelativeTime(log.query_time)}</td>
+                    <td>${renderDomainResponseCellHTML(log)}</td>
+                    <td>${log.query_type}</td>
+                    <td class="text-right">${log.duration_ms.toFixed(2)}</td>
+                    <td>${aliasManager.getAliasedClientHTML(log.client_ip)}</td>`;
+            }
             return tr; 
         }
 
         function renderSlowestQueryItemHTML(log, index) { 
-            const tr = document.createElement('tr'); 
-            tr.dataset.logIndex = index; 
-            tr.dataset.logSource = 'slowest';
-            tr.className = getLogRowClass(log);
-
-            if (state.isMobile) { 
-                 tr.innerHTML = `<td>
-                                    <div class="mobile-log-row">
-                                        ${renderDomainResponseCellHTML(log, 'slowest')}
-                                        <div class="time">${formatRelativeTime(log.query_time)}</div>
-                                        <div class="meta">
-                                            <span class="client">${aliasManager.getDisplayName(log.client_ip)}</span>
-                                            <span class="duration">${log.duration_ms.toFixed(0)}ms</span>
-                                            ${getResponseTagHTML(log)}
-                                        </div>
-                                    </div>
-                                </td>`;
-            } else { 
-                tr.innerHTML = `<td>${renderDomainResponseCellHTML(log, 'slowest')}</td>
-                                <td>${aliasManager.getAliasedClientHTML(log.client_ip)}</td>
-                                <td class="text-right">${log.duration_ms.toFixed(2)}</td>`; 
-            } 
+            const tr = document.createElement('tr'); tr.dataset.logIndex = index; tr.dataset.logSource = 'slowest'; tr.className = getLogRowClass(log);
+            if (state.isMobile) {
+                tr.innerHTML = `
+                    <td>
+                        <div class="mobile-log-row">
+                            <div class="domain" title="${log.query_name}">${log.query_name}</div>
+                            <div class="time">${formatRelativeTime(log.query_time)}</div>
+                            <div class="meta">
+                                <span class="client">${aliasManager.getDisplayName(log.client_ip)}</span>
+                                <span class="duration">${log.duration_ms.toFixed(0)}ms</span>
+                                ${getResponseTagHTML(log)}
+                                ${getRuleTagHTML(log)}
+                            </div>
+                        </div>
+                    </td>`;
+            } else {
+                tr.innerHTML = `
+                    <td>${renderDomainResponseCellHTML(log, 'slowest')}</td>
+                    <td>${aliasManager.getAliasedClientHTML(log.client_ip)}</td>
+                    <td class="text-right">${log.duration_ms.toFixed(2)}</td>`;
+            }
             return tr; 
         }
 
         function getTooltipHTML(data, source) { 
             if (!data) return ''; 
-            const queryInfo = {}, responseInfo = {}; 
-            let answers = []; 
+            const queryInfo = {}, responseInfo = {}; let answers = []; 
             const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`; 
             const filterIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"></path></svg>`;
-
-            const createInteractiveLine = (value, copyValue, filterValue, isExact = false) => {
-                return `<div>
-                            <small>${value}</small> 
-                            <button class="copy-btn" data-copy-value="${copyValue}" title="复制">${copyIcon}</button>
-                            <button class="filter-btn" data-filter-value="${filterValue}" data-exact-search="${isExact}" title="过滤此项">${filterIcon}</button>
-                        </div>`;
-            };
-
-            if (['domain', 'client', 'domain_set'].includes(source)) { 
-                queryInfo['请求数'] = data.count.toLocaleString(); 
-            } else { 
-                const { ra, aa, tc } = data.response_flags || {}; 
-                const flagItems = [ra && 'RA', aa && 'AA', tc && 'TC'].filter(Boolean); 
-                queryInfo['完整域名'] = createInteractiveLine(data.query_name, data.query_name, data.query_name, false);
-                queryInfo['精确时间'] = formatDate(data.query_time); 
-                queryInfo['客户端'] = createInteractiveLine(aliasManager.getDisplayName(data.client_ip), data.client_ip, data.client_ip, true);
-                queryInfo['类型'] = data.query_type || 'N/A'; 
-                if (data.query_class) queryInfo['类别'] = data.query_class; 
-                if (data.domain_set) queryInfo['规则'] = createInteractiveLine(data.domain_set, data.domain_set, data.domain_set, true);
-                responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`; 
-                responseInfo['状态'] = data.response_code || 'N/A'; 
-                if(data.is_blocked) responseInfo['状态'] += ' (Blocked)';
-                if (flagItems.length) responseInfo['标志'] = flagItems.join(', '); 
-                if (data.trace_id) { queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`; } 
-                answers = data.answers || []; 
+            const createInteractiveLine = (value, copyValue, filterValue, isExact = false) => `<div><small>${value}</small> <button class="copy-btn" data-copy-value="${copyValue}" title="复制">${copyIcon}</button><button class="filter-btn" data-filter-value="${filterValue}" data-exact-search="${isExact}" title="过滤此项">${filterIcon}</button></div>`;
+            if (['domain', 'client', 'domain_set'].includes(source)) { queryInfo['请求数'] = data.count.toLocaleString(); } else { 
+                const { ra, aa, tc } = data.response_flags || {}; const flagItems = [ra && 'RA', aa && 'AA', tc && 'TC'].filter(Boolean); 
+                queryInfo['完整域名'] = createInteractiveLine(data.query_name, data.query_name, data.query_name, false); queryInfo['精确时间'] = formatDate(data.query_time); queryInfo['客户端'] = createInteractiveLine(aliasManager.getDisplayName(data.client_ip), data.client_ip, data.client_ip, true); queryInfo['类型'] = data.query_type || 'N/A'; 
+                if (data.query_class) queryInfo['类别'] = data.query_class; if (data.domain_set) queryInfo['规则'] = createInteractiveLine(data.domain_set, data.domain_set, data.domain_set, true);
+                responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`; responseInfo['状态'] = data.response_code || 'N/A'; if(data.is_blocked) responseInfo['状态'] += ' (Blocked)'; if (flagItems.length) responseInfo['标志'] = flagItems.join(', '); if (data.trace_id) { queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`; } answers = data.answers || []; 
             } 
             const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join(''); 
             let tooltipHTML = ``; 
@@ -1343,56 +1427,75 @@
         const autoRefreshManager = {
             start() { this.stop(); if (state.autoRefresh.enabled && state.autoRefresh.intervalSeconds >= 5) { state.autoRefresh.intervalId = setInterval(() => updatePageData(false), state.autoRefresh.intervalSeconds * 1000); } },
             stop() { clearInterval(state.autoRefresh.intervalId); state.autoRefresh.intervalId = null; },
-            updateSettings(enabled, seconds) { state.autoRefresh.enabled = enabled; state.autoRefresh.intervalSeconds = Math.max(seconds, 5); localStorage.setItem('mosdnsAutoRefresh', JSON.stringify({ enabled, intervalSeconds: state.autoRefresh.intervalSeconds })); this.start(); ui.showToast(`自动刷新已${enabled ? `开启, 频率: ${state.autoRefresh.intervalSeconds}秒` : '关闭'}`, 'success'); },
+            updateSettings(enabled, seconds) { state.autoRefresh.enabled = enabled; state.autoRefresh.intervalSeconds = Math.max(seconds, 5); localStorage.setItem('mosdnsAutoRefresh', JSON.stringify({ enabled, intervalSeconds: state.autoRefresh.intervalSeconds })); ui.showToast(`自动刷新已${enabled ? `开启, 频率: ${state.autoRefresh.intervalSeconds}秒` : '关闭'}`, 'success'); this.start(); },
             loadSettings() { const saved = JSON.parse(localStorage.getItem('mosdnsAutoRefresh')); if (saved) { state.autoRefresh.enabled = saved.enabled ?? true; state.autoRefresh.intervalSeconds = saved.intervalSeconds || CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL; } elements.autoRefreshToggle.checked = state.autoRefresh.enabled; elements.autoRefreshIntervalInput.value = state.autoRefresh.intervalSeconds; elements.autoRefreshIntervalInput.disabled = !state.autoRefresh.enabled; }
         };
 
         function handleNavigation(targetLink) {
             elements.tabLinks.forEach(link => link.classList.remove('active'));
             targetLink.classList.add('active');
-            
             requestAnimationFrame(() => updateNavSlider(targetLink));
-
             const newHash = targetLink.getAttribute('href');
             if (window.location.hash !== newHash) history.pushState(null, '', newHash);
-            
             const activeTabId = targetLink.dataset.tab;
             elements.tabContents.forEach(el => el.classList.toggle('active', el.id === `${activeTabId}-tab`));
-            
-            if (activeTabId === 'log-query' && state.displayedLogs.length === 0) {
-                applyLogFilterAndRender();
-            } else if (activeTabId === 'rules') {
-                if (state.adguardRules.length === 0) adguardManager.load();
-                if (state.diversionRules.length === 0) diversionManager.load();
-            }
+            if (activeTabId === 'log-query' && state.displayedLogs.length === 0) applyLogFilterAndRender();
+            else if (activeTabId === 'rules') { if (state.adguardRules.length === 0) adguardManager.load(); if (state.diversionRules.length === 0) diversionManager.load(); }
         }
         
         function handleResize() { 
             const wasMobile = state.isMobile; 
             state.isMobile = window.innerWidth <= CONSTANTS.MOBILE_BREAKPOINT; 
+            
             if (wasMobile !== state.isMobile) { 
-                document.getElementById('slowest-queries-table')?.classList.toggle('mobile-card-layout', state.isMobile); 
-                elements.logTable?.classList.toggle('mobile-card-layout', state.isMobile); 
+                // Re-render all relevant tables to switch between desktop and mobile layouts
                 const activeTab = document.querySelector('.tab-link.active')?.dataset.tab; 
-                if (activeTab === 'log-query') ui.renderLogTable(state.displayedLogs); 
-                else if (activeTab === 'overview') renderSlowestQueries(state.slowestQueries); 
-                else if (activeTab === 'rules') { adguardManager.render(); diversionManager.render(); }
+                if (activeTab === 'log-query') {
+                    ui.renderLogTable(state.displayedLogs);
+                } else if (activeTab === 'overview') {
+                    renderSlowestQueries(state.slowestQueries);
+                    renderTopDomains(state.topDomains);
+                    renderTopClients(state.topClients);
+                } else if (activeTab === 'rules') {
+                    adguardManager.render();
+                    diversionManager.render();
+                }
                 updateLastUpdated(); 
             } 
-            if (state.isTouchDevice) elements.body.classList.add('touch'); 
-            else elements.body.classList.remove('touch'); 
-            requestAnimationFrame(() => { 
-                const activeLink = document.querySelector('.tab-link.active'); 
-                if (activeLink) updateNavSlider(activeLink); 
-            }); 
+            
+            if (state.isTouchDevice) elements.body.classList.add('touch'); else elements.body.classList.remove('touch'); 
+            requestAnimationFrame(() => { const activeLink = document.querySelector('.tab-link.active'); if (activeLink) updateNavSlider(activeLink); }); 
             adjustLogSearchLayout();
         }
         
-        function renderRuleTable(tbody, rules, mode) { tbody.closest('table').classList.toggle('mobile-rule-card-layout', state.isMobile); const sortedRules = [...rules].sort((a, b) => a.name.localeCompare(b.name)); renderTable(tbody, sortedRules, (rule, index) => { const item = state.isMobile ? renderRuleMobileCard(rule, mode) : renderRuleTableRow(rule, mode); item.dataset.ruleId = mode === 'adguard' ? rule.id : rule.name; if(rule.type) item.dataset.ruleType = rule.type; return item; }, mode); }
-        function renderRuleTableRow(rule, mode) { const tr = document.createElement('tr'); const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? new Date(rule.last_updated).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : '—'; let html = `<td class="text-center"><label class="switch"><input type="checkbox" class="rule-enabled-toggle" ${rule.enabled ? 'checked' : ''}><span class="slider"></span></label></td><td>${rule.name}</td>`; if (mode === 'diversion') { html += `<td><span class="response-tag other">${rule.type}</span></td>`; } html += `<td><span class="truncate-text" title="${rule.url}">${rule.url}</span></td><td class="text-right">${(rule.rule_count || 0).toLocaleString()}</td><td>${lastUpdated}</td><td class="text-center"><div style="display: inline-flex; gap: 0.5rem; white-space: nowrap;">`; if (mode === 'diversion') { html += `<button class="button secondary rule-update-btn" style="padding: 0.4rem 0.8rem;" title="更新此规则"><span>更新</span></button>`; } html += `<button class="button secondary rule-edit-btn" style="padding: 0.4rem 0.8rem;"><span>编辑</span></button><button class="button danger rule-delete-btn" style="padding: 0.4rem 0.8rem;"><span>删除</span></button></div></td>`; tr.innerHTML = html; return tr; }
-        function renderRuleMobileCard(rule, mode) { const card = document.createElement('div'); card.className = 'rule-card'; const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? formatRelativeTime(rule.last_updated) : '从未'; let metaHtml = `<span class="url" title="${rule.url}">${rule.url}</span>`; if (mode === 'diversion') { metaHtml += `<span><span class="response-tag other">${rule.type}</span></span>`; } metaHtml += `<span><strong>规则数:</strong> ${(rule.rule_count || 0).toLocaleString()}</span><span><strong>更新于:</strong> ${lastUpdated}</span>`; let actionsHtml = ''; if (mode === 'diversion') { actionsHtml += `<button class="button secondary rule-update-btn"><span>更新</span></button>`; } actionsHtml += `<button class="button secondary rule-edit-btn"><span>编辑</span></button><button class="button danger rule-delete-btn"><span>删除</span></button>`; card.innerHTML = `<div class="rule-card-toggle"><label class="switch"><input type="checkbox" class="rule-enabled-toggle" ${rule.enabled ? 'checked' : ''}><span class="slider"></span></label></div><div class="rule-card-name">${rule.name}</div><div class="rule-card-meta">${metaHtml}</div><div class="rule-card-actions">${actionsHtml}</div>`; return card; }
+        function renderRuleTable(tbody, rules, mode) {
+            tbody.closest('table').classList.toggle('mobile-rule-card-layout', state.isMobile); 
+            const sortedRules = [...rules].sort((a, b) => (a.name || '').localeCompare(b.name || '')); 
+            renderTable(tbody, sortedRules, (rule, index) => { 
+                const item = state.isMobile ? renderRuleMobileCard(rule, mode) : renderRuleTableRow(rule, mode); 
+                item.dataset.ruleId = mode === 'adguard' ? rule.id : rule.name; 
+                if(rule.type) item.dataset.ruleType = rule.type; 
+                return item; 
+            }, mode); 
+        }
+
+        function renderRuleTableRow(rule, mode) { const tr = document.createElement('tr'); const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? new Date(rule.last_updated).toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-') : '—'; let html = `<td class="text-center"><label class="switch"><input type="checkbox" class="rule-enabled-toggle" ${rule.enabled ? 'checked' : ''}><span class="slider"></span></label></td><td>${rule.name}</td>`; if (mode === 'diversion') { html += `<td><span class="response-tag other">${rule.type}</span></td>`; } html += `<td><span class="truncate-text" title="${rule.url}">${rule.url}</span></td><td class="text-right">${(rule.rule_count || 0).toLocaleString()}</td><td>${lastUpdated}</td><td class="text-center"><div style="display: inline-flex; gap: 0.5rem; white-space: nowrap;">`; if (mode === 'diversion' && rule.url) { html += `<button class="button secondary rule-update-btn" style="padding: 0.4rem 0.8rem;" title="更新此规则"><span>更新</span></button>`; } html += `<button class="button secondary rule-edit-btn" style="padding: 0.4rem 0.8rem;"><span>编辑</span></button><button class="button danger rule-delete-btn" style="padding: 0.4rem 0.8rem;"><span>删除</span></button></div></td>`; tr.innerHTML = html; return tr; }
+        
+        function renderRuleMobileCard(rule, mode) { 
+            const card = document.createElement('div'); card.className = 'rule-card';
+            const lastUpdated = rule.last_updated && !rule.last_updated.startsWith('0001-01-01') ? formatRelativeTime(rule.last_updated) : '从未'; 
+            let metaHtml = `<span class="url" title="${rule.url}">${rule.url}</span>`; 
+            if (mode === 'diversion') metaHtml += `<span><span class="response-tag other">${rule.type}</span></span>`; 
+            metaHtml += `<span><strong>规则数:</strong> ${(rule.rule_count || 0).toLocaleString()}</span><span><strong>更新于:</strong> ${lastUpdated}</span>`; 
+            let actionsHtml = ''; 
+            if (mode === 'diversion' && rule.url) actionsHtml += `<button class="button secondary rule-update-btn"><span>更新</span></button>`; 
+            actionsHtml += `<button class="button secondary rule-edit-btn"><span>编辑</span></button><button class="button danger rule-delete-btn"><span>删除</span></button>`; 
+            card.innerHTML = `<div class="rule-card-toggle"><label class="switch"><input type="checkbox" class="rule-enabled-toggle" ${rule.enabled ? 'checked' : ''}><span class="slider"></span></label></div><div class="rule-card-name">${rule.name}</div><div class="rule-card-meta">${metaHtml}</div><div class="rule-card-actions">${actionsHtml}</div>`; 
+            return card; 
+        }
+
         async function handleAdguardUpdateCheck() { ui.setLoading(elements.checkAdguardUpdatesBtn, true); ui.showToast('已开始在后台更新所有启用的拦截规则...'); try { await api.fetch('/plugins/adguard/update', { method: 'POST' }); ui.showToast('更新请求已发送，5秒后自动刷新列表...', 'success'); await new Promise(resolve => setTimeout(resolve, 5000)); await adguardManager.load(); ui.showToast('拦截规则列表已刷新！', 'success'); } catch (e) {} finally { ui.setLoading(elements.checkAdguardUpdatesBtn, false); } }
-        async function handleRuleTableClick(event, mode) { const target = event.target.closest('button, input.rule-enabled-toggle'); if (!target) return; const itemElement = target.closest('[data-rule-id]'); if (!itemElement) return; const id = itemElement.dataset.ruleId; const rules = mode === 'adguard' ? state.adguardRules : state.diversionRules; const rule = rules.find(r => (mode === 'adguard' ? r.id : r.name) === id); if (!rule) return; if (target.matches('.rule-edit-btn')) { ui.openRuleModal(mode, rule); } else if (target.matches('.rule-delete-btn')) { if (confirm(`确定要删除规则 "${rule.name}" 吗？此操作不可恢复。`)) { ui.setLoading(target, true); try { if (mode === 'adguard') { await api.fetch(`/plugins/adguard/rules/${id}`, { method: 'DELETE' }); } else { await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[rule.type]}/config/${id}`, { method: 'DELETE' }); } ui.showToast(`规则 "${rule.name}" 已删除`); await (mode === 'adguard' ? adguardManager.load() : diversionManager.load()); } catch(e) { console.error(`Failed to delete rule ${id}:`, e); } finally { ui.setLoading(target, false); } } } else if (target.matches('.rule-update-btn')) { ui.setLoading(target, true); ui.showToast(`正在后台更新规则 "${rule.name}"...`); try { await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[rule.type]}/update/${id}`, { method: 'POST' }); ui.showToast('更新请求已发送, 5秒后自动刷新', 'success'); setTimeout(() => diversionManager.load(), 5000); } catch(e) {} finally { ui.setLoading(target, false); } } else if (target.matches('.rule-enabled-toggle')) { const updatedRule = { ...rule, enabled: target.checked }; target.disabled = true; try { if (mode === 'adguard') await api.fetch(`/plugins/adguard/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedRule) }); else await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[rule.type]}/config/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedRule) }); rule.enabled = target.checked; ui.showToast(`规则 "${rule.name}" 已${target.checked ? '启用' : '禁用'}`); } catch (error) { target.checked = !target.checked; } finally { target.disabled = false; } } }
+        async function handleRuleTableClick(event, mode) { const target = event.target.closest('button, input.rule-enabled-toggle'); if (!target) return; const itemElement = target.closest('[data-rule-id]'); if (!itemElement) return; const id = itemElement.dataset.ruleId; const rules = mode === 'adguard' ? state.adguardRules : state.diversionRules; const rule = rules.find(r => (mode === 'adguard' ? r.id : r.name) === id); if (!rule) return; if (target.matches('.rule-edit-btn')) ui.openRuleModal(mode, rule); else if (target.matches('.rule-delete-btn')) { if (confirm(`确定要删除规则 "${rule.name}" 吗？此操作不可恢复。`)) { ui.setLoading(target, true); try { if (mode === 'adguard') await api.fetch(`/plugins/adguard/rules/${id}`, { method: 'DELETE' }); else await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[rule.type]}/config/${id}`, { method: 'DELETE' }); ui.showToast(`规则 "${rule.name}" 已删除`); await (mode === 'adguard' ? adguardManager.load() : diversionManager.load()); } catch(e) { console.error(`Failed to delete rule ${id}:`, e); } finally { ui.setLoading(target, false); } } } else if (target.matches('.rule-update-btn')) { ui.setLoading(target, true); ui.showToast(`正在后台更新规则 "${rule.name}"...`); try { await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[rule.type]}/update/${id}`, { method: 'POST' }); ui.showToast('更新请求已发送, 5秒后自动刷新', 'success'); setTimeout(() => diversionManager.load(), 5000); } catch(e) {} finally { ui.setLoading(target, false); } } else if (target.matches('.rule-enabled-toggle')) { const updatedRule = { ...rule, enabled: target.checked }; target.disabled = true; try { if (mode === 'adguard') await api.fetch(`/plugins/adguard/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedRule) }); else await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[rule.type]}/config/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedRule) }); rule.enabled = target.checked; ui.showToast(`规则 "${rule.name}" 已${target.checked ? '启用' : '禁用'}`); } catch (error) { target.checked = !target.checked; } finally { target.disabled = false; } } }
         async function handleRuleFormSubmit(event) { event.preventDefault(); ui.setLoading(elements.saveRuleBtn, true); const form = elements.ruleForm; const mode = form.elements['mode'].value; const id = form.elements['id'].value; try { if (mode === 'adguard') { const data = { name: form.elements['name'].value, url: form.elements['url'].value, auto_update: form.elements['auto_update'].checked, update_interval_hours: parseInt(form.elements['update_interval_hours'].value, 10) || 24 }; if (id) { const originalRule = state.adguardRules.find(r => r.id === id); await api.fetch(`/plugins/adguard/rules/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...originalRule, ...data }) }); } else { await api.fetch('/plugins/adguard/rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, enabled: true }) }); } ui.showToast(`广告拦截规则${id ? '更新' : '添加'}成功`); await adguardManager.load(); } else { const data = { name: form.elements['name'].value, url: form.elements['url'].value, type: form.elements['type'].value, files: form.elements['files'].value, auto_update: form.elements['auto_update'].checked, update_interval_hours: parseInt(form.elements['update_interval_hours'].value, 10) || 24 }; const pluginTag = diversionManager.sdSetInstanceMap[data.type]; if (!pluginTag) throw new Error('无效的分流规则类型'); if (id) { const originalRule = state.diversionRules.find(r => r.name === id); if (data.name !== id) { if (!confirm(`规则名称已从 "${id}" 更改为 "${data.name}"。\n\n这将删除旧规则并创建一个新规则，确定要继续吗？`)) throw new Error('User cancelled name change.'); await api.fetch(`/plugins/${diversionManager.sdSetInstanceMap[originalRule.type]}/config/${id}`, { method: 'DELETE' }); await api.fetch(`/plugins/${pluginTag}/config/${data.name}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, enabled: originalRule.enabled }) }); } else { await api.fetch(`/plugins/${pluginTag}/config/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...originalRule, ...data }) }); } } else { await api.fetch(`/plugins/${pluginTag}/config/${data.name}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, enabled: true }) }); } ui.showToast(`分流规则${id ? '更新' : '添加'}成功`); await diversionManager.load(); if (!id || (id && data.name !== id)) { ui.showToast('正在后台获取规则详情...'); setTimeout(() => diversionManager.load(), 5000); } } ui.closeRuleModal(); } catch (err) { console.error(`${mode} form submission failed:`, err); } finally { ui.setLoading(elements.saveRuleBtn, false); } }
         const adguardManager = { async load() { try { state.adguardRules = await api.fetch('/plugins/adguard/rules') || []; } catch (error) { state.adguardRules = []; } this.render(); }, render() { renderRuleTable(elements.adguardRulesTbody, state.adguardRules, 'adguard'); }, };
         const diversionManager = { sdSetInstanceMap: { 'geositecn': 'geosite_cn', 'geositenocn': 'geosite_no_cn', 'geoipcn': 'geoip_cn' }, async load() { try { const promises = Object.values(this.sdSetInstanceMap).map(tag => api.fetch(`/plugins/${tag}/config`)); const results = await Promise.allSettled(promises); state.diversionRules = results.filter(r => r.status === 'fulfilled' && Array.isArray(r.value)).flatMap(r => r.value); } catch(e) { state.diversionRules = []; } this.render(); }, render() { renderRuleTable(elements.diversionRulesTbody, state.diversionRules, 'diversion'); }, };
@@ -1412,62 +1515,39 @@
             elements.logSearch?.addEventListener('input', debounce(applyLogFilterAndRender, 300));
             elements.logQueryTableContainer?.addEventListener('scroll', () => { const { scrollTop, scrollHeight, clientHeight } = elements.logQueryTableContainer; if (clientHeight + scrollTop >= scrollHeight - 200) loadMoreLogs(); }, { passive: true });
             
-            elements.body.addEventListener('click', e => { 
-                const target = e.target.closest('.clickable-link, .tab-link-action, .copy-btn, .filter-btn'); 
-                if(!target) return;
-                
-                if (target.matches('.copy-btn')) { 
-                    e.stopPropagation(); 
-                    navigator.clipboard.writeText(target.dataset.copyValue).then(() => ui.showToast('已复制到剪贴板')).catch(() => ui.showToast('复制失败', 'error')); 
-                    return; 
+            elements.body.addEventListener('click', e => {
+                const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]');
+                if (trigger && state.isTouchDevice) {
+                    if (trigger.matches('[data-log-index], [data-rank-index]')) {
+                         e.preventDefault(); e.stopPropagation();
+                         ui.openLogDetailModal(trigger);
+                         return;
+                    }
                 }
-                
-                if (target.matches('.filter-btn')) {
+                const interactiveTarget = e.target.closest('.clickable-link, .tab-link-action, .copy-btn, .filter-btn'); 
+                if(!interactiveTarget) return;
+                if (interactiveTarget.matches('.copy-btn')) { e.stopPropagation(); navigator.clipboard.writeText(interactiveTarget.dataset.copyValue).then(() => ui.showToast('已复制到剪贴板')).catch(() => ui.showToast('复制失败', 'error')); return; }
+                if (interactiveTarget.matches('.filter-btn')) {
                     e.stopPropagation();
-                    const value = target.dataset.filterValue;
-                    const isExact = target.dataset.exactSearch === 'true';
+                    const value = interactiveTarget.dataset.filterValue; const isExact = interactiveTarget.dataset.exactSearch === 'true';
                     elements.logSearch.value = isExact ? `"${value}"` : value;
                     const logQueryLink = document.querySelector('.tab-link[href="#log-query"]');
-                    if (logQueryLink && !logQueryLink.classList.contains('active')) {
-                        handleNavigation(logQueryLink);
-                    } else {
-                        applyLogFilterAndRender();
-                    }
-                    tooltipManager.hide();
-                    return;
+                    if (logQueryLink && !logQueryLink.classList.contains('active')) handleNavigation(logQueryLink);
+                    else applyLogFilterAndRender();
+                    tooltipManager.hide(); return;
                 }
-
                 e.preventDefault(); 
-                if (target.matches('.clickable-link')) { 
-                    const value = target.dataset.filterValue; 
-                    const isExact = target.dataset.exactSearch === 'true'; 
-                    elements.logSearch.value = isExact ? `"${value}"` : value; 
-                    const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); 
-                    if (logQueryLink) handleNavigation(logQueryLink); 
-                } else if (target.matches('.tab-link-action')) { 
-                    const link = document.querySelector(`.tab-link[data-tab="${target.dataset.tab}"]`); 
-                    if(link) handleNavigation(link); 
-                } 
+                if (interactiveTarget.matches('.clickable-link')) { const value = interactiveTarget.dataset.filterValue; const isExact = interactiveTarget.dataset.exactSearch === 'true'; elements.logSearch.value = isExact ? `"${value}"` : value; const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) handleNavigation(logQueryLink); } 
+                else if (interactiveTarget.matches('.tab-link-action')) { const link = document.querySelector(`.tab-link[data-tab="${interactiveTarget.dataset.tab}"]`); if(link) handleNavigation(link); } 
             });
             
-            if (state.isTouchDevice) {
-                elements.body.addEventListener('click', e => { 
-                    const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); 
-                    if (trigger) { tooltipManager.show(trigger); return; } 
-                    if (!e.target.closest('#answers-tooltip')) tooltipManager.hide(); 
-                });
-            } else {
-                elements.body.addEventListener('mouseover', e => { 
-                    const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); 
-                    if (trigger) tooltipManager.handleTriggerEnter(trigger); 
-                });
-                elements.body.addEventListener('mouseout', e => { 
-                    const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); 
-                    if (trigger) tooltipManager.handleTriggerLeave(); 
-                });
-                elements.tooltip.addEventListener('mouseenter', () => tooltipManager.handleTooltipEnter());
-                elements.tooltip.addEventListener('mouseleave', () => tooltipManager.handleTooltipLeave());
-            }
+            elements.body.addEventListener('mouseover', e => { if (state.isTouchDevice) return; const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); if (trigger) tooltipManager.handleTriggerEnter(trigger); });
+            elements.body.addEventListener('mouseout', e => { if (state.isTouchDevice) return; const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); if (trigger) tooltipManager.handleTriggerLeave(); });
+            elements.tooltip.addEventListener('mouseenter', () => tooltipManager.handleTooltipEnter());
+            elements.tooltip.addEventListener('mouseleave', () => tooltipManager.handleTooltipLeave());
+            
+            elements.closeLogDetailModalBtn?.addEventListener('click', () => elements.logDetailModal.close());
+            elements.logDetailModal?.addEventListener('click', function(e) { if (e.target === elements.logDetailModal) elements.logDetailModal.close(); });
 
             if (elements.aliasModal) { [elements.manageAliasesBtn, elements.manageAliasesBtnMobile].forEach(btn => btn?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); })); document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close()); elements.saveAllAliasesBtn?.addEventListener('click', async () => { ui.setLoading(elements.saveAllAliasesBtn, true); await aliasManager.saveAll(); ui.setLoading(elements.saveAllAliasesBtn, false); }); document.getElementById('export-aliases-btn')?.addEventListener('click', () => aliasManager.export()); document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click()); elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } }); elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); ui.setLoading(e.currentTarget.querySelector('button'), true); const ip = document.getElementById('manual-alias-ip').value.trim(); const name = document.getElementById('manual-alias-name').value.trim(); if(ip && name) { aliasManager.set(ip, name); aliasManager.save(); ui.showToast(`已添加别名: ${name} -> ${ip}`); e.target.reset(); await aliasManager.renderEditableList(); await updatePageData(false); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(e.currentTarget.querySelector('button'), false); }); }
             elements.ruleForm.addEventListener('submit', handleRuleFormSubmit);
@@ -1487,26 +1567,16 @@
                     if (entry.isIntersecting) {
                         const card = entry.target;
                         const cardId = card.id;
-
                         switch (cardId) {
-                            case 'top-domains-card':
-                                api.v2.getTopDomains(null, 100).then(data => { state.topDomains = data || []; renderTopDomains(state.topDomains); }).catch(console.error);
-                                break;
-                            case 'top-clients-card':
-                                api.v2.getTopClients(null, 100).then(data => { state.topClients = data || []; renderTopClients(state.topClients); }).catch(console.error);
-                                break;
-                            case 'slowest-queries-card':
-                                api.v2.getSlowest(null, 100).then(data => { state.slowestQueries = data || []; renderSlowestQueries(state.slowestQueries); }).catch(console.error);
-                                break;
-                            case 'shunt-results-card':
-                                api.v2.getDomainSetRank(null, 100).then(data => { state.domainSetRank = data || []; renderDonutChart(state.domainSetRank); }).catch(console.error);
-                                break;
+                            case 'top-domains-card': api.v2.getTopDomains(null, 100).then(data => { state.topDomains = data || []; renderTopDomains(state.topDomains); }).catch(console.error); break;
+                            case 'top-clients-card': api.v2.getTopClients(null, 100).then(data => { state.topClients = data || []; renderTopClients(state.topClients); }).catch(console.error); break;
+                            case 'slowest-queries-card': api.v2.getSlowest(null, 100).then(data => { state.slowestQueries = data || []; renderSlowestQueries(state.slowestQueries); }).catch(console.error); break;
+                            case 'shunt-results-card': api.v2.getDomainSetRank(null, 100).then(data => { state.domainSetRank = data || []; renderDonutChart(state.domainSetRank); }).catch(console.error); break;
                         }
                         observer.unobserve(card);
                     }
                 });
             }, { rootMargin: "50px" });
-
             document.querySelectorAll('.lazy-load-card').forEach(card => lazyLoadObserver.observe(card));
         }
 
@@ -1521,25 +1591,14 @@
             setupGlowEffect();
             setupLazyLoading();
             handleResize();
-            
             const initialHash = window.location.hash || '#overview';
             const initialLink = document.querySelector(`.tab-link[href="${initialHash}"]`);
             if (initialLink) handleNavigation(initialLink);
-
             await updatePageData(false);
-
-            if (document.fonts?.ready) {
-                await document.fonts.ready;
-            }
-            
-            requestAnimationFrame(() => {
-                 const activeLink = document.querySelector('.tab-link.active');
-                 if(activeLink) updateNavSlider(activeLink);
-            });
-            
+            if (document.fonts?.ready) await document.fonts.ready;
+            requestAnimationFrame(() => { const activeLink = document.querySelector('.tab-link.active'); if(activeLink) updateNavSlider(activeLink); });
             elements.initialLoader.style.opacity = '0';
             elements.initialLoader.addEventListener('transitionend', () => elements.initialLoader.remove());
-            
             if (!document.hidden) autoRefreshManager.start();
         }
 
