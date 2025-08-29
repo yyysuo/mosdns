@@ -881,6 +881,16 @@
 
         const api = { fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) { let errorMsg = `API Error: ${response.status} ${response.statusText}`; try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} } if (response.status !== 404) { ui.showToast(errorMsg, 'error'); } throw new Error(errorMsg); } const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { console.error(error); } throw error; } }, getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }), getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }), start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }), stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }), clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }), setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }), cache: { clear: () => api.fetch('/api/v1/cache/clear', { method: 'POST' }) }, v2: { getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }), getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }), getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }), getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }), getDomainSetRank: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain_set?limit=${limit}`, { signal }), getLogs: (signal, params = {}) => { const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params }); for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } } return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal }); } } };
         
+        // --- [MODIFIED] Client Name API Definition ---
+        const clientnameApi = {
+            get: () => api.fetch(`/plugins/clientname`),
+            update: (data) => api.fetch(`/plugins/clientname`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            }),
+        };
+
         const ui = {
             showToast(message, type = 'success') { if (!elements.toast) return; clearTimeout(toastTimeout); const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; const hideToast = () => { elements.toast.className = elements.toast.className.replace('show', ''); }; elements.toast.onmouseenter = () => clearTimeout(toastTimeout); elements.toast.onmouseleave = () => toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); },
             setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; button.setAttribute('aria-busy', String(isLoading)); const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
@@ -969,7 +979,127 @@
             elements.navSlider.style.transform = `translateX(${left}px)`;
         }
 
-        const aliasManager = { load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; }, save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); }, getDisplayName: (ip) => state.clientAliases[ip] || ip, getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip, getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; }, set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } }, async saveAll() { const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item'); let changed = false; aliasItems.forEach(item => { const ip = item.dataset.ip; const input = item.querySelector('input'); const newValue = input.value.trim(); const originalValue = input.dataset.originalValue; if (newValue !== originalValue) { this.set(ip, newValue); changed = true; } }); if(changed) { this.save(); ui.showToast('所有别名更改已保存', 'success'); await updatePageData(false); await this.renderEditableList(); } else { ui.showToast('没有检测到任何更改'); } }, async renderEditableList() { if (!elements.aliasListContainer) return; elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>'; try { const topClients = await api.v2.getTopClients(null, 200); const uniqueIps = [...new Set(topClients.map(client => client.key))].sort(); if (uniqueIps.length === 0) { elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>'; return; } elements.aliasListContainer.innerHTML = ''; uniqueIps.forEach(ip => { const item = document.createElement('div'); item.className = 'alias-item'; item.dataset.ip = ip; const currentAlias = this.getDisplayName(ip); const aliasValue = currentAlias === ip ? '' : currentAlias; item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${aliasValue}" data-original-value="${aliasValue}">`; elements.aliasListContainer.appendChild(item); }); } catch (error) { elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>'; console.error("Failed to fetch clients for alias management:", error); } }, export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出', 'success'); }, import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); updatePageData(false); ui.showToast('配置已成功导入并合并', 'success'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); }, };
+        // --- [MODIFIED] Alias Manager with API integration ---
+        const aliasManager = {
+            load: async () => {
+                try {
+                    const aliases = await clientnameApi.get();
+                    if (typeof aliases === 'object' && aliases !== null) {
+                        state.clientAliases = aliases;
+                    } else {
+                        state.clientAliases = {};
+                    }
+                } catch (error) {
+                    console.error('Failed to load client aliases from server:', error);
+                    ui.showToast('从服务器加载客户端别名失败', 'error');
+                    state.clientAliases = {};
+                }
+            },
+            save: async () => {
+                try {
+                    await clientnameApi.update(state.clientAliases);
+                } catch (error) {
+                    console.error('Failed to save client aliases to server:', error);
+                    throw error;
+                }
+            },
+            getDisplayName: (ip) => state.clientAliases[ip] || ip,
+            getAliasedClientHTML: (ip) => state.clientAliases[ip] ? `<span class="client-alias" title="IP: ${ip}">${state.clientAliases[ip]}</span>` : ip,
+            getIpByAlias: (alias) => { const searchTerm = alias.toLowerCase(); for (const ip in state.clientAliases) { if (state.clientAliases[ip].toLowerCase() === searchTerm) { return ip; } } return null; },
+            set(ip, name) { if (name) { state.clientAliases[ip] = name; } else { delete state.clientAliases[ip]; } },
+            async saveAll() {
+                const aliasItems = elements.aliasListContainer.querySelectorAll('.alias-item');
+                let changed = false;
+                aliasItems.forEach(item => {
+                    const ip = item.dataset.ip;
+                    const input = item.querySelector('input');
+                    const newValue = input.value.trim();
+                    const originalValue = input.dataset.originalValue;
+                    if (newValue !== originalValue) {
+                        this.set(ip, newValue);
+                        changed = true;
+                    }
+                });
+                if (changed) {
+                    try {
+                        await this.save();
+                        ui.showToast('所有别名更改已保存', 'success');
+                        await updatePageData(false);
+                        await this.renderEditableList();
+                    } catch (error) {
+                        ui.showToast('保存失败，请重试', 'error');
+                    }
+                } else {
+                    ui.showToast('没有检测到任何更改');
+                }
+            },
+            async renderEditableList() {
+                if (!elements.aliasListContainer) return;
+                elements.aliasListContainer.innerHTML = '<p>正在加载客户端列表...</p>';
+                try {
+                    const topClients = await api.v2.getTopClients(null, 200);
+                    const uniqueIps = [...new Set(topClients.map(client => client.key))].sort();
+                    if (uniqueIps.length === 0) {
+                        elements.aliasListContainer.innerHTML = '<p>日志中暂无客户端 IP 记录。</p>';
+                        return;
+                    }
+                    elements.aliasListContainer.innerHTML = '';
+                    uniqueIps.forEach(ip => {
+                        const item = document.createElement('div');
+                        item.className = 'alias-item';
+                        item.dataset.ip = ip;
+                        const currentAlias = this.getDisplayName(ip);
+                        const aliasValue = currentAlias === ip ? '' : currentAlias;
+                        item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${aliasValue}" data-original-value="${aliasValue}">`;
+                        elements.aliasListContainer.appendChild(item);
+                    });
+                } catch (error) {
+                    elements.aliasListContainer.innerHTML = '<p>加载客户端列表失败。</p>';
+                    console.error("Failed to fetch clients for alias management:", error);
+                }
+            },
+            export: async () => {
+                try {
+                    ui.showToast('正在从服务器获取最新配置...');
+                    const aliasesToExport = await clientnameApi.get();
+                    if (typeof aliasesToExport !== 'object' || aliasesToExport === null) {
+                        throw new Error("从服务器返回的数据格式无效");
+                    }
+                    const dataStr = JSON.stringify(aliasesToExport, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    ui.showToast('配置已成功导出', 'success');
+                } catch (error) {
+                    // Toast handled by API layer
+                }
+            },
+            import: (file) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const newAliases = JSON.parse(e.target.result);
+                        if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式');
+                        state.clientAliases = { ...state.clientAliases, ...newAliases };
+                        ui.showToast('正在上传配置到服务器...');
+                        await this.save();
+                        await this.renderEditableList();
+                        await updatePageData(false);
+                        ui.showToast('配置已成功导入并上传', 'success');
+                    } catch (error) {
+                        ui.showToast(`导入失败: ${error.message}`, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            },
+        };
+
         const historyManager = { load: () => { const saved = JSON.parse(localStorage.getItem('mosdnsHistory')); if (saved) { state.history.totalQueries = saved.totalQueries || []; state.history.avgDuration = saved.avgDuration || []; } }, add(total, avg) { state.history.totalQueries.push(total ?? 0); state.history.avgDuration.push(avg ?? 0); if (state.history.totalQueries.length > CONSTANTS.HISTORY_LENGTH) state.history.totalQueries.shift(); this.save(); }, save: () => { localStorage.setItem('mosdnsHistory', JSON.stringify(state.history)); } };
         
         const adjustLogSearchLayout = () => {
@@ -1549,7 +1679,38 @@
             elements.closeLogDetailModalBtn?.addEventListener('click', () => elements.logDetailModal.close());
             elements.logDetailModal?.addEventListener('click', function(e) { if (e.target === elements.logDetailModal) elements.logDetailModal.close(); });
 
-            if (elements.aliasModal) { [elements.manageAliasesBtn, elements.manageAliasesBtnMobile].forEach(btn => btn?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); })); document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close()); elements.saveAllAliasesBtn?.addEventListener('click', async () => { ui.setLoading(elements.saveAllAliasesBtn, true); await aliasManager.saveAll(); ui.setLoading(elements.saveAllAliasesBtn, false); }); document.getElementById('export-aliases-btn')?.addEventListener('click', () => aliasManager.export()); document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click()); elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } }); elements.manualAliasForm.addEventListener('submit', async (e) => { e.preventDefault(); ui.setLoading(e.currentTarget.querySelector('button'), true); const ip = document.getElementById('manual-alias-ip').value.trim(); const name = document.getElementById('manual-alias-name').value.trim(); if(ip && name) { aliasManager.set(ip, name); aliasManager.save(); ui.showToast(`已添加别名: ${name} -> ${ip}`); e.target.reset(); await aliasManager.renderEditableList(); await updatePageData(false); } else { ui.showToast('IP地址和别名均不能为空', 'error'); } ui.setLoading(e.currentTarget.querySelector('button'), false); }); }
+            if (elements.aliasModal) { [elements.manageAliasesBtn, elements.manageAliasesBtnMobile].forEach(btn => btn?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); })); document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close()); elements.saveAllAliasesBtn?.addEventListener('click', async () => { ui.setLoading(elements.saveAllAliasesBtn, true); await aliasManager.saveAll(); ui.setLoading(elements.saveAllAliasesBtn, false); }); 
+                document.getElementById('export-aliases-btn')?.addEventListener('click', async (e) => {
+                    const btn = e.currentTarget;
+                    ui.setLoading(btn, true);
+                    await aliasManager.export();
+                    ui.setLoading(btn, false);
+                });
+                document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click()); 
+                elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } }); 
+                elements.manualAliasForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = e.currentTarget.querySelector('button');
+                    ui.setLoading(btn, true);
+                    const ip = document.getElementById('manual-alias-ip').value.trim();
+                    const name = document.getElementById('manual-alias-name').value.trim();
+                    if (ip && name) {
+                        try {
+                            aliasManager.set(ip, name);
+                            await aliasManager.save();
+                            ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success');
+                            e.target.reset();
+                            await aliasManager.renderEditableList();
+                            await updatePageData(false);
+                        } catch (err) {
+                            // Error already shown by api.fetch
+                        }
+                    } else {
+                        ui.showToast('IP地址和别名均不能为空', 'error');
+                    }
+                    ui.setLoading(btn, false);
+                }); 
+            }
             elements.ruleForm.addEventListener('submit', handleRuleFormSubmit);
             elements.closeRuleModalBtn.addEventListener('click', () => ui.closeRuleModal());
             elements.cancelRuleModalBtn.addEventListener('click', () => ui.closeRuleModal());
@@ -1583,7 +1744,7 @@
         async function init() {
             state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             themeManager.init();
-            aliasManager.load();
+            await aliasManager.load(); // MODIFIED: Await the async load
             historyManager.load();
             autoRefreshManager.loadSettings();
             tableSorter.init();
