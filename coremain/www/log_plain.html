@@ -254,8 +254,8 @@
                 </div>
                 <footer>
                     <div class="grid">
-                        <button id="import-aliases-btn" class="secondary outline">导入配置</button>
-                        <button id="export-aliases-btn" class="secondary outline">导出配置</button>
+                        <button id="import-aliases-btn" class="secondary outline" aria-busy="false">导入配置</button>
+                        <button id="export-aliases-btn" class="secondary outline" aria-busy="false">导出配置</button>
                     </div>
                 </footer>
             </article>
@@ -573,13 +573,74 @@
                 }
             }
         };
+
+        // --- 通用规则API获取逻辑 (复用自原有代码) ---
+        const ruleApiFetch = async (url, options = {}) => {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    let errorMsg = `API Error ${response.status}: ${response.statusText}`;
+                    try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} }
+                    // 对404 not found (插件不存在) 静默处理
+                    if (response.status !== 404) {
+                        ui.showToast(errorMsg, 'error');
+                    }
+                    throw new Error(errorMsg);
+                }
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) return response.json();
+                return response.text();
+            } catch (error) {
+                console.error('Rule API call failed:', error);
+                throw error;
+            }
+        };
+
+        // --- [新增] 客户端别名 API ---
+        const clientnamePluginTag = 'clientname';
+        const clientnameApi = {
+            get: () => ruleApiFetch(`/plugins/${clientnamePluginTag}`),
+            update: (data) => ruleApiFetch(`/plugins/${clientnamePluginTag}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            }),
+        };
         
         // --- 别名管理器 (日志面板) ---
         const aliasManager = {
-            load: () => { state.clientAliases = JSON.parse(localStorage.getItem('mosdnsClientAliases')) || {}; },
-            save: () => { localStorage.setItem('mosdnsClientAliases', JSON.stringify(state.clientAliases)); },
+            load: async () => {
+                try {
+                    const aliases = await clientnameApi.get();
+                    if (typeof aliases === 'object' && aliases !== null) {
+                        state.clientAliases = aliases;
+                    } else {
+                        state.clientAliases = {};
+                    }
+                } catch (error) {
+                    console.error('Failed to load client aliases from server:', error);
+                    ui.showToast('从服务器加载客户端别名失败', 'error');
+                    state.clientAliases = {}; // 初始化为空对象以防UI崩溃
+                }
+            },
+            save: async () => {
+                try {
+                    await clientnameApi.update(state.clientAliases);
+                } catch (error) {
+                    console.error('Failed to save client aliases to server:', error);
+                    throw error; // 重新抛出错误，让调用者处理
+                }
+            },
             getDisplayName: (ip) => { const alias = state.clientAliases[ip]; return alias ? `<span class="client-alias">${alias}</span><span class="client-ip-tag">${ip}</span>` : ip; },
-            set: function(ip, name) { if (name) state.clientAliases[ip] = name; else delete state.clientAliases[ip]; this.save(); rerenderAllViews(); },
+            set: async function(ip, name) {
+                if (name) {
+                    state.clientAliases[ip] = name;
+                } else {
+                    delete state.clientAliases[ip];
+                }
+                await this.save();
+                rerenderAllViews();
+            },
             renderEditableList: async function() {
                 const container = document.getElementById('alias-list-container');
                 container.innerHTML = '<p>正在加载客户端列表...</p>';
@@ -597,10 +658,19 @@
                         const item = document.createElement('div');
                         item.className = 'alias-item';
                         item.innerHTML = ` <span class="client-ip-tag" style="opacity:1; font-weight:bold;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="outline">保存</button> `;
-                        item.querySelector('button').addEventListener('click', () => {
+                        
+                        const btn = item.querySelector('button');
+                        btn.addEventListener('click', async () => {
                             const newName = item.querySelector('input').value.trim();
-                            this.set(ip, newName);
-                            ui.showToast(`已保存 ${ip} 的别名`, 'success');
+                            ui.setLoading(btn, true);
+                            try {
+                                await this.set(ip, newName);
+                                ui.showToast(`已保存 ${ip} 的别名`, 'success');
+                            } catch (e) {
+                                // Error toast is shown by API layer
+                            } finally {
+                                ui.setLoading(btn, false, '保存');
+                            }
                         });
                         container.appendChild(item);
                     });
@@ -609,8 +679,49 @@
                     console.error("加载客户端列表失败:", error);
                 }
             },
-            export: () => { const dataStr = JSON.stringify(state.clientAliases, null, 2); const blob = new Blob([dataStr], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); ui.showToast('配置已导出'); },
-            import: (file) => { const reader = new FileReader(); reader.onload = (e) => { try { const newAliases = JSON.parse(e.target.result); if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式'); state.clientAliases = { ...state.clientAliases, ...newAliases }; this.save(); this.renderEditableList(); rerenderAllViews(); ui.showToast('配置已成功导入并合并'); } catch (error) { ui.showToast(`导入失败: ${error.message}`, 'error'); } }; reader.readAsText(file); },
+            export: async () => {
+                try {
+                    ui.showToast('正在从服务器获取最新配置...');
+                    const aliasesToExport = await clientnameApi.get();
+                    if (typeof aliasesToExport !== 'object' || aliasesToExport === null) {
+                        throw new Error("从服务器返回的数据格式无效");
+                    }
+                    const dataStr = JSON.stringify(aliasesToExport, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `mosdns-aliases-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    ui.showToast('配置已导出', 'success');
+                } catch (error) {
+                    console.error('Failed to export aliases:', error);
+                }
+            },
+            import: (file) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const newAliases = JSON.parse(e.target.result);
+                        if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) {
+                            throw new Error('无效的JSON对象格式');
+                        }
+                        // 保持原有的合并逻辑
+                        state.clientAliases = { ...state.clientAliases, ...newAliases };
+                        ui.showToast('正在上传配置到服务器...', 'success');
+                        await this.save();
+                        this.renderEditableList();
+                        rerenderAllViews();
+                        ui.showToast('配置已成功导入并上传至服务器', 'success');
+                    } catch (error) {
+                        ui.showToast(`导入失败: ${error.message}`, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            },
         };
         
         // --- 统一 UI 控制器 ---
@@ -785,28 +896,6 @@
             if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}</ul>`; }
             return `<div class="tooltip-container">${mainText}<div class="answers-tooltip">${tooltipHTML}</div></div>`;
         }
-
-        // --- 通用规则API获取逻辑 (复用自原有代码) ---
-        const ruleApiFetch = async (url, options = {}) => {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) {
-                    let errorMsg = `API Error ${response.status}: ${response.statusText}`;
-                    try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} }
-                    // 对404 not found (插件不存在) 静默处理
-                    if (response.status !== 404) {
-                        ui.showToast(errorMsg, 'error');
-                    }
-                    throw new Error(errorMsg);
-                }
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) return response.json();
-                return response.text();
-            } catch (error) {
-                console.error('Rule API call failed:', error);
-                throw error;
-            }
-        };
 
         // --- 在线黑名单管理 (Adguard) ---
         const adguardPluginTag = 'adguard'; 
@@ -1195,9 +1284,21 @@
             const aliasModal = document.getElementById('alias-modal');
             document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
             document.getElementById('close-alias-modal').addEventListener('click', (e) => { e.preventDefault(); aliasModal.close(); });
-            document.getElementById('export-aliases-btn').addEventListener('click', () => aliasManager.export());
+            
+            document.getElementById('export-aliases-btn').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                ui.setLoading(btn, true);
+                await aliasManager.export();
+                ui.setLoading(btn, false, '导出配置');
+            });
+
             const fileInput = document.getElementById('import-alias-file-input');
-            document.getElementById('import-aliases-btn').addEventListener('click', () => fileInput.click());
+            document.getElementById('import-aliases-btn').addEventListener('click', (e) => {
+                 const btn = e.currentTarget;
+                 // Don't set loading here, because the user might cancel file selection.
+                 // Loading will be handled visually by toasts during the import process.
+                 fileInput.click()
+            });
             fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
             
             // --- 修复 2 (新): 全局 Tooltip 逻辑 ---
@@ -1265,8 +1366,8 @@
             document.getElementById('cancel-diversion-modal-btn').addEventListener('click', (e) => { e.preventDefault(); diversionUI.closeModal(); });
         }
 
-        function init() {
-            aliasManager.load();
+        async function init() {
+            await aliasManager.load();
             setupEventListeners();
             setupAdguardEventListeners();
             setupDiversionEventListeners();
