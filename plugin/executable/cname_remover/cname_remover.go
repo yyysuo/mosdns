@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
- 
+
 package cname_remover
 
 import (
@@ -59,6 +59,18 @@ func (c *cnameRemover) Exec(ctx context.Context, qCtx *query_context.Context) er
 	qType := qCtx.QQuestion().Qtype
 	if qType != dns.TypeA && qType != dns.TypeAAAA {
 		return nil
+	}
+	// =============================================================
+
+	// ==================== 新增：DNAME 记录检查 =====================
+	// 在进行任何修改之前，先遍历一遍响应，检查是否存在 DNAME 记录。
+	// DNAME 是一条重要的重写规则，不能被简单移除或忽略。
+	// 如果发现 DNAME 记录，则立即中止本插件的任何操作，
+	// 将原始响应原封不动地传递给下一个插件，以确保解析逻辑的正确性。
+	for _, rr := range r.Answer {
+		if rr.Header().Rrtype == dns.TypeDNAME {
+			return nil // 发现 DNAME，立即退出，不做任何修改。
+		}
 	}
 	// =============================================================
 
