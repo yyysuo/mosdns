@@ -254,8 +254,8 @@
                 </div>
                 <footer>
                     <div class="grid">
-                        <button id="import-aliases-btn" class="secondary outline" aria-busy="false">导入配置</button>
-                        <button id="export-aliases-btn" class="secondary outline" aria-busy="false">导出配置</button>
+                        <button id="import-aliases-btn" class="secondary outline">导入配置</button>
+                        <button id="export-aliases-btn" class="secondary outline">导出配置</button>
                     </div>
                 </footer>
             </article>
@@ -574,70 +574,61 @@
             }
         };
 
-        // --- 通用规则API获取逻辑 (复用自原有代码) ---
-        const ruleApiFetch = async (url, options = {}) => {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) {
-                    let errorMsg = `API Error ${response.status}: ${response.statusText}`;
-                    try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} }
-                    // 对404 not found (插件不存在) 静默处理
-                    if (response.status !== 404) {
-                        ui.showToast(errorMsg, 'error');
-                    }
-                    throw new Error(errorMsg);
-                }
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) return response.json();
-                return response.text();
-            } catch (error) {
-                console.error('Rule API call failed:', error);
-                throw error;
+        // --- [MODIFIED] Helper function to normalize IP addresses ---
+        const normalizeIP = (ip) => {
+            if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
+                return ip.substring(7);
             }
+            return ip;
         };
-
-        // --- [新增] 客户端别名 API ---
-        const clientnamePluginTag = 'clientname';
-        const clientnameApi = {
-            get: () => ruleApiFetch(`/plugins/${clientnamePluginTag}`),
-            update: (data) => ruleApiFetch(`/plugins/${clientnamePluginTag}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            }),
-        };
+        
+        // [MODIFIED] The ruleApiFetch and clientnameApi are now inside init() to use the ui object which is defined later.
+        // For now, we will move them down and define clientnameApi there.
         
         // --- 别名管理器 (日志面板) ---
         const aliasManager = {
+            // [MODIFIED] Switched from localStorage to API calls. No local cache.
             load: async () => {
                 try {
                     const aliases = await clientnameApi.get();
+                    const normalizedAliases = {};
                     if (typeof aliases === 'object' && aliases !== null) {
-                        state.clientAliases = aliases;
-                    } else {
-                        state.clientAliases = {};
+                        for (const ip in aliases) {
+                            normalizedAliases[normalizeIP(ip)] = aliases[ip];
+                        }
                     }
+                    state.clientAliases = normalizedAliases;
                 } catch (error) {
                     console.error('Failed to load client aliases from server:', error);
                     ui.showToast('从服务器加载客户端别名失败', 'error');
-                    state.clientAliases = {}; // 初始化为空对象以防UI崩溃
+                    state.clientAliases = {};
                 }
             },
             save: async () => {
+                // The state.clientAliases object is already normalized by `load` and `set`.
+                // This function just sends the clean data to the server.
                 try {
                     await clientnameApi.update(state.clientAliases);
                 } catch (error) {
                     console.error('Failed to save client aliases to server:', error);
-                    throw error; // 重新抛出错误，让调用者处理
+                    throw error;
                 }
             },
-            getDisplayName: (ip) => { const alias = state.clientAliases[ip]; return alias ? `<span class="client-alias">${alias}</span><span class="client-ip-tag">${ip}</span>` : ip; },
+            // [MODIFIED] Normalize IP before lookup, but display original IP in the tag.
+            getDisplayName: (ip) => {
+                const normalizedIp = normalizeIP(ip);
+                const alias = state.clientAliases[normalizedIp];
+                return alias ? `<span class="client-alias">${alias}</span><span class="client-ip-tag">${ip}</span>` : ip;
+            },
+            // [MODIFIED] Normalize IP before setting it in the state.
             set: async function(ip, name) {
+                const normalizedIp = normalizeIP(ip);
                 if (name) {
-                    state.clientAliases[ip] = name;
+                    state.clientAliases[normalizedIp] = name;
                 } else {
-                    delete state.clientAliases[ip];
+                    delete state.clientAliases[normalizedIp];
                 }
+                // Call save immediately to persist the change.
                 await this.save();
                 rerenderAllViews();
             },
@@ -646,6 +637,7 @@
                 container.innerHTML = '<p>正在加载客户端列表...</p>';
                 try {
                     const topClients = await api.v2.getTopClients(null, 200);
+                    // [MODIFIED] Normalize IPs for display and lookup, but keep original for context.
                     const uniqueIps = [...new Set(topClients.map(client => client.key))].sort();
 
                     if (uniqueIps.length === 0) {
@@ -655,21 +647,24 @@
 
                     container.innerHTML = '';
                     uniqueIps.forEach(ip => {
+                        const normalizedIp = normalizeIP(ip);
                         const item = document.createElement('div');
                         item.className = 'alias-item';
-                        item.innerHTML = ` <span class="client-ip-tag" style="opacity:1; font-weight:bold;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[ip] || ''}"> <button class="outline">保存</button> `;
+                        item.innerHTML = ` <span class="client-ip-tag" style="opacity:1; font-weight:bold;">${ip}</span> <input type="text" placeholder="设置别名..." value="${state.clientAliases[normalizedIp] || ''}"> <button class="outline">保存</button> `;
                         
                         const btn = item.querySelector('button');
                         btn.addEventListener('click', async () => {
                             const newName = item.querySelector('input').value.trim();
                             ui.setLoading(btn, true);
                             try {
+                                // Pass the original IP to set, which will handle normalization.
                                 await this.set(ip, newName);
                                 ui.showToast(`已保存 ${ip} 的别名`, 'success');
                             } catch (e) {
                                 // Error toast is shown by API layer
                             } finally {
-                                ui.setLoading(btn, false, '保存');
+                                ui.setLoading(btn, false);
+                                btn.textContent = '保存';
                             }
                         });
                         container.appendChild(item);
@@ -679,14 +674,20 @@
                     console.error("加载客户端列表失败:", error);
                 }
             },
+            // [MODIFIED] Export normalized data fetched from the server.
             export: async () => {
                 try {
                     ui.showToast('正在从服务器获取最新配置...');
                     const aliasesToExport = await clientnameApi.get();
-                    if (typeof aliasesToExport !== 'object' || aliasesToExport === null) {
+                    const normalizedAliases = {};
+                    if (typeof aliasesToExport === 'object' && aliasesToExport !== null) {
+                       for (const ip in aliasesToExport) {
+                           normalizedAliases[normalizeIP(ip)] = aliasesToExport[ip];
+                       }
+                    } else {
                         throw new Error("从服务器返回的数据格式无效");
                     }
-                    const dataStr = JSON.stringify(aliasesToExport, null, 2);
+                    const dataStr = JSON.stringify(normalizedAliases, null, 2);
                     const blob = new Blob([dataStr], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -698,24 +699,32 @@
                     URL.revokeObjectURL(url);
                     ui.showToast('配置已导出', 'success');
                 } catch (error) {
-                    console.error('Failed to export aliases:', error);
+                    // Error is already handled and shown by the API layer.
                 }
             },
+            // [MODIFIED] Import, normalize, merge, and save to server.
             import: (file) => {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
-                        const newAliases = JSON.parse(e.target.result);
-                        if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) {
+                        const importedAliases = JSON.parse(e.target.result);
+                        if (typeof importedAliases !== 'object' || importedAliases === null || Array.isArray(importedAliases)) {
                             throw new Error('无效的JSON对象格式');
                         }
-                        // 保持原有的合并逻辑
-                        state.clientAliases = { ...state.clientAliases, ...newAliases };
-                        ui.showToast('正在上传配置到服务器...', 'success');
+                        
+                        // Merge with normalization
+                        const mergedAliases = { ...state.clientAliases };
+                        for (const ip in importedAliases) {
+                            mergedAliases[normalizeIP(ip)] = importedAliases[ip];
+                        }
+                        state.clientAliases = mergedAliases;
+                        
+                        ui.showToast('正在上传配置到服务器...');
                         await this.save();
+                        
                         this.renderEditableList();
                         rerenderAllViews();
-                        ui.showToast('配置已成功导入并上传至服务器', 'success');
+                        ui.showToast('配置已成功导入并上传', 'success');
                     } catch (error) {
                         ui.showToast(`导入失败: ${error.message}`, 'error');
                     }
@@ -896,6 +905,39 @@
             if (answers.length > 0) { tooltipHTML += `<h5 style="margin-top:0.5rem;">应答记录 (${answers.length})</h5><ul>${answers.map(ans => `<li>[${ans.type}] ${ans.data} (TTL: ${ans.ttl}s)</li>`).join('')}</ul>`; }
             return `<div class="tooltip-container">${mainText}<div class="answers-tooltip">${tooltipHTML}</div></div>`;
         }
+
+        // --- 通用规则API获取逻辑 (复用自原有代码) ---
+        const ruleApiFetch = async (url, options = {}) => {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    let errorMsg = `API Error ${response.status}: ${response.statusText}`;
+                    try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} }
+                    // 对404 not found (插件不存在) 静默处理
+                    if (response.status !== 404) {
+                        ui.showToast(errorMsg, 'error');
+                    }
+                    throw new Error(errorMsg);
+                }
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) return response.json();
+                return response.text();
+            } catch (error) {
+                console.error('Rule API call failed:', error);
+                throw error;
+            }
+        };
+
+        // --- [MOVED & DEFINED HERE] Client Name API and Adguard API ---
+        const clientnamePluginTag = 'clientname';
+        const clientnameApi = {
+            get: () => ruleApiFetch(`/plugins/${clientnamePluginTag}`),
+            update: (data) => ruleApiFetch(`/plugins/${clientnamePluginTag}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            }),
+        };
 
         // --- 在线黑名单管理 (Adguard) ---
         const adguardPluginTag = 'adguard'; 
@@ -1285,20 +1327,16 @@
             document.getElementById('manage-aliases-btn').addEventListener('click', () => { aliasManager.renderEditableList(); aliasModal.showModal(); });
             document.getElementById('close-alias-modal').addEventListener('click', (e) => { e.preventDefault(); aliasModal.close(); });
             
+            // [MODIFIED] Add loading state to export/import buttons
             document.getElementById('export-aliases-btn').addEventListener('click', async (e) => {
                 const btn = e.currentTarget;
                 ui.setLoading(btn, true);
                 await aliasManager.export();
-                ui.setLoading(btn, false, '导出配置');
+                ui.setLoading(btn, false);
+                btn.textContent = '导出配置';
             });
-
             const fileInput = document.getElementById('import-alias-file-input');
-            document.getElementById('import-aliases-btn').addEventListener('click', (e) => {
-                 const btn = e.currentTarget;
-                 // Don't set loading here, because the user might cancel file selection.
-                 // Loading will be handled visually by toasts during the import process.
-                 fileInput.click()
-            });
+            document.getElementById('import-aliases-btn').addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', (e) => { if (e.target.files.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } });
             
             // --- 修复 2 (新): 全局 Tooltip 逻辑 ---
@@ -1367,7 +1405,7 @@
         }
 
         async function init() {
-            await aliasManager.load();
+            await aliasManager.load(); // [MODIFIED] Must be async now
             setupEventListeners();
             setupAdguardEventListeners();
             setupDiversionEventListeners();
