@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosdns 仪表盘 V3.2.2 Optimized</title>
+    <title>Mosdns 仪表盘 V3.2.6 Optimized</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Georgia&display=swap" rel="stylesheet">
     <style>
-        /* --- UI CSS (V3.2.2 "Hybrid" Optimized) --- */
+        /* --- UI CSS (V3.2.6 "Hybrid" Optimized) --- */
         :root { 
             --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             --font-family-mono: "Fira Code", "SF Mono", "Consolas", monospace;
@@ -232,6 +232,9 @@
 
         .rule-tag { font-weight: 600; gap: 0.4rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
         .rule-tag::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background-color: currentcolor; flex-shrink: 0; }
+        
+        .interactive-btn-container { display: inline-flex; gap: 0.5rem; vertical-align: middle; margin-left: 0.5rem; }
+        #log-detail-modal .modal-body li span { display: flex; align-items: center; }
 
         #answers-tooltip { visibility: hidden; opacity: 0; position: fixed; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); background: var(--color-bg-alt); border: 1px solid var(--color-border); box-shadow: var(--shadow-lg); width: max-content; max-width: calc(100vw - 20px); z-index: 9999; transition: opacity 0.2s, transform 0.2s; text-align: left; pointer-events: none; font-size: 0.9rem; transform: translateY(10px); } 
         #answers-tooltip.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -242,8 +245,7 @@
         #answers-tooltip small { font-size: 0.85em; opacity: 0.8; } 
         .copy-btn, .filter-btn { background: none; border: none; cursor: pointer; color: var(--color-text-secondary); padding: 2px; border-radius: 4px; display: inline-flex; vertical-align: middle; transition: var(--transition-fast); }
         .copy-btn:hover, .filter-btn:hover { color: var(--color-accent-primary); background-color: var(--color-border); }
-        #answers-tooltip div > small { vertical-align: middle; }
-
+        
         #toast { position: fixed; top: 20px; right: 20px; display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.5rem; border-radius: var(--border-radius-sm); z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); transform: translateY(-20px) scale(0.95); box-shadow: var(--shadow-lg); color: var(--color-accent-text); font-weight: 500; } 
         #toast.show { opacity: 1; visibility: visible; transform: translateY(0) scale(1); } 
         #toast.success { background-color: var(--color-success); } 
@@ -505,6 +507,7 @@
             </div>
             <footer class="modal-footer">
                 <div class="footer-actions-left">
+                     <!-- [FIX] Added spans for consistent loading state -->
                      <button id="import-aliases-btn" class="button secondary"><span>导入</span></button>
                      <button id="export-aliases-btn" class="button secondary"><span>导出</span></button>
                 </div>
@@ -750,8 +753,17 @@
                     <div class="control-item">
                         <strong>运行状态:</strong> <span id="audit-status">查询中...</span>
                     </div>
+                    <!-- [NEW] Added the switch for the new auto-clear feature -->
+                    <div class="control-item">
+                        <strong>容量满时自动清空</strong>
+                        <label class="switch">
+                            <input type="checkbox" id="auto-clear-toggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="button-group">
                         <button id="toggle-audit-btn" class="button primary" disabled data-default-text="请稍后"><span>请稍后</span></button>
+                        <!-- [FIX] Added span for consistent loading state -->
                         <button id="clear-audit-btn" class="button danger" data-default-text="清空日志"><span>清空日志</span></button>
                     </div>
                 </div>
@@ -762,6 +774,7 @@
                     </div>
                     <form id="capacity-form">
                         <input type="number" id="new-capacity" placeholder="新容量 (将清空日志)" required min="1" max="400000">
+                        <!-- [FIX] Added span for consistent loading state -->
                         <button type="submit" class="button primary" data-default-text="设置"><span>设置</span></button>
                     </form>
                 </div>
@@ -770,6 +783,7 @@
                      <div class="control-item">
                         <strong>全局缓存:</strong> <span id="cache-status">管理Mosdns的解析缓存。</span>
                     </div>
+                    <!-- [FIX] Added span for consistent loading state -->
                      <button id="clear-cache-btn" class="button danger"><span>清空所有缓存</span></button>
                 </div>
                 <div class="control-module">
@@ -828,7 +842,7 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         const CONSTANTS = { API_BASE_URL: '', LOGS_PER_PAGE: 50, HISTORY_LENGTH: 30, DEFAULT_AUTO_REFRESH_INTERVAL: 15, ANIMATION_DURATION: 1000, MOBILE_BREAKPOINT: 768, TOAST_DURATION: 3000, SKELETON_ROWS: 10, TOOLTIP_SHOW_DELAY: 200, TOOLTIP_HIDE_DELAY: 250 };
-        let state = { isUpdating: false, isCapturing: false, isMobile: false, isTouchDevice: false, currentLogPage: 1, isLogLoading: false, logPaginationInfo: null, displayedLogs: [], currentLogSearchTerm: '', clientAliases: {}, topDomains: [], topClients: [], slowestQueries: [], domainSetRank: [], shuntColors: {}, logSort: { key: 'query_time', order: 'desc' }, autoRefresh: { enabled: true, intervalId: null, intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL }, data: { totalQueries: { current: null, previous: null }, avgDuration: { current: null, previous: null } }, history: { totalQueries: [], avgDuration: [] }, lastUpdateTime: null, adguardRules: [], diversionRules: [], };
+        let state = { isUpdating: false, isCapturing: false, isMobile: false, isTouchDevice: false, currentLogPage: 1, isLogLoading: false, logPaginationInfo: null, displayedLogs: [], currentLogSearchTerm: '', clientAliases: {}, topDomains: [], topClients: [], slowestQueries: [], domainSetRank: [], shuntColors: {}, logSort: { key: 'query_time', order: 'desc' }, autoRefresh: { enabled: true, intervalId: null, intervalSeconds: CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL }, autoClear: { enabled: false }, data: { totalQueries: { current: null, previous: null }, avgDuration: { current: null, previous: null } }, history: { totalQueries: [], avgDuration: [] }, lastUpdateTime: null, adguardRules: [], diversionRules: [], };
         const elements = { 
             html: document.documentElement, body: document.body, container: document.querySelector('.container'), initialLoader: document.getElementById('initial-loader'), 
             colorSwatches: document.querySelectorAll('.color-swatch'), 
@@ -838,6 +852,7 @@
             tabLinks: document.querySelectorAll('.tab-link'), tabContents: document.querySelectorAll('.tab-content'), 
             globalRefreshBtn: document.getElementById('global-refresh-btn'), lastUpdated: document.getElementById('last-updated'), 
             autoRefreshToggle: document.getElementById('auto-refresh-toggle'), autoRefreshIntervalInput: document.getElementById('auto-refresh-interval'), autoRefreshForm: document.getElementById('auto-refresh-form'), 
+            autoClearToggle: document.getElementById('auto-clear-toggle'),
             totalQueries: document.getElementById('total-queries'), avgDuration: document.getElementById('avg-duration'), 
             totalQueriesChange: document.getElementById('total-queries-change'), avgDurationChange: document.getElementById('avg-duration-change'),
             sparklineTotal: document.getElementById('sparkline-total'), sparklineAvg: document.getElementById('sparkline-avg'), 
@@ -881,7 +896,6 @@
 
         const api = { fetch: async (url, options = {}) => { try { const response = await fetch(url, { ...options, signal: options.signal }); if (!response.ok) { let errorMsg = `API Error: ${response.status} ${response.statusText}`; try { const errorBody = await response.json(); if (errorBody && errorBody.error) { errorMsg = errorBody.error; } } catch (e) { try { errorMsg = await response.text() || errorMsg; } catch (textErr) {} } if (response.status !== 404) { ui.showToast(errorMsg, 'error'); } throw new Error(errorMsg); } const contentType = response.headers.get('content-type'); if (contentType && contentType.includes('application/json')) return response.json(); return { success: true, message: await response.text() }; } catch (error) { if (error.name !== 'AbortError') { console.error(error); } throw error; } }, getStatus: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/status`, { signal }), getCapacity: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { signal }), start: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/start`, { method: 'POST' }), stop: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/stop`, { method: 'POST' }), clear: () => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/clear`, { method: 'POST' }), setCapacity: (capacity) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v1/audit/capacity`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ capacity: parseInt(capacity, 10) }) }), cache: { clear: () => api.fetch('/api/v1/cache/clear', { method: 'POST' }) }, v2: { getStats: (signal) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/stats`, { signal }), getTopDomains: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain?limit=${limit}`, { signal }), getTopClients: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/client?limit=${limit}`, { signal }), getSlowest: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/slowest?limit=${limit}`, { signal }), getDomainSetRank: (signal, limit = 50) => api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/rank/domain_set?limit=${limit}`, { signal }), getLogs: (signal, params = {}) => { const queryParams = new URLSearchParams({ page: 1, limit: CONSTANTS.LOGS_PER_PAGE, ...params }); for(let [key, value] of queryParams.entries()){ if(!value) { queryParams.delete(key); } } return api.fetch(`${CONSTANTS.API_BASE_URL}/api/v2/audit/logs?${queryParams}`, { signal }); } } };
         
-        // --- [MODIFIED] Helper function to normalize IP addresses ---
         const normalizeIP = (ip) => {
             if (typeof ip === 'string' && ip.startsWith('::ffff:')) {
                 return ip.substring(7);
@@ -889,7 +903,6 @@
             return ip;
         };
 
-        // --- [MODIFIED] Client Name API Definition ---
         const clientnameApi = {
             get: () => api.fetch(`/plugins/clientname`),
             update: (data) => api.fetch(`/plugins/clientname`, {
@@ -901,7 +914,24 @@
 
         const ui = {
             showToast(message, type = 'success') { if (!elements.toast) return; clearTimeout(toastTimeout); const icon = type === 'success' ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>`; elements.toast.innerHTML = `${icon}<span>${message}</span>`; elements.toast.className = `show ${type}`; const hideToast = () => { elements.toast.className = elements.toast.className.replace('show', ''); }; elements.toast.onmouseenter = () => clearTimeout(toastTimeout); elements.toast.onmouseleave = () => toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); toastTimeout = setTimeout(hideToast, CONSTANTS.TOAST_DURATION); },
-            setLoading(button, isLoading) { if (!button) return; button.disabled = isLoading; button.setAttribute('aria-busy', String(isLoading)); const textSpan = button.querySelector('span'); if (textSpan) { if (!button.dataset.defaultText) { button.dataset.defaultText = textSpan.textContent; } textSpan.textContent = isLoading ? '处理中...' : button.dataset.defaultText; } },
+            setLoading(button, isLoading) {
+                if (!button) return;
+                const textSpan = button.querySelector('span');
+                button.disabled = isLoading;
+                button.setAttribute('aria-busy', String(isLoading));
+                if (textSpan) {
+                    if (isLoading) {
+                        if (!button.dataset.defaultText) {
+                            button.dataset.defaultText = textSpan.textContent;
+                        }
+                        textSpan.textContent = '处理中...';
+                    } else {
+                        if (button.dataset.defaultText) {
+                            textSpan.textContent = button.dataset.defaultText;
+                        }
+                    }
+                }
+            },
             updateStatus(isCapturing) { if (!elements.toggleAuditBtn || !elements.auditStatus) return; this.setLoading(elements.toggleAuditBtn, false); const statusIndicator = elements.systemControlTabIndicator; if(statusIndicator) statusIndicator.className = 'status-indicator'; if (typeof isCapturing === 'boolean') { state.isCapturing = isCapturing; elements.auditStatus.textContent = isCapturing ? '运行中' : '已停止'; elements.auditStatus.style.color = isCapturing ? 'var(--color-success)' : 'var(--color-danger)'; const actionText = isCapturing ? '关闭审计' : '开启审计'; elements.toggleAuditBtn.querySelector('span').textContent = actionText; elements.toggleAuditBtn.dataset.defaultText = actionText; elements.toggleAuditBtn.className = `button ${isCapturing ? 'danger' : 'primary'}`; if(statusIndicator) statusIndicator.classList.add(isCapturing ? 'running' : 'stopped'); } else { elements.auditStatus.textContent = '未知'; elements.auditStatus.style.color = 'var(--color-text-secondary)'; elements.toggleAuditBtn.querySelector('span').textContent = '刷新状态'; elements.toggleAuditBtn.dataset.defaultText = '刷新状态'; } },
             updateCapacity(capacity) { if (elements.auditCapacity) elements.auditCapacity.textContent = capacity != null ? `${capacity.toLocaleString()} 条` : '查询失败'; },
             updateOverviewStats() {
@@ -999,7 +1029,7 @@
                     }
                     state.clientAliases = normalizedAliases;
                 } catch (error) {
-                    // Error is already shown by api.fetch, we just need to handle the state.
+                    ui.showToast('加载客户端别名失败', 'error');
                     state.clientAliases = {};
                 }
             },
@@ -1007,7 +1037,6 @@
                 try {
                     await clientnameApi.update(state.clientAliases);
                 } catch (error) {
-                    // Re-throw to let the caller handle UI feedback (e.g., loading state)
                     throw error;
                 }
             },
@@ -1033,7 +1062,7 @@
                     const newValue = input.value.trim();
                     const originalValue = input.dataset.originalValue;
                     if (newValue !== originalValue) {
-                        this.set(ip, newValue); // `set` handles normalization
+                        this.set(ip, newValue);
                         changed = true;
                     }
                 });
@@ -1064,7 +1093,7 @@
                     uniqueIps.forEach(ip => {
                         const item = document.createElement('div');
                         item.className = 'alias-item';
-                        item.dataset.ip = ip; // Store original IP
+                        item.dataset.ip = ip;
                         const normalizedIp = normalizeIP(ip);
                         const currentAlias = state.clientAliases[normalizedIp] || '';
                         item.innerHTML = `<span style="font-weight:600;">${ip}</span> <input type="text" placeholder="设置别名..." value="${currentAlias}" data-original-value="${currentAlias}">`;
@@ -1077,7 +1106,6 @@
             async export() {
                 try {
                     ui.showToast('正在从服务器获取最新配置...');
-                    // Data from server is already the source of truth, but we fetch again to be sure.
                     const aliasesToExport = await clientnameApi.get(); 
                     const normalizedAliases = {};
                     if (typeof aliasesToExport === 'object' && aliasesToExport !== null) {
@@ -1109,7 +1137,6 @@
                         const newAliases = JSON.parse(e.target.result);
                         if (typeof newAliases !== 'object' || newAliases === null || Array.isArray(newAliases)) throw new Error('无效的JSON对象格式');
                         
-                        // Merge with normalization
                         for (const ip in newAliases) {
                             this.set(ip, newAliases[ip]);
                         }
@@ -1319,21 +1346,24 @@
         };
 
         let updateController;
-            async function updatePageData(forceAll = false) {
+        async function updatePageData(forceAll = false) {
             if (state.isUpdating) return;
             state.isUpdating = true;
             if (updateController) updateController.abort();
             updateController = new AbortController();
             const { signal } = updateController;
-            elements.globalRefreshBtn.setAttribute('aria-busy', 'true');
+            ui.setLoading(elements.globalRefreshBtn, true);
             const activeTab = document.querySelector('.tab-link.active')?.dataset.tab;
             try {
-                // MODIFICATION START: Add getDomainSetRank to the initial fetch
                 const [statusRes, capacityRes, statsRes, domainSetRankRes] = await Promise.allSettled([api.getStatus(signal), api.getCapacity(signal), api.v2.getStats(signal), api.v2.getDomainSetRank(signal, 100)]);
-                // MODIFICATION END
 
                 ui.updateStatus(statusRes.status === 'fulfilled' ? statusRes.value?.capturing : null);
                 ui.updateCapacity(capacityRes.status === 'fulfilled' ? capacityRes.value?.capacity : null);
+
+                if (state.autoClear.enabled && statsRes.status === 'fulfilled' && capacityRes.status === 'fulfilled' && statsRes.value.total_queries > 0 && statsRes.value.total_queries >= capacityRes.value.capacity) {
+                    await autoClearManager.handleAutoClear();
+                    return;
+                }
 
                 if (statsRes.status === 'fulfilled' && statsRes.value) {
                     const stats = statsRes.value;
@@ -1345,19 +1375,14 @@
                     historyManager.add(stats.total_queries, stats.average_duration_ms);
                 }
 
-                // MODIFICATION START: Process domainSetRankRes right away to populate colors
                 if (domainSetRankRes.status === 'fulfilled') { 
                     state.domainSetRank = domainSetRankRes.value || []; 
                     renderDonutChart(state.domainSetRank); 
                 }
-                // MODIFICATION END
                 
                 if (forceAll) {
-                    // MODIFICATION START: Remove getDomainSetRank from here
                     const [topDomainsRes, topClientsRes, slowestRes] = await Promise.allSettled([api.v2.getTopDomains(signal, 100), api.v2.getTopClients(signal, 100), api.v2.getSlowest(signal, 100)]);
-                    // MODIFICATION END
                     
-                    // The renderDonutChart call is no longer needed here as it's done above.
                     if (topDomainsRes.status === 'fulfilled') { state.topDomains = topDomainsRes.value || []; renderTopDomains(state.topDomains); }
                     if (topClientsRes.status === 'fulfilled') { state.topClients = topClientsRes.value || []; renderTopClients(state.topClients); }
                     if (slowestRes.status === 'fulfilled') { state.slowestQueries = slowestRes.value || []; renderSlowestQueries(state.slowestQueries); }
@@ -1367,7 +1392,10 @@
                 if (activeTab === 'log-query') await fetchAndRenderLogs(1, false);
                 else if (activeTab === 'rules') await Promise.all([adguardManager.load(), diversionManager.load()]);
             } catch (error) { if (error.name !== 'AbortError') console.error("Page update failed:", error); } 
-            finally { elements.globalRefreshBtn.setAttribute('aria-busy', 'false'); state.isUpdating = false; }
+            finally { 
+                ui.setLoading(elements.globalRefreshBtn, false);
+                state.isUpdating = false; 
+            }
         }
         
         let logRequestController;
@@ -1445,6 +1473,18 @@
             }
         }
         
+        function createInteractiveLine(value, copyValue, filterValue, isExact = false, isSmall = false) {
+            const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`;
+            const filterIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"></path></svg>`;
+            const textElement = isSmall ? `<small>${value}</small>` : `<span>${value}</span>`;
+            return `
+                ${textElement}
+                <span class="interactive-btn-container">
+                    <button class="copy-btn" data-copy-value="${copyValue}" title="复制">${copyIcon}</button>
+                    <button class="filter-btn" data-filter-value="${filterValue}" data-exact-search="${isExact}" title="过滤此项">${filterIcon}</button>
+                </span>`;
+        }
+
         const tooltipManager = (() => {
             const tooltip = elements.tooltip;
             let showTimeout, hideTimeout;
@@ -1479,10 +1519,14 @@
             if (!data) return '';
             const queryInfo = {}, responseInfo = {}; let answers = [];
             const { ra, aa, tc } = data.response_flags || {}; const flagItems = [ra && 'RA', aa && 'AA', tc && 'TC'].filter(Boolean); 
-            queryInfo['域名'] = `<span>${data.query_name}</span>`; queryInfo['时间'] = `<span>${formatDate(data.query_time)}</span>`; queryInfo['客户端'] = `<span>${aliasManager.getDisplayName(data.client_ip)} (${data.client_ip})</span>`; queryInfo['类型'] = `<span>${data.query_type || 'N/A'}</span>`;
+            queryInfo['域名'] = createInteractiveLine(data.query_name, data.query_name, data.query_name, false);
+            queryInfo['时间'] = `<span>${formatDate(data.query_time)}</span>`;
+            queryInfo['客户端'] = createInteractiveLine(aliasManager.getDisplayName(data.client_ip) + ` (${data.client_ip})`, data.client_ip, data.client_ip, true);
+            queryInfo['类型'] = `<span>${data.query_type || 'N/A'}</span>`;
             if (data.query_class) queryInfo['类别'] = `<span>${data.query_class}</span>`; 
-            if (data.domain_set) queryInfo['分流规则'] = `<span>${data.domain_set}</span>`;
-            if (data.trace_id) queryInfo['Trace ID'] = `<span>${data.trace_id}</span>`;
+            if (data.domain_set) queryInfo['分流规则'] = createInteractiveLine(data.domain_set, data.domain_set, data.domain_set, true);
+            if (data.trace_id) queryInfo['Trace ID'] = createInteractiveLine(data.trace_id, data.trace_id, data.trace_id, true);
+            
             responseInfo['耗时'] = `<span>${data.duration_ms.toFixed(2)} ms</span>`; 
             let statusText = data.response_code || 'N/A';
             if(data.is_blocked) statusText += ' (已拦截)';
@@ -1565,14 +1609,19 @@
         function getTooltipHTML(data, source) { 
             if (!data) return ''; 
             const queryInfo = {}, responseInfo = {}; let answers = []; 
-            const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path></svg>`; 
-            const filterIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"></path></svg>`;
-            const createInteractiveLine = (value, copyValue, filterValue, isExact = false) => `<div><small>${value}</small> <button class="copy-btn" data-copy-value="${copyValue}" title="复制">${copyIcon}</button><button class="filter-btn" data-filter-value="${filterValue}" data-exact-search="${isExact}" title="过滤此项">${filterIcon}</button></div>`;
             if (['domain', 'client', 'domain_set'].includes(source)) { queryInfo['请求数'] = data.count.toLocaleString(); } else { 
                 const { ra, aa, tc } = data.response_flags || {}; const flagItems = [ra && 'RA', aa && 'AA', tc && 'TC'].filter(Boolean); 
-                queryInfo['完整域名'] = createInteractiveLine(data.query_name, data.query_name, data.query_name, false); queryInfo['精确时间'] = formatDate(data.query_time); queryInfo['客户端'] = createInteractiveLine(aliasManager.getDisplayName(data.client_ip), data.client_ip, data.client_ip, true); queryInfo['类型'] = data.query_type || 'N/A'; 
-                if (data.query_class) queryInfo['类别'] = data.query_class; if (data.domain_set) queryInfo['规则'] = createInteractiveLine(data.domain_set, data.domain_set, data.domain_set, true);
-                responseInfo['耗时'] = `${data.duration_ms.toFixed(2)} ms`; responseInfo['状态'] = data.response_code || 'N/A'; if(data.is_blocked) responseInfo['状态'] += ' (Blocked)'; if (flagItems.length) responseInfo['标志'] = flagItems.join(', '); if (data.trace_id) { queryInfo['Trace ID'] = `<div><small>${data.trace_id}</small> <button class="copy-btn" data-copy-value="${data.trace_id}" title="复制Trace ID">${copyIcon}</button></div>`; } answers = data.answers || []; 
+                queryInfo['完整域名'] = createInteractiveLine(data.query_name, data.query_name, data.query_name, false, true);
+                queryInfo['精确时间'] = `<small>${formatDate(data.query_time)}</small>`;
+                queryInfo['客户端'] = createInteractiveLine(aliasManager.getDisplayName(data.client_ip), data.client_ip, data.client_ip, true, true);
+                queryInfo['类型'] = `<small>${data.query_type || 'N/A'}</small>`; 
+                if (data.query_class) queryInfo['类别'] = `<small>${data.query_class}</small>`;
+                if (data.domain_set) queryInfo['规则'] = createInteractiveLine(data.domain_set, data.domain_set, data.domain_set, true, true);
+                responseInfo['耗时'] = `<small>${data.duration_ms.toFixed(2)} ms</small>`;
+                responseInfo['状态'] = `<small>${data.response_code || 'N/A'}${data.is_blocked ? ' (Blocked)' : ''}</small>`;
+                if (flagItems.length) responseInfo['标志'] = `<small>${flagItems.join(', ')}</small>`;
+                if (data.trace_id) { queryInfo['Trace ID'] = createInteractiveLine(data.trace_id, data.trace_id, data.trace_id, true, true); }
+                answers = data.answers || []; 
             } 
             const buildList = (obj) => Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`).join(''); 
             let tooltipHTML = ``; 
@@ -1587,6 +1636,30 @@
             stop() { clearInterval(state.autoRefresh.intervalId); state.autoRefresh.intervalId = null; },
             updateSettings(enabled, seconds) { state.autoRefresh.enabled = enabled; state.autoRefresh.intervalSeconds = Math.max(seconds, 5); localStorage.setItem('mosdnsAutoRefresh', JSON.stringify({ enabled, intervalSeconds: state.autoRefresh.intervalSeconds })); ui.showToast(`自动刷新已${enabled ? `开启, 频率: ${state.autoRefresh.intervalSeconds}秒` : '关闭'}`, 'success'); this.start(); },
             loadSettings() { const saved = JSON.parse(localStorage.getItem('mosdnsAutoRefresh')); if (saved) { state.autoRefresh.enabled = saved.enabled ?? true; state.autoRefresh.intervalSeconds = saved.intervalSeconds || CONSTANTS.DEFAULT_AUTO_REFRESH_INTERVAL; } elements.autoRefreshToggle.checked = state.autoRefresh.enabled; elements.autoRefreshIntervalInput.value = state.autoRefresh.intervalSeconds; elements.autoRefreshIntervalInput.disabled = !state.autoRefresh.enabled; }
+        };
+        
+        const autoClearManager = {
+            async handleAutoClear() {
+                ui.showToast('日志容量已满，正在自动清空...', 'warning');
+                try {
+                    await api.clear();
+                    setTimeout(() => updatePageData(true), 1000);
+                } catch (error) {
+                    ui.showToast('自动清空日志失败', 'error');
+                }
+            },
+            updateSettings(enabled) {
+                state.autoClear.enabled = enabled;
+                localStorage.setItem('mosdnsAutoClear', JSON.stringify({ enabled }));
+                ui.showToast(`容量满时自动清空功能已${enabled ? '开启' : '关闭'}`, 'success');
+            },
+            loadSettings() {
+                const saved = JSON.parse(localStorage.getItem('mosdnsAutoClear'));
+                if (saved) {
+                    state.autoClear.enabled = saved.enabled ?? false;
+                }
+                elements.autoClearToggle.checked = state.autoClear.enabled;
+            }
         };
 
         function handleNavigation(targetLink) {
@@ -1606,7 +1679,6 @@
             state.isMobile = window.innerWidth <= CONSTANTS.MOBILE_BREAKPOINT; 
             
             if (wasMobile !== state.isMobile) { 
-                // Re-render all relevant tables to switch between desktop and mobile layouts
                 const activeTab = document.querySelector('.tab-link.active')?.dataset.tab; 
                 if (activeTab === 'log-query') {
                     ui.renderLogTable(state.displayedLogs);
@@ -1666,39 +1738,156 @@
             setInterval(updateLastUpdated, 5000);
             elements.autoRefreshForm.addEventListener('change', (e) => { if(['checkbox', 'number'].includes(e.target.type)) { const enabled = elements.autoRefreshToggle.checked; const interval = parseInt(elements.autoRefreshIntervalInput.value, 10); elements.autoRefreshIntervalInput.disabled = !enabled; autoRefreshManager.updateSettings(enabled, interval); } });
             document.addEventListener('visibilitychange', () => document.hidden ? autoRefreshManager.stop() : autoRefreshManager.start());
-            elements.toggleAuditBtn?.addEventListener('click', async (e) => { ui.setLoading(e.currentTarget, true); try { await (state.isCapturing ? api.stop() : api.start()); } catch (error) { console.error("操作失败:", error); } await updatePageData(true); });
-            elements.clearAuditBtn?.addEventListener('click', async (e) => { if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) { ui.setLoading(e.currentTarget, true); try { await api.clear(); ui.showToast('日志已清空', 'success'); if (elements.logSearch) elements.logSearch.value = ''; } catch (error) { ui.showToast('清空日志失败', 'error'); } finally { await updatePageData(true); ui.setLoading(e.currentTarget, false); } } });
-            elements.capacityForm?.addEventListener('submit', async (e) => { e.preventDefault(); const newCapacity = parseInt(elements.newCapacityInput.value, 10); if (!newCapacity || newCapacity <= 0 || newCapacity > 400000) { ui.showToast('请输入1到400000之间的有效容量', 'error'); return; } if (confirm(`确定要将容量设置为 ${newCapacity.toLocaleString()} 吗？\n\n注意：这将清空当前所有日志。`)) { ui.setLoading(e.currentTarget.querySelector('button'), true); try { await api.setCapacity(newCapacity); ui.showToast(`容量已成功设置为 ${newCapacity.toLocaleString()}`, 'success'); elements.newCapacityInput.value = ''; } catch (error) { console.error("Set capacity failed:", error); } finally { await updatePageData(true); ui.setLoading(e.currentTarget.querySelector('button'), false); } } });
-            elements.clearCacheBtn?.addEventListener('click', async (e) => { if(confirm('确定要清空所有DNS缓存吗？')) { ui.setLoading(e.currentTarget, true); try { await api.cache.clear(); ui.showToast('所有缓存已清空', 'success'); } catch(err) { ui.showToast('清空缓存失败，请检查 Mosdns 是否包含 cache 插件的 clear_cache 接口。', 'error'); } finally { ui.setLoading(e.currentTarget, false); } } });
+            
+            elements.toggleAuditBtn?.addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                ui.setLoading(btn, true);
+                try {
+                    await (state.isCapturing ? api.stop() : api.start());
+                    await updatePageData(true);
+                } catch (error) {
+                    console.error("操作失败:", error);
+                    ui.setLoading(btn, false);
+                }
+            });
+
+            elements.clearAuditBtn?.addEventListener('click', async (e) => {
+                if (confirm('确定要清空所有内存审计日志吗？此操作不可恢复。')) {
+                    const btn = e.currentTarget;
+                    ui.setLoading(btn, true);
+                    try {
+                        await api.clear();
+                        ui.showToast('日志已清空', 'success');
+                        if (elements.logSearch) elements.logSearch.value = '';
+                        await updatePageData(true);
+                    } catch (error) {
+                        ui.showToast('清空日志失败', 'error');
+                    } finally {
+                        ui.setLoading(btn, false);
+                    }
+                }
+            });
+            
+            elements.capacityForm?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newCapacity = parseInt(elements.newCapacityInput.value, 10);
+                if (!newCapacity || newCapacity <= 0 || newCapacity > 400000) {
+                    ui.showToast('请输入1到400000之间的有效容量', 'error');
+                    return;
+                }
+                if (confirm(`确定要将容量设置为 ${newCapacity.toLocaleString()} 吗？\n\n注意：这将清空当前所有日志。`)) {
+                    const btn = e.currentTarget.querySelector('button');
+                    ui.setLoading(btn, true);
+                    try {
+                        await api.setCapacity(newCapacity);
+                        ui.showToast(`容量已成功设置为 ${newCapacity.toLocaleString()}`, 'success');
+                        elements.newCapacityInput.value = '';
+                        if (elements.logSearch) elements.logSearch.value = '';
+                        await updatePageData(true);
+                    } catch (error) {
+                        console.error("Set capacity failed:", error);
+                    } finally {
+                        ui.setLoading(btn, false);
+                    }
+                }
+            });
+            
+            elements.clearCacheBtn?.addEventListener('click', async (e) => {
+                if(confirm('确定要清空所有DNS缓存吗？')) {
+                    const btn = e.currentTarget;
+                    ui.setLoading(btn, true);
+                    try {
+                        await api.cache.clear();
+                        ui.showToast('所有缓存已清空', 'success');
+                    } catch(err) {
+                        ui.showToast('清空缓存失败，请检查 Mosdns 是否包含 cache 插件的 clear_cache 接口。', 'error');
+                    } finally {
+                        ui.setLoading(btn, false);
+                    }
+                }
+            });
+
+            elements.autoClearToggle?.addEventListener('change', (e) => { autoClearManager.updateSettings(e.target.checked); });
             elements.logSearch?.addEventListener('input', debounce(applyLogFilterAndRender, 300));
             elements.logQueryTableContainer?.addEventListener('scroll', () => { const { scrollTop, scrollHeight, clientHeight } = elements.logQueryTableContainer; if (clientHeight + scrollTop >= scrollHeight - 200) loadMoreLogs(); }, { passive: true });
             
-            elements.body.addEventListener('click', e => {
-                const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]');
-                if (trigger && state.isTouchDevice) {
-                    if (trigger.matches('[data-log-index], [data-rank-index]')) {
-                         e.preventDefault(); e.stopPropagation();
-                         ui.openLogDetailModal(trigger);
-                         return;
-                    }
-                }
-                const interactiveTarget = e.target.closest('.clickable-link, .tab-link-action, .copy-btn, .filter-btn'); 
-                if(!interactiveTarget) return;
-                if (interactiveTarget.matches('.copy-btn')) { e.stopPropagation(); navigator.clipboard.writeText(interactiveTarget.dataset.copyValue).then(() => ui.showToast('已复制到剪贴板')).catch(() => ui.showToast('复制失败', 'error')); return; }
-                if (interactiveTarget.matches('.filter-btn')) {
+            // [FIXED] Centralized click handler function for interactive elements
+            const handleInteractiveClick = (e) => {
+                const interactiveButton = e.target.closest('.copy-btn, .filter-btn');
+                const clickableLink = e.target.closest('.clickable-link, .tab-link-action');
+                const logRow = e.target.closest('[data-log-index], [data-rank-index]');
+
+                if (interactiveButton) {
                     e.stopPropagation();
-                    const value = interactiveTarget.dataset.filterValue; const isExact = interactiveTarget.dataset.exactSearch === 'true';
-                    elements.logSearch.value = isExact ? `"${value}"` : value;
-                    const logQueryLink = document.querySelector('.tab-link[href="#log-query"]');
-                    if (logQueryLink && !logQueryLink.classList.contains('active')) handleNavigation(logQueryLink);
-                    else applyLogFilterAndRender();
-                    tooltipManager.hide(); return;
+                    if (interactiveButton.matches('.copy-btn')) {
+                        const textToCopy = interactiveButton.dataset.copyValue;
+                        if (navigator.clipboard && window.isSecureContext) {
+                            navigator.clipboard.writeText(textToCopy).then(() => {
+                                ui.showToast('已复制到剪贴板');
+                            }).catch(() => {
+                                ui.showToast('复制失败', 'error');
+                            });
+                        } else {
+                            // Fallback for non-secure contexts (HTTP) or older browsers
+                            const textArea = document.createElement("textarea");
+                            textArea.value = textToCopy;
+                            textArea.style.position = "absolute";
+                            textArea.style.left = "-9999px";
+                            
+                            // [CRITICAL FIX] Append to the modal if it's open, otherwise to the body.
+                            const parentElement = elements.logDetailModal.open ? elements.logDetailModal : document.body;
+                            parentElement.appendChild(textArea);
+                            
+                            textArea.select();
+                            try {
+                                document.execCommand('copy');
+                                ui.showToast('已复制到剪贴板');
+                            } catch (err) {
+                                ui.showToast('复制失败', 'error');
+                            } finally {
+                                parentElement.removeChild(textArea);
+                            }
+                        }
+                    } else if (interactiveButton.matches('.filter-btn')) {
+                        const value = interactiveButton.dataset.filterValue;
+                        const isExact = interactiveButton.dataset.exactSearch === 'true';
+                        elements.logSearch.value = isExact ? `"${value}"` : value;
+                        const logQueryLink = document.querySelector('.tab-link[href="#log-query"]');
+                        if (logQueryLink && !logQueryLink.classList.contains('active')) {
+                            handleNavigation(logQueryLink);
+                        } else {
+                            applyLogFilterAndRender();
+                        }
+                        tooltipManager.hide();
+                        if (elements.logDetailModal.open) elements.logDetailModal.close();
+                    }
+                } else if (clickableLink) {
+                    e.preventDefault();
+                    if (clickableLink.matches('.clickable-link')) {
+                        const value = clickableLink.dataset.filterValue;
+                        const isExact = clickableLink.dataset.exactSearch === 'true';
+                        elements.logSearch.value = isExact ? `"${value}"` : value;
+                        const logQueryLink = document.querySelector('.tab-link[href="#log-query"]');
+                        if (logQueryLink) {
+                            if (!logQueryLink.classList.contains('active')) {
+                                handleNavigation(logQueryLink);
+                            } else {
+                                applyLogFilterAndRender();
+                            }
+                        }
+                    } else if (clickableLink.matches('.tab-link-action')) {
+                        const link = document.querySelector(`.tab-link[data-tab="${clickableLink.dataset.tab}"]`);
+                        if(link) handleNavigation(link);
+                    }
+                } else if (logRow) {
+                    ui.openLogDetailModal(logRow);
                 }
-                e.preventDefault(); 
-		if (interactiveTarget.matches('.clickable-link')) { const value = interactiveTarget.dataset.filterValue; const isExact = interactiveTarget.dataset.exactSearch === 'true'; elements.logSearch.value = isExact ? `"${value}"` : value; const logQueryLink = document.querySelector('.tab-link[href="#log-query"]'); if (logQueryLink) { if (!logQueryLink.classList.contains('active')) { handleNavigation(logQueryLink); } applyLogFilterAndRender(); } }
-                else if (interactiveTarget.matches('.tab-link-action')) { const link = document.querySelector(`.tab-link[data-tab="${interactiveTarget.dataset.tab}"]`); if(link) handleNavigation(link); } 
-            });
-            
+            };
+
+            // Attach handler to both body and the log detail modal
+            elements.body.addEventListener('click', handleInteractiveClick);
+            elements.logDetailModal.addEventListener('click', handleInteractiveClick);
+
             elements.body.addEventListener('mouseover', e => { if (state.isTouchDevice) return; const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); if (trigger) tooltipManager.handleTriggerEnter(trigger); });
             elements.body.addEventListener('mouseout', e => { if (state.isTouchDevice) return; const trigger = e.target.closest('[data-log-index], [data-rank-index], [data-rule-id]'); if (trigger) tooltipManager.handleTriggerLeave(); });
             elements.tooltip.addEventListener('mouseenter', () => tooltipManager.handleTooltipEnter());
@@ -1710,36 +1899,52 @@
             if (elements.aliasModal) { 
                 [elements.manageAliasesBtn, elements.manageAliasesBtnMobile].forEach(btn => btn?.addEventListener('click', async () => { await aliasManager.renderEditableList(); elements.aliasModal.showModal(); })); 
                 document.getElementById('close-alias-modal')?.addEventListener('click', () => elements.aliasModal.close()); 
-                elements.saveAllAliasesBtn?.addEventListener('click', async () => { ui.setLoading(elements.saveAllAliasesBtn, true); await aliasManager.saveAll(); ui.setLoading(elements.saveAllAliasesBtn, false); }); 
+                
+                elements.saveAllAliasesBtn?.addEventListener('click', async () => {
+                    const btn = elements.saveAllAliasesBtn;
+                    ui.setLoading(btn, true);
+                    try {
+                        await aliasManager.saveAll();
+                    } finally {
+                        ui.setLoading(btn, false);
+                    }
+                }); 
+                
                 document.getElementById('export-aliases-btn')?.addEventListener('click', async (e) => {
                     const btn = e.currentTarget;
                     ui.setLoading(btn, true);
-                    await aliasManager.export();
-                    ui.setLoading(btn, false);
+                    try {
+                        await aliasManager.export();
+                    } finally {
+                        ui.setLoading(btn, false);
+                    }
                 });
+
                 document.getElementById('import-aliases-btn')?.addEventListener('click', () => elements.importAliasInput?.click()); 
                 elements.importAliasInput?.addEventListener('change', (e) => { if (e.target.files?.length > 0) { aliasManager.import(e.target.files[0]); e.target.value = ''; } }); 
+                
                 elements.manualAliasForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const btn = e.currentTarget.querySelector('button');
                     ui.setLoading(btn, true);
                     const ip = document.getElementById('manual-alias-ip').value.trim();
                     const name = document.getElementById('manual-alias-name').value.trim();
-                    if (ip && name) {
-                        try {
+                    try {
+                        if (ip && name) {
                             aliasManager.set(ip, name);
                             await aliasManager.save();
                             ui.showToast(`已添加别名: ${name} -> ${ip}`, 'success');
                             e.target.reset();
                             await aliasManager.renderEditableList();
                             await updatePageData(false);
-                        } catch (err) {
-                            // Error toast is handled by api.fetch
+                        } else {
+                            ui.showToast('IP地址和别名均不能为空', 'error');
                         }
-                    } else {
-                        ui.showToast('IP地址和别名均不能为空', 'error');
+                    } catch (err) {
+                        // Error toast is handled by api.fetch
+                    } finally {
+                        ui.setLoading(btn, false);
                     }
-                    ui.setLoading(btn, false);
                 }); 
             }
             elements.ruleForm.addEventListener('submit', handleRuleFormSubmit);
@@ -1775,9 +1980,10 @@
         async function init() {
             state.isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
             themeManager.init();
-            await aliasManager.load(); // MODIFIED: Await the async load
+            await aliasManager.load(); 
             historyManager.load();
             autoRefreshManager.loadSettings();
+            autoClearManager.loadSettings();
             tableSorter.init();
             setupEventListeners();
             setupGlowEffect();
