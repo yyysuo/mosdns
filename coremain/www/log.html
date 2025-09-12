@@ -1861,7 +1861,7 @@
                         tooltipManager.hide();
                         if (elements.logDetailModal.open) elements.logDetailModal.close();
                     }
-                } else if (clickableLink) {
+	} else if (clickableLink) {
                     e.preventDefault();
                     if (clickableLink.matches('.clickable-link')) {
                         const value = clickableLink.dataset.filterValue;
@@ -1869,11 +1869,12 @@
                         elements.logSearch.value = isExact ? `"${value}"` : value;
                         const logQueryLink = document.querySelector('.tab-link[href="#log-query"]');
                         if (logQueryLink) {
+                            // 如果日志标签页不是当前活动的，则先切换过去
                             if (!logQueryLink.classList.contains('active')) {
                                 handleNavigation(logQueryLink);
-                            } else {
-                                applyLogFilterAndRender();
                             }
+                            // 无论之前是否在日志页，都强制执行一次日志过滤和渲染
+                            applyLogFilterAndRender();
                         }
                     } else if (clickableLink.matches('.tab-link-action')) {
                         const link = document.querySelector(`.tab-link[data-tab="${clickableLink.dataset.tab}"]`);
