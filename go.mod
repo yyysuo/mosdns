@@ -1,6 +1,6 @@
 module github.com/IrineSistiana/mosdns/v5
 
-go 1.25.1
+go 1.25.3
 
 require (
 	github.com/IrineSistiana/go-bytes-pool v0.0.0-20230918115058-c72bd9761c57
@@ -14,6 +14,7 @@ require (
 	github.com/nadoo/ipset v0.5.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/quic-go/quic-go v0.54.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/sagernet/sing v0.6.7
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
@@ -22,10 +23,10 @@ require (
 	go.uber.org/zap v1.27.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/exp v0.0.0-20241210194714-1829a127f884
-	golang.org/x/net v0.44.0
+	golang.org/x/net v0.46.0
 	golang.org/x/sync v0.17.0
-	golang.org/x/sys v0.36.0
-	golang.org/x/time v0.13.0
+	golang.org/x/sys v0.37.0
+	golang.org/x/time v0.14.0
 	google.golang.org/protobuf v1.36.9
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -59,8 +60,8 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
-	golang.org/x/mod v0.27.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/mod v0.28.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/tools v0.37.0 // indirect
 )
