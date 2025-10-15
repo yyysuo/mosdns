@@ -74,6 +74,7 @@ import (
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/cname_remover"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/adguard"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/webinfo"
+	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/requery"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence/fallback"
 	_ "github.com/IrineSistiana/mosdns/v5/plugin/executable/sleep"
