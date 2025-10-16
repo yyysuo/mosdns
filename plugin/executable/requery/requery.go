@@ -567,19 +567,32 @@ func (p *Requery) rescheduleTasks() {
 	}
 }
 
-// [FIX] Completely rebuilt setupScheduler to correctly handle start_datetime
+// [Modified] Rewrite setupScheduler to implement precise periodic scheduling based on the start time
 func (p *Requery) setupScheduler() error {
-	// Remove all previous jobs from the running scheduler instance
-    for _, entry := range p.scheduler.Entries() {
-        p.scheduler.Remove(entry.ID)
-    }
+	// 1. Remove all old scheduled jobs. This logic remains unchanged.
+	for _, entry := range p.scheduler.Entries() {
+		p.scheduler.Remove(entry.ID)
+	}
 
+	// 2. Check if the scheduler is enabled in the config. This logic remains unchanged.
 	if !p.config.Scheduler.Enabled || p.config.Scheduler.IntervalMinutes <= 0 {
-		log.Println("[requery] Scheduler is disabled in config.")
+		log.Println("[requery] Scheduler is disabled or interval is invalid in config.")
 		return nil
 	}
 
-	// The function to be executed by the scheduler
+	// 3. Check and parse the start time (start_datetime).
+	// If it's not set, precise scheduling is not possible, so we return directly.
+	if p.config.Scheduler.StartDatetime == "" {
+		log.Println("[requery] Scheduler is enabled but 'start_datetime' is not set. No task scheduled.")
+		return nil
+	}
+	startTime, err := time.Parse(time.RFC3339, p.config.Scheduler.StartDatetime)
+	if err != nil {
+		log.Printf("[requery] WARN: Invalid 'start_datetime' format ('%s'), scheduler disabled: %v", p.config.Scheduler.StartDatetime, err)
+		return nil // Return nil to avoid mosdns startup failure, but the scheduler will not work.
+	}
+
+	// 4. Define the job to be executed. This logic remains unchanged and already includes the check to prevent task overlap.
 	jobFunc := func() {
 		log.Println("[requery] Scheduler is triggering a task.")
 		p.mu.Lock()
@@ -589,41 +602,50 @@ func (p *Requery) setupScheduler() error {
 			log.Println("[requery] Scheduler skipped: previous task is still running.")
 			return
 		}
-		
+
 		p.taskCtx, p.taskCancel = context.WithCancel(context.Background())
 		go p.runTask(p.taskCtx)
 	}
-	
-	// If StartDatetime is set and is in the future, schedule a one-time run.
-	if p.config.Scheduler.StartDatetime != "" {
-		startTime, err := time.Parse(time.RFC3339, p.config.Scheduler.StartDatetime)
-		if err != nil {
-			log.Printf("[requery] WARN: Invalid start_datetime format, ignoring: %v", err)
-		} else if time.Now().UTC().Before(startTime) {
-			delay := time.Until(startTime)
-			log.Printf("[requery] Scheduling first run in %v at %v.", delay, startTime)
-			
-			time.AfterFunc(delay, func() {
-				// Execute the job for the first time
-				jobFunc()
-				
-				// After the first run, schedule the recurring job
-				p.mu.Lock()
-				defer p.mu.Unlock()
-				p.rescheduleTasks() // Re-call to set up the recurring job
-			})
-			return nil // The recurring job will be set up after the first run
-		}
+
+	// 5. [Core Modification] Calculate the next precise execution time point.
+	now := time.Now().UTC()
+	interval := time.Duration(p.config.Scheduler.IntervalMinutes) * time.Minute
+	var nextRunTime time.Time
+
+	if startTime.After(now) {
+		// If the start time is in the future, the next run time is the start time itself.
+		nextRunTime = startTime
+	} else {
+		// If the start time has passed, calculate the next period from that point.
+		// a. Calculate the duration that has elapsed since the start time.
+		elapsed := now.Sub(startTime)
+		// b. Calculate how many full intervals have passed.
+		cyclesPassed := elapsed / interval
+		// c. The next run time = start time + (number of cycles passed + 1) * interval.
+		nextRunTime = startTime.Add(time.Duration(cyclesPassed+1) * interval)
 	}
 
-	// If StartDatetime is in the past or not set, start the recurring job immediately.
-	spec := fmt.Sprintf("@every %dm", p.config.Scheduler.IntervalMinutes)
-	_, err := p.scheduler.AddFunc(spec, jobFunc)
-	if err != nil {
-		return fmt.Errorf("failed to add cron job with spec '%s': %w", spec, err)
+	// 6. Use time.AfterFunc to create a one-off timer to schedule the next job.
+	delay := nextRunTime.Sub(now)
+
+	if delay > 0 {
+		log.Printf("[requery] Next scheduled run will be at %v (in %v).", nextRunTime.Local(), delay.Round(time.Second))
+		
+		// When the timer fires, it will execute the job and then immediately call rescheduleTasks 
+		// to schedule the subsequent job, creating a chain.
+		time.AfterFunc(delay, func() {
+			jobFunc()
+			// Immediately reschedule to calculate and arrange the next execution cycle.
+			p.rescheduleTasks()
+		})
+	} else {
+		// This is an edge case, which should rarely happen. If the calculated run time is in the past
+		// (possibly due to system clock issues or a long-running task),
+		// reschedule immediately to find the next valid time point.
+		log.Printf("[requery] Calculated next run time (%v) is in the past. Attempting to reschedule immediately.", nextRunTime.Local())
+		go p.rescheduleTasks()
 	}
 
-	log.Printf("[requery] Scheduler job added/updated with spec: %s", spec)
 	return nil
 }
 
