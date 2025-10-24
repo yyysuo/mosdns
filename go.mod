@@ -9,11 +9,11 @@ require (
 	github.com/google/nftables v0.3.0
 	github.com/google/uuid v1.6.0
 	github.com/kardianos/service v1.2.4
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.18.1
 	github.com/miekg/dns v1.1.68
 	github.com/nadoo/ipset v0.5.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/quic-go/quic-go v0.54.0
+	github.com/quic-go/quic-go v0.55.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sagernet/sing v0.6.7
 	github.com/spf13/cobra v1.10.1
