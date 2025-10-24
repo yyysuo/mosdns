@@ -374,6 +374,7 @@ func (p *Requery) api() *chi.Mux {
 	r.Post("/cancel", p.handleCancelTask)
 	r.Post("/scheduler/config", p.handleUpdateScheduler)
 	r.Get("/stats/source_file_counts", p.handleGetSourceFileCounts)
+	r.Get("/stats/backup_file_count", p.handleGetBackupFileCount)
 	r.Post("/clear_backup", p.handleClearBackupFile)
 
 	return r
@@ -503,6 +504,43 @@ func (p *Requery) handleGetSourceFileCounts(w http.ResponseWriter, r *http.Reque
 	}
 	
 	p.jsonResponse(w, map[string]any{"status": "success", "data": counts}, http.StatusOK)
+}
+
+func (p *Requery) handleGetBackupFileCount(w http.ResponseWriter, r *http.Request) {
+	p.mu.RLock()
+	filePath := p.config.DomainProcessing.OutputFile
+	p.mu.RUnlock()
+
+	// if p.config.Status.TaskState == "running" {
+	// 	p.jsonError(w, "Cannot get count while a task is running.", http.StatusConflict)
+	// 	return
+	// }
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			p.jsonResponse(w, map[string]any{"status": "success", "count": 0}, http.StatusOK)
+			return
+		}
+		p.jsonError(w, "Failed to open backup file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer file.Close()
+
+	count := 0
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if len(strings.TrimSpace(scanner.Text())) > 0 {
+			count++
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		p.jsonError(w, "Error while scanning backup file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	p.jsonResponse(w, map[string]any{"status": "success", "count": count}, http.StatusOK)
 }
 
 // ----------------------------------------------------------------------------
