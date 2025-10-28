@@ -22,8 +22,8 @@ package coremain
 import (
 	"fmt"
 	"github.com/IrineSistiana/mosdns/v5/mlog"
-	"github.com/kardianos/service"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/kardianos/service"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -126,7 +126,7 @@ func NewServer(sf *serverFlags) (*Mosdns, error) {
 	}
 	mlog.L().Info("main config loaded", zap.String("file", fileUsed))
 
-	return NewMosdns(cfg)
+	return NewMosdns(cfg, fileUsed)
 }
 
 // loadConfig load a config from a file. If filePath is empty, it will

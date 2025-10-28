@@ -82,10 +82,11 @@ func handleSetAuditCapacity(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// The validation is inside the SetCapacity method.
 	GlobalAuditCollector.SetCapacity(req.Capacity)
-	
+
+	updatedCapacity := GlobalAuditCollector.GetCapacity()
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Audit log capacity set to %d. Existing logs have been cleared.", req.Capacity)
+	fmt.Fprintf(w, "Audit log capacity set to %d. Existing logs have been cleared.", updatedCapacity)
 }

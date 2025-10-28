@@ -29,6 +29,7 @@ import (
 	"net/http/pprof"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/IrineSistiana/mosdns/v5/mlog"
@@ -57,7 +58,7 @@ type Mosdns struct {
 }
 
 // NewMosdns initializes a mosdns instance and its plugins.
-func NewMosdns(cfg *Config) (*Mosdns, error) {
+func NewMosdns(cfg *Config, configPath string) (*Mosdns, error) {
 	// Init logger.
 	baseLogger, err := mlog.NewLogger(cfg.Log)
 	if err != nil {
@@ -140,7 +141,12 @@ func NewMosdns(cfg *Config) (*Mosdns, error) {
 		return nil, err
 	}
 	// Plugins from config.
-	if err := m.loadPluginsFromCfg(cfg, 0); err != nil {
+	baseDir := ""
+	if len(configPath) > 0 {
+		baseDir = filepath.Dir(configPath)
+	}
+
+	if err := m.loadPluginsFromCfg(cfg, 0, baseDir); err != nil {
 		m.sc.SendCloseSignal(err)
 		_ = m.sc.WaitClosed()
 		return nil, err
@@ -423,7 +429,7 @@ func (m *Mosdns) loadPresetPlugins() error {
 }
 
 // loadPluginsFromCfg loads plugins from this config. It follows include first.
-func (m *Mosdns) loadPluginsFromCfg(cfg *Config, includeDepth int) error {
+func (m *Mosdns) loadPluginsFromCfg(cfg *Config, includeDepth int, baseDir string) error {
 	const maxIncludeDepth = 8
 	if includeDepth > maxIncludeDepth {
 		return errors.New("maximum include depth reached")
@@ -432,13 +438,22 @@ func (m *Mosdns) loadPluginsFromCfg(cfg *Config, includeDepth int) error {
 
 	// Follow include first.
 	for _, s := range cfg.Include {
-		subCfg, path, err := loadConfig(s)
-		if err != nil {
-			return fmt.Errorf("failed to read config from %s, %w", s, err)
+		includePath := s
+		if len(includePath) > 0 && !filepath.IsAbs(includePath) && len(baseDir) > 0 {
+			includePath = filepath.Join(baseDir, includePath)
 		}
-		m.logger.Info("load config", zap.String("file", path))
-		if err := m.loadPluginsFromCfg(subCfg, includeDepth); err != nil {
-			return fmt.Errorf("failed to load config from %s, %w", s, err)
+
+		subCfg, pathUsed, err := loadConfig(includePath)
+		if err != nil {
+			return fmt.Errorf("failed to read config from %s, %w", includePath, err)
+		}
+		nextBase := baseDir
+		if len(pathUsed) > 0 {
+			nextBase = filepath.Dir(pathUsed)
+		}
+		m.logger.Info("load config", zap.String("file", pathUsed))
+		if err := m.loadPluginsFromCfg(subCfg, includeDepth, nextBase); err != nil {
+			return fmt.Errorf("failed to load config from %s, %w", pathUsed, err)
 		}
 	}
 
