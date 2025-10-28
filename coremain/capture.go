@@ -17,6 +17,8 @@ type InMemoryLogCollector struct {
 	capturing bool
 	logs      []map[string]interface{}
 	stopTimer *time.Timer
+	origLevel zapcore.Level
+	hasOrig   bool
 }
 
 // GlobalLogCollector is a singleton instance for log capturing.
@@ -30,7 +32,12 @@ func (c *InMemoryLogCollector) StartCapture(duration time.Duration, logLevel zap
 	defer c.mu.Unlock()
 
 	if c.capturing {
-		c.stopTimer.Stop() // Stop previous timer if a new capture starts
+		if c.stopTimer != nil {
+			c.stopTimer.Stop() // Stop previous timer if a new capture starts
+		}
+	} else {
+		c.origLevel = logLevel.Level()
+		c.hasOrig = true
 	}
 
 	// Reset log buffer for the new capture session.
@@ -52,10 +59,16 @@ func (c *InMemoryLogCollector) StopCapture(logLevel zap.AtomicLevel) {
 		return
 	}
 
-	logLevel.SetLevel(zap.InfoLevel) // Restore to default INFO level
+	if c.hasOrig {
+		logLevel.SetLevel(c.origLevel) // Restore to original level
+		c.hasOrig = false
+	} else {
+		logLevel.SetLevel(zap.InfoLevel) // Fallback to INFO
+	}
 	c.capturing = false
 	if c.stopTimer != nil {
 		c.stopTimer.Stop()
+		c.stopTimer = nil
 	}
 }
 
@@ -67,11 +80,11 @@ func (c *InMemoryLogCollector) AddLog(entry zapcore.Entry, fields []zapcore.Fiel
 	if !c.capturing {
 		return
 	}
-    
-    // Only capture debug level logs into memory.
-    if entry.Level != zap.DebugLevel {
-        return
-    }
+
+	// Only capture debug level logs into memory.
+	if entry.Level != zap.DebugLevel {
+		return
+	}
 
 	// Convert fields to a map
 	enc := zapcore.NewMapObjectEncoder()
