@@ -125,11 +125,16 @@ func (m *shard[K, V]) get(key K) (V, bool) {
 func (m *shard[K, V]) set(key K, v V) {
 	m.l.Lock()
 	defer m.l.Unlock()
-	if m.max > 0 && len(m.m)+1 > m.max {
-		for k := range m.m {
-			delete(m.m, k)
-			if len(m.m)+1 <= m.max {
-				break
+	if m.max > 0 {
+		curLen := len(m.m)
+		if curLen >= m.max {
+			removeCnt := curLen - m.max + 1
+			for k := range m.m {
+				delete(m.m, k)
+				removeCnt--
+				if removeCnt == 0 {
+					break
+				}
 			}
 		}
 	}
