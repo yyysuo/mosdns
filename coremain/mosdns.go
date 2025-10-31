@@ -41,7 +41,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// <<< MODIFIED: Adjusted the embed list for rlog assets
+// 嵌入 www 静态资源（含 rlog 相关文件）
 //
 //go:embed www/mosdns.html www/mosdnsp.html www/log.html www/log_plain.html www/rlog.html www/adguard.html www/rlog.css www/rlog.js
 var content embed.FS

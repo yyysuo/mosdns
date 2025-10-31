@@ -8,8 +8,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// MODIFIED: Exported LogMarkKey to be accessible from other packages.
-const LogMarkKey = 0xFEEDBEEF // ADDED: A globally accessible key for marking contexts.
+// LogMarkKey 用于在上下文中打标记（布尔开关/跟踪等用途）
+const LogMarkKey = 0xFEEDBEEF
 
 // InMemoryLogCollector is a thread-safe in-memory log collector.
 type InMemoryLogCollector struct {
