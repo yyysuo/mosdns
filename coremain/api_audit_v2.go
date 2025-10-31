@@ -66,7 +66,8 @@ func handleV2GetStats(w http.ResponseWriter, r *http.Request) {
 // 2. Handler for: Get domain query ranking
 func handleV2GetDomainRank(w http.ResponseWriter, r *http.Request) {
 	limit := parseQueryInt(r, "limit", 20) // Default to top 20
-    rank := GlobalAuditCollector.CalculateRank(RankByDomain, limit) // Changed function argument
+	// MODIFIED: Use the new RankByDomain enum
+	rank := GlobalAuditCollector.CalculateRank(RankByDomain, limit) // Changed function argument
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(rank); err != nil {
 		mlog.L().Error("failed to encode v2 domain rank", zap.Error(err))
@@ -76,7 +77,8 @@ func handleV2GetDomainRank(w http.ResponseWriter, r *http.Request) {
 // 3. Handler for: Get client IP query ranking
 func handleV2GetClientRank(w http.ResponseWriter, r *http.Request) {
 	limit := parseQueryInt(r, "limit", 20) // Default to top 20
-    rank := GlobalAuditCollector.CalculateRank(RankByClient, limit) // Changed function argument
+	// MODIFIED: Use the new RankByClient enum
+	rank := GlobalAuditCollector.CalculateRank(RankByClient, limit) // Changed function argument
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(rank); err != nil {
 		mlog.L().Error("failed to encode v2 client rank", zap.Error(err))

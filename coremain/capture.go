@@ -80,7 +80,7 @@ func (c *InMemoryLogCollector) AddLog(entry zapcore.Entry, fields []zapcore.Fiel
 	if !c.capturing {
 		return
 	}
-
+  
 	// Only capture debug level logs into memory.
 	if entry.Level != zap.DebugLevel {
 		return

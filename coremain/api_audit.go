@@ -19,7 +19,7 @@ func RegisterAuditAPI(router *chi.Mux) {
 		r.Get("/status", handleAuditStatus)
 		r.Get("/logs", handleGetAuditLogs)
 		r.Post("/clear", handleClearAuditLogs)
-        // 容量管理相关路由
+    // 容量管理相关路由
 		r.Get("/capacity", handleGetAuditCapacity)
 		r.Post("/capacity", handleSetAuditCapacity)
 	})

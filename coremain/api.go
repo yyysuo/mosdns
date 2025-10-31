@@ -24,6 +24,7 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	}
 }
 
+
 // RegisterCaptureAPI registers the log capture APIs to the given router.
 func RegisterCaptureAPI(router *chi.Mux) {
 	router.Post("/api/v1/capture/start", handleStartCapture())
@@ -55,7 +56,6 @@ func handleStartCapture() http.HandlerFunc {
 		duration := time.Duration(req.DurationSeconds) * time.Second
 		// Use the exported mlog.Lvl
 		GlobalLogCollector.StartCapture(duration, mlog.Lvl)
-
 		response := struct {
 			Message          string    `json:"message"`
 			DurationSeconds  int       `json:"duration_seconds"`

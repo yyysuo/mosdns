@@ -10,6 +10,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", type=int)
 args = parser.parse_args()
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", type=int)
+args = parser.parse_args()
+
 PROJECT_NAME = 'mosdns'
 RELEASE_DIR = './release'
 
