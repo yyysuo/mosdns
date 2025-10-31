@@ -99,7 +99,16 @@ func (c *InMemoryLogCollector) AddLog(entry zapcore.Entry, fields []zapcore.Fiel
 	logMap["msg"] = entry.Message
 	logMap["logger_name"] = entry.LoggerName
 
-	c.logs = append(c.logs, logMap)
+    // 限制最大容量：达到 cap 时丢弃最旧，保持 O(n) 但 n 较小（默认 2048）。
+    if len(c.logs) < cap(c.logs) {
+        c.logs = append(c.logs, logMap)
+    } else if cap(c.logs) > 0 {
+        // 左移一位，覆盖最旧元素。
+        copy(c.logs[0:], c.logs[1:])
+        c.logs[len(c.logs)-1] = logMap
+    } else {
+        c.logs = append(c.logs, logMap)
+    }
 }
 
 // GetLogs returns all captured logs and clears the in-memory buffer.

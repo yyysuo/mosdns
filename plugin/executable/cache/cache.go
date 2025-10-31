@@ -363,21 +363,41 @@ func (c *Cache) startDumpLoop() {
 }
 
 func (c *Cache) dumpCache() error {
-	if len(c.args.DumpFile) == 0 {
-		return nil
-	}
-	f, err := os.Create(c.args.DumpFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+    if len(c.args.DumpFile) == 0 {
+        return nil
+    }
+    // 原子落盘：写入同目录临时文件 -> Sync -> Rename 覆盖
+    dir := filepath.Dir(c.args.DumpFile)
+    tmp, err := os.CreateTemp(dir, ".mosdns-cache-*.tmp")
+    if err != nil {
+        return err
+    }
+    tmpPath := tmp.Name()
+    // 确保清理临时文件
+    defer func() {
+        tmp.Close()
+        os.Remove(tmpPath)
+    }()
 
-	en, err := c.writeDump(f)
-	if err != nil {
-		return fmt.Errorf("failed to write dump, %w", err)
-	}
-	c.logger.Info("cache dumped", zap.Int("entries", en))
-	return nil
+    en, err := c.writeDump(tmp)
+    if err != nil {
+        return fmt.Errorf("failed to write dump, %w", err)
+    }
+    if err := tmp.Sync(); err != nil { // 尽力刷盘
+        return fmt.Errorf("failed to sync dump, %w", err)
+    }
+    if err := tmp.Close(); err != nil {
+        return fmt.Errorf("failed to close dump, %w", err)
+    }
+    // 尝试直接重命名覆盖；如平台不支持覆盖，先移除再重命名。
+    if err := os.Rename(tmpPath, c.args.DumpFile); err != nil {
+        _ = os.Remove(c.args.DumpFile)
+        if err2 := os.Rename(tmpPath, c.args.DumpFile); err2 != nil {
+            return fmt.Errorf("failed to replace dump: %w", err2)
+        }
+    }
+    c.logger.Info("cache dumped", zap.Int("entries", en))
+    return nil
 }
 
 func (c *Cache) Api() *chi.Mux {
