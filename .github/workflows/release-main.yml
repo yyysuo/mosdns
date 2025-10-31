@@ -1,0 +1,46 @@
+name: Release (main)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          check-latest: true
+
+      - name: Generate tag
+        shell: bash
+        run: |
+          echo "TAG_NAME=main-$(date +'%Y%m%d-%H%M')-${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build
+        run: python ./release.py
+        env:
+          CGO_ENABLED: '0'
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: "Release ${{ env.TAG_NAME }}"
+          files: './release/mosdns*.zip'
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
