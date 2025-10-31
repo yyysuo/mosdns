@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", type=int)
@@ -59,35 +60,54 @@ def go_build():
         logger.exception('failed to generate config template')
         raise
 
-    for env in envs:
-        os_env = os.environ.copy()  # new env
+    def build_one(target_env, version):
+        os_env = os.environ.copy()
 
         s = PROJECT_NAME
-        for pairs in env:
-            os_env[pairs[0]] = pairs[1]  # add env
+        for pairs in target_env:
+            os_env[pairs[0]] = pairs[1]
             s = s + '-' + pairs[1]
-        zip_filename = s + '.zip'
 
+        zip_filename = s + '.zip'
         suffix = '.exe' if os_env['GOOS'] == 'windows' else ''
         bin_filename = PROJECT_NAME + suffix
+
+        # Avoid filename collisions when building in parallel
+        build_dir = os.path.join('build', s)
+        os.makedirs(build_dir, exist_ok=True)
+        bin_path = os.path.join(build_dir, bin_filename)
 
         logger.info(f'building {zip_filename}')
         try:
             subprocess.check_call(
-                f'go build -ldflags "-s -w -X main.version={VERSION}" -trimpath -o {bin_filename} ../', shell=True,
+                f'go build -ldflags "-s -w -X main.version={version}" -trimpath -o {bin_path} ../',
+                shell=True,
                 env=os_env)
 
-            with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED,
-                                 compresslevel=5) as zf:
-                zf.write(bin_filename)
+            with zipfile.ZipFile(zip_filename, mode='w', compression=zipfile.ZIP_DEFLATED, compresslevel=5) as zf:
+                # keep binary name inside archive as original `mosdns[.exe]`
+                zf.write(bin_path, arcname=bin_filename)
                 zf.write('../README.md', 'README.md')
                 zf.write('./config.yaml', 'config.yaml')
                 zf.write('../LICENSE', 'LICENSE')
 
+            return True, s
         except subprocess.CalledProcessError as e:
             logger.error(f'build {zip_filename} failed: {e.args}')
+            return False, s
         except Exception:
             logger.exception('unknown err')
+            return False, s
+
+    max_workers = int(os.getenv('MAX_WORKERS', os.cpu_count() or 2))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(build_one, env, VERSION) for env in envs]
+        for fut in as_completed(futures):
+            # Drain exceptions to avoid silent thread termination
+            try:
+                fut.result()
+            except Exception:
+                logger.exception('worker crashed')
 
 
 if __name__ == '__main__':
