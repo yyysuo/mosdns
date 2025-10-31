@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         listContentInfo: document.getElementById('list-content-info'),
         listSaveBtn: document.getElementById('list-save-btn'),
         listMgmtClientIpHint: document.getElementById('list-mgmt-client-ip-hint'),
+        listMgmtRewriteHint: document.getElementById('list-mgmt-rewrite-hint'),
 
         featureSwitchesModule: document.getElementById('feature-switches-module'),
         coreModeSwitchGroup: document.getElementById('core-mode-switch-group'),
@@ -1774,7 +1775,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { tag: 'blocklist', name: '黑名单' },
             { tag: 'greylist', name: '灰名单' },
             { tag: 'ddnslist', name: 'DDNS 域名' },
-            { tag: 'client_ip', name: '客户端 IP' }
+            { tag: 'client_ip', name: '客户端 IP' },
+            { tag: 'rewrite', name: '重定向' }
         ],
 
         init() {
@@ -1796,6 +1798,9 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.listMgmtNav.querySelectorAll('.list-mgmt-link').forEach(l => l.classList.toggle('active', l.dataset.listTag === tag));
             
             elements.listMgmtClientIpHint.style.display = (tag === 'client_ip') ? 'block' : 'none';
+            if (elements.listMgmtRewriteHint) {
+                elements.listMgmtRewriteHint.style.display = (tag === 'rewrite') ? 'block' : 'none';
+            }
 
             elements.listContentLoader.style.display = 'flex';
             elements.listContentTextArea.style.display = 'none';
