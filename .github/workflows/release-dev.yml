@@ -38,10 +38,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: "Dev ${ { env.TAG_NAME } }"
+          name: "Dev ${{ env.TAG_NAME }}"
           files: './release/mosdns*.zip'
           prerelease: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
