@@ -9,6 +9,7 @@ import (
     "github.com/IrineSistiana/mosdns/v5/pkg/query_context"
     "github.com/IrineSistiana/mosdns/v5/pkg/upstream"
     "github.com/miekg/dns"
+    "github.com/prometheus/client_golang/prometheus"
 )
 
 // fakeUpstream is a minimal upstream implementation used for benchmarks.
@@ -54,13 +55,18 @@ func buildForwardForBench(latencies []time.Duration, concurrent int) *Forward {
         // logger: nil is fine; code guards with zap.NewNop()
         tag2Upstream: make(map[string]*upstreamWrapper),
     }
-    for i, d := range latencies {
+    for _, d := range latencies {
         uw := &upstreamWrapper{
             u:   &fakeUpstream{delay: d},
             cfg: UpstreamConfig{UpstreamQueryTimeout: int((2 * time.Second).Milliseconds())},
+            queryTotal: prometheus.NewCounter(prometheus.CounterOpts{}),
+            errTotal:   prometheus.NewCounter(prometheus.CounterOpts{}),
+            thread:     prometheus.NewGauge(prometheus.GaugeOpts{}),
+            responseLatency: prometheus.NewHistogram(prometheus.HistogramOpts{Buckets: []float64{1, 5, 10, 20, 50, 100}}),
+            connOpened: prometheus.NewCounter(prometheus.CounterOpts{}),
+            connClosed: prometheus.NewCounter(prometheus.CounterOpts{}),
         }
         f.us = append(f.us, uw)
-        f.tag2Upstream["u"+string(rune('0'+i))] = uw
     }
     return f
 }
