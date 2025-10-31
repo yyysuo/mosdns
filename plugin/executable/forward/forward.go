@@ -263,7 +263,8 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 		err error
 	}
 
-	resChan := make(chan res)
+    // 使用带缓冲通道，避免竞争窗口中的短暂阻塞（功能行为不变）。
+    resChan := make(chan res, concurrent)
 	done := make(chan struct{})
 	defer close(done)
 
@@ -286,7 +287,8 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 
 		go func(uqid uint32, question dns.Question) {
 			defer pool.ReleaseBuf(qc)
-			upstreamCtx, cancel := context.WithTimeout(context.Background(), upstreamTimeout)
+            // 重要：派生自父 ctx，确保上层取消/超时可传递到子查询。
+            upstreamCtx, cancel := context.WithTimeout(ctx, upstreamTimeout)
 			defer cancel()
 
 			var r *dns.Msg
