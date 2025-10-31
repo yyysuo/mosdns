@@ -5,11 +5,25 @@ on:
     branches: [ "dev" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-prerelease:
+  build:
+    name: build target ${{ matrix.index }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        index: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -23,23 +37,41 @@ jobs:
           python-version: '3.13'
           check-latest: true
 
+      - name: Build one target
+        run: python ./release.py -i ${{ matrix.index }}
+        env:
+          CGO_ENABLED: '0'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mosdns-${{ matrix.index }}
+          path: ./release/mosdns*.zip
+          if-no-files-found: error
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Generate tag
-        id: tag
         shell: bash
         run: |
           echo "TAG_NAME=dev-$(date +'%Y%m%d-%H%M')-${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Build
-        run: python ./release.py
-        env:
-          CGO_ENABLED: '0'
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
 
       - name: Publish prerelease
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: "Dev ${{ env.TAG_NAME }}"
-          files: './release/mosdns*.zip'
+          files: './artifacts/mosdns*.zip'
           prerelease: true
           generate_release_notes: true
         env:
