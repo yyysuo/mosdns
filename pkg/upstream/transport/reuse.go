@@ -130,7 +130,8 @@ func (t *ReuseConnTransport) getNewConn(ctx context.Context) (*reusableConn, err
 		c   *reusableConn
 		err error
 	}
-	dialChan := make(chan dialRes)
+    // 带缓冲，避免 caller 取消后 goroutine 在发送路径上阻塞。
+    dialChan := make(chan dialRes, 1)
 	go func() {
 		dialCtx, cancelDial := context.WithTimeout(t.ctx, t.dialTimeout)
 		defer cancelDial()
