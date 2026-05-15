@@ -87,6 +87,7 @@ func (c *cnameRemover) Exec(ctx context.Context, qCtx *query_context.Context) er
 	// 如果遍历完发现没有 IP 记录，说明这是一个纯 CNAME 链（或者其他非IP响应）。
 	// 此时不能执行删除操作，必须保留 CNAME 供客户端进行递归解析。
 	if !hasIP {
+		r.Answer = nil
 		return nil
 	}
 	
