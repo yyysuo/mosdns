@@ -293,6 +293,9 @@ func (f *Forward) exchange(ctx context.Context, qCtx *query_context.Context, us 
 			respPayload, err := u.ExchangeContext(upstreamCtx, *qc)
 			if err != nil {
 				// Skip logging "context deadline exceeded"
+				if errors.Is(err, context.DeadlineExceeded) {
+					u.Close()
+				}
 			} else {
 				r = new(dns.Msg)
 				err = r.Unpack(*respPayload)
