@@ -20,7 +20,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// --- Optimized String Interning with Constant Fast-Path ---
+// --- Optimized String Interning (Lock-Free) ---
 const lruCacheSize = 16384
 
 type lruEntry struct {
@@ -28,8 +28,8 @@ type lruEntry struct {
 	value string
 }
 
+// lruCache 已经移除了互斥锁，因为在优化后的设计中，它仅由单个 worker 协程调用
 type lruCache struct {
-	mu       sync.Mutex
 	capacity int
 	cache    map[string]*list.Element
 	ll       *list.List
@@ -47,9 +47,6 @@ func newLRUCache(capacity int) *lruCache {
 }
 
 func (l *lruCache) Get(key string) (value string, ok bool) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
 	if elem, hit := l.cache[key]; hit {
 		l.ll.MoveToFront(elem)
 		return elem.Value.(*lruEntry).value, true
@@ -58,9 +55,6 @@ func (l *lruCache) Get(key string) (value string, ok bool) {
 }
 
 func (l *lruCache) Put(key, value string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
 	if elem, hit := l.cache[key]; hit {
 		l.ll.MoveToFront(elem)
 		elem.Value.(*lruEntry).value = value
@@ -79,30 +73,12 @@ func (l *lruCache) Put(key, value string) {
 	l.cache[key] = elem
 }
 
-var globalStringLRU = newLRUCache(lruCacheSize)
-
-func internString(s string) string {
-	// OPTIMIZATION: Fast-path for common DNS constants to bypass LRU lock entirely.
-	switch s {
-	case "A", "AAAA", "CNAME", "TXT", "NS", "MX", "PTR", "SOA", "SRV", "HTTPS", "SVCB",
-		"NOERROR", "FORMERR", "SERVFAIL", "NXDOMAIN", "NOTIMP", "REFUSED", "IN",
-		"NO_RESPONSE", "unmatched_rule":
-		return s
-	}
-
-	if val, ok := globalStringLRU.Get(s); ok {
-		return val
-	}
-	globalStringLRU.Put(s, s)
-	return s
-}
-
 type auditContext struct {
 	Ctx                *query_context.Context
 	ProcessingDuration time.Duration
 }
 
-// Pool for auditContext to minimize GC overhead during high-load periods.
+// Pool for auditContext to minimize GC overhead
 var auditCtxPool = sync.Pool{
 	New: func() any { return new(auditContext) },
 }
@@ -137,7 +113,7 @@ const (
 	defaultAuditCapacity   = 100000
 	maxAuditCapacity       = 400000
 	slowestQueriesCapacity = 300
-	auditChannelCapacity   = 10240 
+	auditChannelCapacity   = 10240
 	auditSettingsFilename  = "audit_settings.json"
 )
 
@@ -165,22 +141,21 @@ func (h *slowestQueryHeap) Pop() any {
 
 type AuditCollector struct {
 	mu                 sync.RWMutex
-	capturing          bool
-	capacity           int
+	capturing          atomic.Bool
+	capacity           atomic.Int64
 	logs               []AuditLog
 	head               int
 	slowestQueries     slowestQueryHeap
 	domainCounts       map[string]int
 	clientCounts       map[string]int
 	domainSetCounts    map[string]int
-	totalQueryCount    uint64
 	totalQueryDuration float64
 	ctxChan            chan *auditContext
+	quitChan           chan struct{}
 	workerDone         chan struct{}
 
-	// Lazy Sync Control
-	lastSyncTime time.Time
-	
+	stringLRU *lruCache // 实例级锁消除
+
 	// Global Statistics for monitoring without mutex pressure
 	totalQueryCountGlobal    atomic.Uint64
 	totalQueryDurationGlobal atomic.Uint64 // Stored in microseconds
@@ -214,20 +189,36 @@ func InitializeAuditCollector(configBaseDir string) {
 
 func NewAuditCollector(capacity int) *AuditCollector {
 	c := &AuditCollector{
-		capturing:          true,
-		capacity:           capacity,
 		logs:               make([]AuditLog, 0, capacity),
 		slowestQueries:     make(slowestQueryHeap, 0, slowestQueriesCapacity),
 		domainCounts:       make(map[string]int),
 		clientCounts:       make(map[string]int),
 		domainSetCounts:    make(map[string]int),
-		totalQueryCount:    0,
 		totalQueryDuration: 0.0,
 		ctxChan:            make(chan *auditContext, auditChannelCapacity),
+		quitChan:           make(chan struct{}),
 		workerDone:         make(chan struct{}),
+		stringLRU:          newLRUCache(lruCacheSize),
 	}
+	c.capacity.Store(int64(capacity))
+	c.capturing.Store(true)
 	heap.Init(&c.slowestQueries)
 	return c
+}
+
+func (c *AuditCollector) internString(s string) string {
+	switch s {
+	case "A", "AAAA", "CNAME", "TXT", "NS", "MX", "PTR", "SOA", "SRV", "HTTPS", "SVCB",
+		"NOERROR", "FORMERR", "SERVFAIL", "NXDOMAIN", "NOTIMP", "REFUSED", "IN",
+		"NO_RESPONSE", "unmatched_rule":
+		return s
+	}
+
+	if val, ok := c.stringLRU.Get(s); ok {
+		return val
+	}
+	c.stringLRU.Put(s, s)
+	return s
 }
 
 func (c *AuditCollector) StartWorker() {
@@ -235,33 +226,31 @@ func (c *AuditCollector) StartWorker() {
 }
 
 func (c *AuditCollector) StopWorker() {
-	close(c.ctxChan)
+	close(c.quitChan)
 	<-c.workerDone
 }
 
 func (c *AuditCollector) worker() {
 	defer close(c.workerDone)
-	
-	// Batch processing slice to reduce lock contention frequency
 	batch := make([]*auditContext, 0, 256)
 
 	for {
 		batch = batch[:0]
-		
-		wrappedCtx, ok := <-c.ctxChan
-		if !ok {
+
+		select {
+		case <-c.quitChan:
 			return
+		case wrappedCtx := <-c.ctxChan:
+			batch = append(batch, wrappedCtx)
 		}
-		batch = append(batch, wrappedCtx)
 
 		// Non-blocking drain to fill the batch
-		drainLoop:
+	drainLoop:
 		for len(batch) < cap(batch) {
 			select {
-			case nextItem, ok := <-c.ctxChan:
-				if !ok {
-					break drainLoop
-				}
+			case <-c.quitChan:
+				break drainLoop // 快速逃逸并处理剩余 batch
+			case nextItem := <-c.ctxChan:
 				batch = append(batch, nextItem)
 			default:
 				break drainLoop
@@ -269,17 +258,24 @@ func (c *AuditCollector) worker() {
 		}
 
 		c.processBatch(batch)
-		
+
 		for _, item := range batch {
 			auditCtxPool.Put(item)
+		}
+
+		select {
+		case <-c.quitChan:
+			return
+		default:
 		}
 	}
 }
 
 func (c *AuditCollector) processBatch(batch []*auditContext) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	parsedLogs := make([]AuditLog, 0, len(batch))
+	capVal := int(c.capacity.Load())
 
+	// Step 1: 在无锁环境下进行结构组装、字符串解析、LRU 缓存等耗时操作
 	for _, wrappedCtx := range batch {
 		if wrappedCtx == nil || wrappedCtx.Ctx == nil {
 			continue
@@ -294,30 +290,28 @@ func (c *AuditCollector) processBatch(batch []*auditContext) {
 		c.totalQueryCountGlobal.Add(1)
 		c.totalQueryDurationGlobal.Add(uint64(duration.Microseconds()))
 
-		if !c.capturing || c.capacity == 0 {
+		if !c.capturing.Load() || capVal == 0 {
 			continue
 		}
 
-		// Optimized IP parsing: Strip port before interning to maximize LRU cache utility
 		clientAddr := qCtx.ServerMeta.ClientAddr.String()
 		if host, _, err := net.SplitHostPort(clientAddr); err == nil {
 			clientAddr = host
 		}
 
-		// Optimized domain trim without allocating new string unless necessary
 		qName := qQuestion.Name
 		if len(qName) > 1 && qName[len(qName)-1] == '.' {
 			qName = qName[:len(qName)-1]
 		}
 
 		log := AuditLog{
-			ClientIP:   internString(clientAddr),
-			QueryType:  internString(dns.TypeToString[qQuestion.Qtype]),
-			QueryName:  internString(qName),
-			QueryClass: internString(dns.ClassToString[qQuestion.Qclass]),
+			ClientIP:   c.internString(clientAddr),
+			QueryType:  c.internString(dns.TypeToString[qQuestion.Qtype]),
+			QueryName:  c.internString(qName),
+			QueryClass: c.internString(dns.ClassToString[qQuestion.Qclass]),
 			QueryTime:  qCtx.StartTime(),
 			DurationMs: durationMs,
-			TraceID:    qCtx.TraceID, // OPTIMIZATION: Do not intern unique TraceIDs.
+			TraceID:    qCtx.TraceID,
 		}
 
 		if val, ok := qCtx.GetValue(query_context.KeyDomainSet); ok {
@@ -331,7 +325,7 @@ func (c *AuditCollector) processBatch(batch []*auditContext) {
 		}
 
 		if resp := qCtx.R(); resp != nil {
-			log.ResponseCode = internString(dns.RcodeToString[resp.Rcode])
+			log.ResponseCode = c.internString(dns.RcodeToString[resp.Rcode])
 			log.ResponseFlags = ResponseFlags{
 				AA: resp.Authoritative,
 				TC: resp.Truncated,
@@ -343,26 +337,26 @@ func (c *AuditCollector) processBatch(batch []*auditContext) {
 				for _, ans := range resp.Answer {
 					header := ans.Header()
 					detail := AnswerDetail{
-						Type: internString(dns.TypeToString[header.Rrtype]),
+						Type: c.internString(dns.TypeToString[header.Rrtype]),
 						TTL:  header.Ttl,
 					}
 					switch record := ans.(type) {
 					case *dns.A:
-						detail.Data = internString(record.A.String())
+						detail.Data = c.internString(record.A.String())
 					case *dns.AAAA:
-						detail.Data = internString(record.AAAA.String())
+						detail.Data = c.internString(record.AAAA.String())
 					case *dns.CNAME:
-						detail.Data = internString(record.Target)
+						detail.Data = c.internString(record.Target)
 					case *dns.PTR:
-						detail.Data = internString(record.Ptr)
+						detail.Data = c.internString(record.Ptr)
 					case *dns.NS:
-						detail.Data = internString(record.Ns)
+						detail.Data = c.internString(record.Ns)
 					case *dns.MX:
-						detail.Data = internString(record.Mx)
+						detail.Data = c.internString(record.Mx)
 					case *dns.TXT:
-						detail.Data = internString(strings.Join(record.Txt, " "))
+						detail.Data = c.internString(strings.Join(record.Txt, " "))
 					default:
-						detail.Data = internString(ans.String())
+						detail.Data = c.internString(ans.String())
 					}
 					log.Answers = append(log.Answers, detail)
 				}
@@ -370,16 +364,33 @@ func (c *AuditCollector) processBatch(batch []*auditContext) {
 		} else {
 			log.ResponseCode = "NO_RESPONSE"
 		}
+		parsedLogs = append(parsedLogs, log)
+	}
 
-		// Circular array logic for fixed-memory logging
-		if len(c.logs) < c.capacity {
+	if len(parsedLogs) == 0 {
+		return
+	}
+
+	// Step 2: 细粒度锁定，仅处理数组追加与增量状态更新，彻底消除耗时
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, log := range parsedLogs {
+		if len(c.logs) == capVal {
+			c.decrementStats(c.logs[c.head])
+		}
+
+		c.incrementStats(log)
+
+		// Circular array logic
+		if len(c.logs) < capVal {
 			c.logs = append(c.logs, log)
 		} else {
 			c.logs[c.head] = log
-			c.head = (c.head + 1) % c.capacity
+			c.head = (c.head + 1) % capVal
 		}
 
-		// Update slowest queries heap (Priority Queue)
+		// Update slowest queries heap
 		if c.slowestQueries.Len() < slowestQueriesCapacity {
 			heap.Push(&c.slowestQueries, log)
 		} else if log.DurationMs > c.slowestQueries[0].DurationMs {
@@ -389,43 +400,46 @@ func (c *AuditCollector) processBatch(batch []*auditContext) {
 	}
 }
 
-// syncStatsLocked updates statistical maps when API requests are made.
-func (c *AuditCollector) syncStatsLocked() {
-	if c.capacity == 0 || len(c.logs) == 0 {
-		return
+// 增量统计函数（配合无全量大锁的设计）
+func (c *AuditCollector) incrementStats(log AuditLog) {
+	c.domainCounts[log.QueryName]++
+	c.clientCounts[log.ClientIP]++
+	c.domainSetCounts[log.DomainSet]++
+	c.totalQueryDuration += log.DurationMs
+}
+
+func (c *AuditCollector) decrementStats(log AuditLog) {
+	if c.domainCounts[log.QueryName] > 1 {
+		c.domainCounts[log.QueryName]--
+	} else {
+		delete(c.domainCounts, log.QueryName)
 	}
 
-	now := time.Now()
-	// Throttle synchronization to avoid UI-triggered CPU spikes
-	if now.Sub(c.lastSyncTime) < time.Second {
-		return
+	if c.clientCounts[log.ClientIP] > 1 {
+		c.clientCounts[log.ClientIP]--
+	} else {
+		delete(c.clientCounts, log.ClientIP)
 	}
 
-	// Pre-size maps to reduce re-allocation overhead during heavy processing
-	c.domainCounts = make(map[string]int, 1024)
-	c.clientCounts = make(map[string]int, 64)
-	c.domainSetCounts = make(map[string]int, 16)
-	c.totalQueryCount = uint64(len(c.logs))
-	c.totalQueryDuration = 0.0
-
-	for _, l := range c.logs {
-		c.domainCounts[l.QueryName]++
-		c.clientCounts[l.ClientIP]++
-		c.domainSetCounts[l.DomainSet]++
-		c.totalQueryDuration += l.DurationMs
+	if c.domainSetCounts[log.DomainSet] > 1 {
+		c.domainSetCounts[log.DomainSet]--
+	} else {
+		delete(c.domainSetCounts, log.DomainSet)
 	}
-	
-	c.lastSyncTime = now
+
+	c.totalQueryDuration -= log.DurationMs
+	if c.totalQueryDuration < 0 {
+		c.totalQueryDuration = 0
+	}
 }
 
 func (c *AuditCollector) Collect(qCtx *query_context.Context) {
 	if !c.IsCapturing() {
 		return
 	}
-	
+
 	duration := time.Since(qCtx.StartTime())
-	
-	// Retrieve object from pool to reduce heap pressure
+
 	wrappedCtx := auditCtxPool.Get().(*auditContext)
 	wrappedCtx.Ctx = qCtx
 	wrappedCtx.ProcessingDuration = duration
@@ -433,36 +447,32 @@ func (c *AuditCollector) Collect(qCtx *query_context.Context) {
 	select {
 	case c.ctxChan <- wrappedCtx:
 	default:
-		// Non-blocking drop during system overload
 		auditCtxPool.Put(wrappedCtx)
 	}
 }
 
-func (c *AuditCollector) Start() { c.mu.Lock(); c.capturing = true; c.mu.Unlock() }
-func (c *AuditCollector) Stop()  { c.mu.Lock(); c.capturing = false; c.mu.Unlock() }
-func (c *AuditCollector) IsCapturing() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.capturing
-}
+func (c *AuditCollector) Start()            { c.capturing.Store(true) }
+func (c *AuditCollector) Stop()             { c.capturing.Store(false) }
+func (c *AuditCollector) IsCapturing() bool { return c.capturing.Load() }
 
 func (c *AuditCollector) GetLogs() []AuditLog {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	if c.capacity == 0 || len(c.logs) == 0 {
+	capVal := int(c.capacity.Load())
+	if capVal == 0 || len(c.logs) == 0 {
 		return []AuditLog{}
 	}
 
-	if len(c.logs) < c.capacity {
+	if len(c.logs) < capVal {
 		logsCopy := make([]AuditLog, len(c.logs))
 		copy(logsCopy, c.logs)
 		return logsCopy
 	}
 
-	logsCopy := make([]AuditLog, c.capacity)
+	logsCopy := make([]AuditLog, capVal)
 	copy(logsCopy, c.logs[c.head:])
-	copy(logsCopy[c.capacity-c.head:], c.logs[:c.head])
+	copy(logsCopy[capVal-c.head:], c.logs[:c.head])
 	return logsCopy
 }
 
@@ -480,14 +490,11 @@ func (c *AuditCollector) ClearLogs() {
 	c.domainCounts = make(map[string]int)
 	c.clientCounts = make(map[string]int)
 	c.domainSetCounts = make(map[string]int)
-	c.totalQueryCount = 0
 	c.totalQueryDuration = 0.0
 }
 
 func (c *AuditCollector) GetCapacity() int {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.capacity
+	return int(c.capacity.Load())
 }
 
 func (c *AuditCollector) SetCapacity(newCapacity int, configBaseDir string) {
@@ -503,7 +510,7 @@ func (c *AuditCollector) SetCapacity(newCapacity int, configBaseDir string) {
 
 	c.saveSettings(newCapacity, configBaseDir)
 
-	c.capacity = newCapacity
+	c.capacity.Store(int64(newCapacity))
 	c.logs = make([]AuditLog, 0, newCapacity)
 	c.head = 0
 	c.slowestQueries = make(slowestQueryHeap, 0, slowestQueriesCapacity)
@@ -511,7 +518,6 @@ func (c *AuditCollector) SetCapacity(newCapacity int, configBaseDir string) {
 	c.domainCounts = make(map[string]int)
 	c.clientCounts = make(map[string]int)
 	c.domainSetCounts = make(map[string]int)
-	c.totalQueryCount = 0
 	c.totalQueryDuration = 0.0
 }
 
@@ -541,50 +547,26 @@ type V2GetLogsParams struct {
 	Exact       bool
 }
 
-func (c *AuditCollector) getLogsSnapshot() []AuditLog {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if c.capacity == 0 || len(c.logs) == 0 {
-		return []AuditLog{}
-	}
-
-	snapshot := make([]AuditLog, len(c.logs))
-	if len(c.logs) < c.capacity {
-		copy(snapshot, c.logs)
-	} else {
-		copy(snapshot, c.logs[c.head:])
-		copy(snapshot[c.capacity-c.head:], c.logs[:c.head])
-	}
-
-	for i, j := 0, len(snapshot)-1; i < j; i, j = i+1, j-1 {
-		snapshot[i], snapshot[j] = snapshot[j], snapshot[i]
-	}
-	return snapshot
-}
-
 func (c *AuditCollector) CalculateV2Stats() V2StatsResponse {
-	c.mu.Lock()
-	c.syncStatsLocked()
-	c.mu.Unlock()
-
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	totalQueryCount := uint64(len(c.logs))
 	avgDuration := 0.0
-	if c.totalQueryCount > 0 {
-		avgDuration = c.totalQueryDuration / float64(c.totalQueryCount)
+	if totalQueryCount > 0 {
+		avgDuration = c.totalQueryDuration / float64(totalQueryCount)
 	}
 
 	return V2StatsResponse{
-		TotalQueries:      c.totalQueryCount,
+		TotalQueries:      totalQueryCount,
 		AverageDurationMs: avgDuration,
 	}
 }
 
 type rankHeap []V2RankItem
+
 func (h rankHeap) Len() int           { return len(h) }
-func (h rankHeap) Less(i, j int) bool { return h[i].Count < h[j].Count } 
+func (h rankHeap) Less(i, j int) bool { return h[i].Count < h[j].Count }
 func (h rankHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 func (h *rankHeap) Push(x any)        { *h = append(*h, x.(V2RankItem)) }
 func (h *rankHeap) Pop() any {
@@ -640,10 +622,6 @@ const (
 )
 
 func (c *AuditCollector) CalculateRank(rankType RankType, limit int) []V2RankItem {
-	c.mu.Lock()
-	c.syncStatsLocked()
-	c.mu.Unlock()
-
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -680,12 +658,52 @@ func (c *AuditCollector) GetSlowestQueries(limit int) []AuditLog {
 	return snapshot
 }
 
+// 零内存分配的极速 ASCII 忽略大小写匹配函数
+func containsFold(s, substrLower string) bool {
+	if len(substrLower) == 0 {
+		return true
+	}
+	if len(s) < len(substrLower) {
+		return false
+	}
+
+	hasNonASCII := false
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 128 {
+			hasNonASCII = true
+			break
+		}
+	}
+	if hasNonASCII {
+		return strings.Contains(strings.ToLower(s), substrLower)
+	}
+
+	for i := 0; i <= len(s)-len(substrLower); i++ {
+		match := true
+		for j := 0; j < len(substrLower); j++ {
+			c := s[i+j]
+			if c >= 'A' && c <= 'Z' {
+				c += 32
+			}
+			if c != substrLower[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsResponse {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	capVal := int(c.capacity.Load())
 	totalLogs := len(c.logs)
-	if totalLogs == 0 || c.capacity == 0 {
+	if totalLogs == 0 || capVal == 0 {
 		return V2PaginatedLogsResponse{
 			Pagination: V2PaginationInfo{CurrentPage: params.Page, ItemsPerPage: params.Limit},
 			Logs:       []AuditLog{},
@@ -698,10 +716,11 @@ func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsRespon
 	if params.Limit <= 0 {
 		params.Limit = 50
 	}
-	
+
 	searchTerm := params.Q
+	searchTermLower := ""
 	if params.Q != "" && !params.Exact {
-		searchTerm = strings.ToLower(searchTerm)
+		searchTermLower = strings.ToLower(searchTerm) // 仅在此处转换一次
 	}
 
 	matchCount := 0
@@ -716,49 +735,44 @@ func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsRespon
 
 		if params.Q != "" {
 			foundInQ := false
-			matchFunc := strings.Contains
 			if params.Exact {
-				matchFunc = func(s, substr string) bool { return s == substr }
-			}
-
-			// 1. Check QueryName
-			haystack := log.QueryName
-			if !params.Exact { haystack = strings.ToLower(haystack) }
-			if matchFunc(haystack, searchTerm) { foundInQ = true }
-
-			// 2. Check ClientIP
-			if !foundInQ {
-				haystack = log.ClientIP
-				if !params.Exact { haystack = strings.ToLower(haystack) }
-				if matchFunc(haystack, searchTerm) { foundInQ = true }
-			}
-
-			// 3. Check TraceID
-			if !foundInQ {
-				haystack = log.TraceID
-				if !params.Exact { haystack = strings.ToLower(haystack) }
-				if matchFunc(haystack, searchTerm) { foundInQ = true }
-			}
-			
-			// 4. Check DomainSet
-			if !foundInQ && log.DomainSet != "" {
-				haystack = log.DomainSet
-				if !params.Exact { haystack = strings.ToLower(haystack) }
-				if matchFunc(haystack, searchTerm) { foundInQ = true }
-			}
-
-			// 5. Check Answers
-			if !foundInQ {
-				for _, answer := range log.Answers {
-					haystack = answer.Data
-					if !params.Exact { haystack = strings.ToLower(haystack) }
-					if matchFunc(haystack, searchTerm) {
-						foundInQ = true
-						break
+				if log.QueryName == searchTerm {
+					foundInQ = true
+				} else if log.ClientIP == searchTerm {
+					foundInQ = true
+				} else if log.TraceID == searchTerm {
+					foundInQ = true
+				} else if log.DomainSet != "" && log.DomainSet == searchTerm {
+					foundInQ = true
+				} else {
+					for _, answer := range log.Answers {
+						if answer.Data == searchTerm {
+							foundInQ = true
+							break
+						}
+					}
+				}
+			} else {
+				if containsFold(log.QueryName, searchTermLower) {
+					foundInQ = true
+				} else if containsFold(log.ClientIP, searchTermLower) {
+					foundInQ = true
+				} else if containsFold(log.TraceID, searchTermLower) {
+					foundInQ = true
+				} else if log.DomainSet != "" && containsFold(log.DomainSet, searchTermLower) {
+					foundInQ = true
+				} else {
+					for _, answer := range log.Answers {
+						if containsFold(answer.Data, searchTermLower) {
+							foundInQ = true
+							break
+						}
 					}
 				}
 			}
-			if !foundInQ { isMatched = false }
+			if !foundInQ {
+				isMatched = false
+			}
 		}
 
 		if isMatched && params.ClientIP != "" && log.ClientIP != params.ClientIP {
@@ -775,7 +789,9 @@ func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsRespon
 					break
 				}
 			}
-			if !found { isMatched = false }
+			if !found {
+				isMatched = false
+			}
 		}
 		if isMatched && params.AnswerCNAME != "" {
 			found := false
@@ -785,7 +801,9 @@ func (c *AuditCollector) GetV2Logs(params V2GetLogsParams) V2PaginatedLogsRespon
 					break
 				}
 			}
-			if !found { isMatched = false }
+			if !found {
+				isMatched = false
+			}
 		}
 
 		if isMatched {
