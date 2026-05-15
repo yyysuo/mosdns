@@ -10,12 +10,13 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-	"unsafe" // 性能补丁引入
+	"unsafe" // 性能补丁引入，用于零拷贝极速匹配
 
 	"github.com/IrineSistiana/mosdns/v5/coremain"
 	"github.com/IrineSistiana/mosdns/v5/pkg/cache"
@@ -53,12 +54,13 @@ const (
 	dumpBlockSize          = 128
 	dumpMaximumBlockLength = 1 << 20 // 1M block. 8kb pre entry. Should be enough.
 
-	shardCount   = 256  // 256分段锁，平衡锁竞争与内存开销
+	shardCount   = 256   // 256分段锁，平衡锁竞争与内存开销
 	l1TotalCap   = 51200 // L1 总容量限制
 	shardMaxSize = 200   // 每个分段桶的配额 (51200/shardCount)
 
-	// 性能补丁：后台更新并发上限，保护 CPU 不被瞬间过期的缓存任务占满
+	// 后台异步任务池参数
 	maxConcurrentLazyUpdate = 256
+	lazyTaskQueueCapacity   = 8192
 )
 
 const (
@@ -77,14 +79,13 @@ var keyBufferPool = sync.Pool{
 	},
 }
 
-// 性能补丁：复用 dns.Msg 对象用于 Unpack 解包过程
+// 复用 dns.Msg 对象用于 Unpack 解包过程
 var dnsMsgPool = sync.Pool{
 	New: func() any {
 		return new(dns.Msg)
 	},
 }
 
-// key defines the type used for cache keys.
 type key string
 
 var seed = maphash.MakeSeed()
@@ -93,7 +94,6 @@ func (k key) Sum() uint64 {
 	return maphash.String(seed, string(k))
 }
 
-// item stores the cached response in L2.
 type item struct {
 	resp           []byte
 	storedTime     time.Time
@@ -101,7 +101,6 @@ type item struct {
 	domainSet      string
 }
 
-// l1Item 存储解包后的对象，携带 domainSet，用于热点极速查询
 type l1Item struct {
 	msg            *dns.Msg
 	storedTime     time.Time
@@ -109,7 +108,6 @@ type l1Item struct {
 	domainSet      string
 }
 
-// l1Shard 带有 FIFO 限制的分段锁桶
 type l1Shard struct {
 	sync.RWMutex
 	items map[key]*l1Item
@@ -136,7 +134,6 @@ type argsRaw struct {
 	DumpInterval int         `yaml:"dump_interval"`
 }
 
-// UnmarshalYAML supports both scalar (space-separated) and sequence forms for exclude_ip.
 func (a *Args) UnmarshalYAML(node *yaml.Node) error {
 	var raw argsRaw
 	if err := node.Decode(&raw); err != nil {
@@ -160,7 +157,6 @@ func (a *Args) UnmarshalYAML(node *yaml.Node) error {
 			}
 		}
 	case nil:
-		// nothing
 	default:
 		return fmt.Errorf("exclude_ip must be string or list, got %T", v)
 	}
@@ -172,6 +168,13 @@ func (a *Args) init() {
 	utils.SetDefaultUnsignNum(&a.DumpInterval, 600)
 }
 
+// 异步任务对象
+type lazyTask struct {
+	msgKey string
+	qCtx   *query_context.Context
+	next   sequence.ChainWalker
+}
+
 type Cache struct {
 	args         *Args
 	logger       *zap.Logger
@@ -181,21 +184,21 @@ type Cache struct {
 	closeNotify  chan struct{}
 	updatedKey   atomic.Uint64
 
-	// 分段 L1 池
 	shards [shardCount]*l1Shard
-
-	// dumpMu protects the dump file writing process
 	dumpMu sync.Mutex
 
-	queryTotal   prometheus.Counter
-	hitTotal     prometheus.Counter
-	lazyHitTotal prometheus.Counter
-	size         prometheus.GaugeFunc
+	queryTotal    prometheus.Counter
+	hitTotal      prometheus.Counter
+	lazyHitTotal  prometheus.Counter
+	lazyDropTotal prometheus.Counter // 任务丢弃指标
+	size          prometheus.GaugeFunc
 
-	excludeNets []*net.IPNet // parsed exclude_ip CIDRs
+	excludeNets []*net.IPNet
 
-	// 性能补丁：后台更新并发限制信号量
-	lazyUpdateLimit chan struct{}
+	// 异步更新架构优化
+	inFlight     sync.Map       // 入队去重字典
+	lazyTaskChan chan *lazyTask // 工作队列
+	lazyWorkers  sync.WaitGroup // 优雅退出等待控制
 }
 
 type Opts struct {
@@ -236,7 +239,6 @@ func NewCache(args *Args, opts Opts) *Cache {
 		logger = zap.NewNop()
 	}
 
-	// parse exclude_ip CIDRs
 	var excludeNets []*net.IPNet
 	for _, cidr := range args.ExcludeIPs {
 		_, ipnet, err := net.ParseCIDR(cidr)
@@ -244,20 +246,18 @@ func NewCache(args *Args, opts Opts) *Cache {
 			logger.Warn("invalid exclude_ip, skip", zap.String("cidr", cidr), zap.Error(err))
 			continue
 		}
-
-		logger.Debug("parsed exclude_ip network", zap.String("input", cidr), zap.String("network", ipnet.String()))
 		excludeNets = append(excludeNets, ipnet)
 	}
 
 	backend := cache.New[key, *item](cache.Opts{Size: args.Size})
 	lb := map[string]string{"tag": opts.MetricsTag}
 	p := &Cache{
-		args:        args,
-		logger:      logger,
-		backend:     backend,
-		closeNotify: make(chan struct{}),
-		excludeNets: excludeNets,
-		lazyUpdateLimit: make(chan struct{}, maxConcurrentLazyUpdate),
+		args:         args,
+		logger:       logger,
+		backend:      backend,
+		closeNotify:  make(chan struct{}),
+		excludeNets:  excludeNets,
+		lazyTaskChan: make(chan *lazyTask, lazyTaskQueueCapacity),
 
 		queryTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        "query_total",
@@ -274,6 +274,11 @@ func NewCache(args *Args, opts Opts) *Cache {
 			Help:        "The total number of queries that hit the expired cache",
 			ConstLabels: lb,
 		}),
+		lazyDropTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Name:        "lazy_drop_total",
+			Help:        "The total number of dropped lazy update tasks",
+			ConstLabels: lb,
+		}),
 		size: prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 			Name:        "size_current",
 			Help:        "Current cache size in records",
@@ -283,7 +288,6 @@ func NewCache(args *Args, opts Opts) *Cache {
 		}),
 	}
 
-	// 初始化桶 (FIFO 淘汰版)
 	for i := 0; i < shardCount; i++ {
 		p.shards[i] = &l1Shard{
 			items: make(map[key]*l1Item, shardMaxSize),
@@ -291,6 +295,9 @@ func NewCache(args *Args, opts Opts) *Cache {
 			ref:   make(map[key]bool, shardMaxSize),
 		}
 	}
+
+	// 启动异步任务池
+	p.startWorkerPool()
 
 	if err := p.loadDump(); err != nil {
 		p.logger.Error("failed to load cache dump", zap.Error(err))
@@ -300,37 +307,33 @@ func NewCache(args *Args, opts Opts) *Cache {
 	return p
 }
 
-// updateL1 实现热路径环形淘汰
+// 架构优化：去除内部的 msg.Copy()，改为外部拷贝后传入，极大降低持锁时间
 func (s *l1Shard) updateL1(k key, msg *dns.Msg, storedTime, expirationTime time.Time, domainSet string) {
 	s.Lock()
 	defer s.Unlock()
 
-	// 命中则更新并标记为最近使用
 	if _, ok := s.items[k]; ok {
-		s.items[k] = &l1Item{msg: msg.Copy(), storedTime: storedTime, expirationTime: expirationTime, domainSet: domainSet}
+		s.items[k] = &l1Item{msg: msg, storedTime: storedTime, expirationTime: expirationTime, domainSet: domainSet}
 		s.ref[k] = true
 		return
 	}
 
-	// CLOCK 淘汰循环
 	for {
 		oldKey := s.order[s.pos]
 		if oldKey == "" {
 			break
 		}
-
 		if s.ref[oldKey] {
 			s.ref[oldKey] = false
 			s.pos = (s.pos + 1) % shardMaxSize
 			continue
 		}
-
 		delete(s.items, oldKey)
 		delete(s.ref, oldKey)
 		break
 	}
 
-	s.items[k] = &l1Item{msg: msg.Copy(), storedTime: storedTime, expirationTime: expirationTime, domainSet: domainSet}
+	s.items[k] = &l1Item{msg: msg, storedTime: storedTime, expirationTime: expirationTime, domainSet: domainSet}
 	s.order[s.pos] = k
 	s.ref[k] = true
 	s.pos = (s.pos + 1) % shardMaxSize
@@ -352,7 +355,6 @@ func (c *Cache) containsExcluded(msg *dns.Msg) bool {
 		}
 		for _, net := range c.excludeNets {
 			if net.Contains(ip) {
-				c.logger.Debug("skip lazy cache: excluded IP", zap.String("cidr", net.String()), zap.String("ip", ip.String()))
 				return true
 			}
 		}
@@ -361,7 +363,7 @@ func (c *Cache) containsExcluded(msg *dns.Msg) bool {
 }
 
 func (c *Cache) RegMetricsTo(r prometheus.Registerer) error {
-	for _, collector := range [...]prometheus.Collector{c.queryTotal, c.hitTotal, c.lazyHitTotal, c.size} {
+	for _, collector := range [...]prometheus.Collector{c.queryTotal, c.hitTotal, c.lazyHitTotal, c.lazyDropTotal, c.size} {
 		if err := r.Register(collector); err != nil {
 			return err
 		}
@@ -373,21 +375,19 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 	c.queryTotal.Inc()
 	q := qCtx.Q()
 
-	// 补丁：获取 Key 的字节切片和原始 Pool 指针
 	msgKeyBuf, bufPtr := getMsgKeyBytes(q, qCtx, c.args.EnableECS)
 	if msgKeyBuf == nil {
 		return next.ExecNext(ctx, qCtx)
 	}
 
-	// 性能补丁：利用 unsafe 转换进行零拷贝 Lookup
-	// 注意：此变量 kStr 仅在 Exec 生命周期内有效
+	// 保留极客优化：利用 unsafe 转换进行零拷贝 Lookup，规避 string 内存分配
 	kStr := *(*string)(unsafe.Pointer(&msgKeyBuf))
 	k := key(kStr)
 
 	h := k.Sum()
 	shard := c.shards[h%shardCount]
 
-	// --- L1 极速路径查询 (免解包) ---
+	// --- L1 极速热路径 ---
 	shard.RLock()
 	v1, ok1 := shard.items[k]
 	shard.RUnlock()
@@ -395,31 +395,25 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 	now := time.Now()
 	if ok1 && now.Before(v1.expirationTime) {
 		c.hitTotal.Inc()
-
-		// 仅 Copy 一次，避免 TTL 修改污染缓存
-		r := v1.msg.Copy()
+		r := v1.msg.Copy() // 从 L1 提取时执行 Copy，保护缓存稳定
 		dnsutils.SubtractTTL(r, uint32(now.Sub(v1.storedTime).Seconds()))
 		r.Id = q.Id
-
 		qCtx.SetResponse(r)
-
 		if v1.domainSet != "" {
 			qCtx.StoreValue(query_context.KeyDomainSet, v1.domainSet)
 		}
-		
-		// 归还 Key 缓冲区
+
+		// 极速路径 0 逃逸：归还底层切片至对象池
 		keyBufferPool.Put(bufPtr)
 		return nil
 	}
 
-	// 命中 L1 失败或过期，需要正式生成 string Key 用于后续 L2 存储或异步任务
+	// L1 未命中或过期，执行安全的深拷贝生成持久化 Key
 	msgKey := string(msgKeyBuf)
 	kReal := key(msgKey)
-	
-	// 归还 Key 缓冲区
-	keyBufferPool.Put(bufPtr)
+	keyBufferPool.Put(bufPtr) // 拷贝完成后安全归还
 
-	// --- L2 路径查询 ---
+	// --- L2 深度路径 ---
 	cachedResp, lazyHit, domainSet := getRespFromCache(msgKey, c.backend, c.args.LazyCacheTTL > 0, expiredMsgTtl)
 	if lazyHit {
 		c.lazyHitTotal.Inc()
@@ -433,10 +427,11 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 			qCtx.StoreValue(query_context.KeyDomainSet, domainSet)
 		}
 
-		// 命中 L2 且未过期：晋升到 L1
 		if !lazyHit {
 			v2, _, _ := c.backend.Get(kReal)
 			if v2 != nil {
+				// 极客优化 1：消除无效双重深拷贝
+				// cachedResp 已经是 Unpack 后生成的新对象，直接存入 L1 复用该对象即可
 				shard.updateL1(kReal, cachedResp, v2.storedTime, v2.expirationTime, v2.domainSet)
 			}
 		}
@@ -449,8 +444,6 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 	if r != nil && !c.containsExcluded(r) {
 		if saveRespToCache(msgKey, qCtx, c.backend, c.args.LazyCacheTTL) {
 			c.updatedKey.Add(1)
-
-			// 同时更新 L1
 			minTTL := dnsutils.GetMinimalTTL(r)
 			var dset string
 			if val, ok := qCtx.GetValue(query_context.KeyDomainSet); ok {
@@ -458,7 +451,8 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 					dset = s
 				}
 			}
-			shard.updateL1(kReal, r, now, now.Add(time.Duration(minTTL)*time.Second), dset)
+			// 在锁外部完成安全的单次 Copy
+			shard.updateL1(kReal, r.Copy(), now, now.Add(time.Duration(minTTL)*time.Second), dset)
 		}
 	}
 
@@ -466,52 +460,79 @@ func (c *Cache) Exec(ctx context.Context, qCtx *query_context.Context, next sequ
 }
 
 func (c *Cache) doLazyUpdate(msgKey string, qCtx *query_context.Context, next sequence.ChainWalker) {
-	qCtxCopy := qCtx.Copy()
-	lazyUpdateFunc := func() (any, error) {
-		// 性能补丁：并发信号量控制
-		select {
-		case c.lazyUpdateLimit <- struct{}{}:
-			defer func() { <-c.lazyUpdateLimit }()
-		default:
-			return nil, nil // 负载过高，放弃此次异步更新，保护 CPU
-		}
-
-		defer c.lazyUpdateSF.Forget(msgKey)
-		qCtx := qCtxCopy
-
-		c.logger.Debug("start lazy cache update", qCtx.InfoField())
-		ctx, cancel := context.WithTimeout(context.Background(), defaultLazyUpdateTimeout)
-		defer cancel()
-
-		err := next.ExecNext(ctx, qCtx)
-		if err != nil {
-			if err != sequence.ErrExit {
-				c.logger.Warn("failed to update lazy cache", qCtx.InfoField(), zap.Error(err))
-			}
-		}
-
-		r := qCtx.R()
-		if r != nil && !c.containsExcluded(r) {
-			if saveRespToCache(msgKey, qCtx, c.backend, c.args.LazyCacheTTL) {
-				c.updatedKey.Add(1)
-				// 更新 L1
-				k := key(msgKey)
-				h := k.Sum()
-				shard := c.shards[h%shardCount]
-				minTTL := dnsutils.GetMinimalTTL(r)
-				var dset string
-				if val, ok := qCtx.GetValue(query_context.KeyDomainSet); ok {
-					if s, isString := val.(string); isString {
-						dset = s
-					}
-				}
-				shard.updateL1(k, r, time.Now(), time.Now().Add(time.Duration(minTTL)*time.Second), dset)
-			}
-		}
-		c.logger.Debug("lazy cache updated", qCtx.InfoField())
-		return nil, nil
+	// 架构优化：入队去重拦截器，防过期风暴重入
+	if _, loaded := c.inFlight.LoadOrStore(msgKey, struct{}{}); loaded {
+		return
 	}
-	c.lazyUpdateSF.DoChan(msgKey, lazyUpdateFunc)
+
+	// 神优化：剥离庞大 Response 对象消除 qCtx.Copy() 耗时，直降 GC 开销
+	oldResp := qCtx.R()
+	qCtx.SetResponse(nil)
+	fastCtx := qCtx.Copy()
+	qCtx.SetResponse(oldResp)
+
+	task := &lazyTask{msgKey: msgKey, qCtx: fastCtx, next: next}
+
+	select {
+	case c.lazyTaskChan <- task:
+	default:
+		c.lazyDropTotal.Inc() // 队列满则丢弃，保障主干 CPU 平滑
+		c.inFlight.Delete(msgKey)
+	}
+}
+
+// 启动固定容量 Worker Pool
+func (c *Cache) startWorkerPool() {
+	workerCount := runtime.GOMAXPROCS(0) * 8
+	if workerCount > maxConcurrentLazyUpdate {
+		workerCount = maxConcurrentLazyUpdate
+	}
+	if workerCount < 8 {
+		workerCount = 8
+	}
+
+	for i := 0; i < workerCount; i++ {
+		c.lazyWorkers.Add(1)
+		go func() {
+			defer c.lazyWorkers.Done()
+			for task := range c.lazyTaskChan {
+				c.lazyUpdateSF.Do(task.msgKey, func() (any, error) {
+					defer c.lazyUpdateSF.Forget(task.msgKey)
+					defer c.inFlight.Delete(task.msgKey) // 执行完从去重表摘除
+
+					ctx, cancel := context.WithTimeout(context.Background(), defaultLazyUpdateTimeout)
+					defer cancel()
+
+					err := task.next.ExecNext(ctx, task.qCtx)
+					if err != nil && err != sequence.ErrExit {
+						// 极客优化 3：砍掉 Warn 级别的 I/O 锁竞争，降级为 Debug
+						// 利用 Zap 特性在生产环境直接 Bypass 该方法，防止上游异常时拖死系统
+						c.logger.Debug("failed to update lazy cache", task.qCtx.InfoField(), zap.Error(err))
+					}
+
+					r := task.qCtx.R()
+					if r != nil && !c.containsExcluded(r) {
+						if saveRespToCache(task.msgKey, task.qCtx, c.backend, c.args.LazyCacheTTL) {
+							c.updatedKey.Add(1)
+							k := key(task.msgKey)
+							h := k.Sum()
+							shard := c.shards[h%shardCount]
+							minTTL := dnsutils.GetMinimalTTL(r)
+							var dset string
+							if val, ok := task.qCtx.GetValue(query_context.KeyDomainSet); ok {
+								if s, isString := val.(string); isString {
+									dset = s
+								}
+							}
+							// 异步写回时也将 Copy 移至锁外
+							shard.updateL1(k, r.Copy(), time.Now(), time.Now().Add(time.Duration(minTTL)*time.Second), dset)
+						}
+					}
+					return nil, nil
+				})
+			}
+		}()
+	}
 }
 
 func (c *Cache) Close() error {
@@ -520,7 +541,9 @@ func (c *Cache) Close() error {
 	}
 	c.closeOnce.Do(func() {
 		close(c.closeNotify)
+		close(c.lazyTaskChan) // 优雅关闭 Worker Pool
 	})
+	c.lazyWorkers.Wait() // 挂起等待落盘任务安全结束
 	return c.backend.Close()
 }
 
@@ -594,12 +617,10 @@ func (c *Cache) dumpCache() error {
 func (c *Cache) Api() *chi.Mux {
 	r := chi.NewRouter()
 
-	// 清空缓存 API：执行后打扫卫生
 	r.Get("/flush", coremain.WithAsyncGC(func(w http.ResponseWriter, req *http.Request) {
 		c.logger.Info("flushing cache via api")
 		c.backend.Flush()
 
-		// 清理 L1 分段桶
 		for i := 0; i < shardCount; i++ {
 			c.shards[i].Lock()
 			c.shards[i].items = make(map[key]*l1Item, shardMaxSize)
@@ -656,7 +677,6 @@ func (c *Cache) Api() *chi.Mux {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// 优化后的查询 API：支持分页、后端搜索和分级匹配
 	r.Get("/show", coremain.WithAsyncGC(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Disposition", `inline; filename="cache.txt"`)
@@ -689,12 +709,10 @@ func (c *Cache) Api() *chi.Mux {
 			keyStr := keyToString(k)
 			found := false
 
-			// 第一级匹配：检查 Key
 			if query == "" || strings.Contains(strings.ToLower(keyStr), query) {
 				found = true
 			}
 
-			// 第二级匹配：启发式深度检查回答中的 IP
 			isDeepMatched := false
 			if !found && isIPLike {
 				if err := reusableMsg.Unpack(v.resp); err == nil {
@@ -748,13 +766,11 @@ func (c *Cache) Api() *chi.Mux {
 	return r
 }
 
-// keyToString converts internal []byte key to human readable format
 func keyToString(k key) string {
 	data := []byte(k)
 	offset := 0
 	var parts []string
 
-	// 1. flags (1 byte)
 	if len(data) < offset+1 {
 		return fmt.Sprintf("invalid_key(len<1): %x", data)
 	}
@@ -771,14 +787,12 @@ func keyToString(k key) string {
 		flags = append(flags, "DO")
 	}
 
-	// 2. QType (2 bytes)
 	if len(data) < offset+2 {
 		return fmt.Sprintf("invalid_key(len<3): %x", data)
 	}
 	qtype := binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
 
-	// 3. Name
 	if len(data) < offset+1 {
 		return fmt.Sprintf("invalid_key(len<4): %x", data)
 	}
@@ -795,7 +809,6 @@ func keyToString(k key) string {
 		parts = append(parts, fmt.Sprintf("[flags:%s]", strings.Join(flags, ",")))
 	}
 
-	// 4. ECS (optional)
 	if offset < len(data) {
 		if len(data) < offset+1 {
 			parts = append(parts, "[ecs:invalid_len_byte]")
@@ -954,7 +967,6 @@ func getECSClient(qCtx *query_context.Context) string {
 	return ""
 }
 
-// 补丁优化：返回字节切片以便执行零拷贝 Lookup
 func getMsgKeyBytes(q *dns.Msg, qCtx *query_context.Context, useECS bool) ([]byte, *[]byte) {
 	if q.Response || q.Opcode != dns.OpcodeQuery || len(q.Question) != 1 {
 		return nil, nil
@@ -1051,17 +1063,15 @@ func getRespFromCache(msgKey string, backend *cache.Cache[key, *item], lazyCache
 	v, _, _ := backend.Get(key(msgKey))
 	if v != nil {
 		now := time.Now()
-		
-		// 性能补丁：利用 Pool 进行解包，减少对象分配
+
 		m := dnsMsgPool.Get().(*dns.Msg)
 		defer dnsMsgPool.Put(m)
-		
+
 		if err := m.Unpack(v.resp); err != nil {
 			return nil, false, ""
 		}
 
 		if now.Before(v.expirationTime) {
-			// 这里必须 Copy，因为下游会修改 TTL 或 ID
 			r := m.Copy()
 			dnsutils.SubtractTTL(r, uint32(now.Sub(v.storedTime).Seconds()))
 			return r, false, v.domainSet
@@ -1076,6 +1086,7 @@ func getRespFromCache(msgKey string, backend *cache.Cache[key, *item], lazyCache
 	return nil, false, ""
 }
 
+// 极客优化 2：展平 TTL 计算逻辑，降低分支预测阻力
 func saveRespToCache(msgKey string, qCtx *query_context.Context, backend *cache.Cache[key, *item], lazyCacheTtl int) bool {
 	r := qCtx.R()
 	if r == nil || r.Truncated != false {
@@ -1084,31 +1095,26 @@ func saveRespToCache(msgKey string, qCtx *query_context.Context, backend *cache.
 
 	var msgTtl time.Duration
 	var cacheTtl time.Duration
+
 	switch r.Rcode {
 	case dns.RcodeNameError:
 		msgTtl = time.Second * 30
-		cacheTtl = msgTtl
 	case dns.RcodeServerFailure:
 		msgTtl = time.Second * 5
-		cacheTtl = msgTtl
 	case dns.RcodeSuccess:
 		minTTL := dnsutils.GetMinimalTTL(r)
-		if len(r.Answer) == 0 { // Empty answer. Set ttl between 0~300.
-			const maxEmtpyAnswerTtl = 300
-			msgTtl = time.Duration(min(minTTL, maxEmtpyAnswerTtl)) * time.Second
-			if lazyCacheTtl > 0 {
-				cacheTtl = time.Duration(lazyCacheTtl) * time.Second
-			} else {
-				cacheTtl = msgTtl
-			}
-		} else {
-			msgTtl = time.Duration(minTTL) * time.Second
-			if lazyCacheTtl > 0 {
-				cacheTtl = time.Duration(lazyCacheTtl) * time.Second
-			} else {
-				cacheTtl = msgTtl
-			}
+		// 展平空响应上限判断逻辑
+		if len(r.Answer) == 0 && minTTL > 300 {
+			minTTL = 300
 		}
+		msgTtl = time.Duration(minTTL) * time.Second
+	}
+
+	// 统一处理 CacheTtl (避免由于层级嵌套引起流水线打断)
+	if lazyCacheTtl > 0 && r.Rcode == dns.RcodeSuccess {
+		cacheTtl = time.Duration(lazyCacheTtl) * time.Second
+	} else {
+		cacheTtl = msgTtl
 	}
 
 	const minCacheableTTL = 5 * time.Second
