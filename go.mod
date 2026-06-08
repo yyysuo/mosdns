@@ -14,7 +14,7 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/nadoo/ipset v0.5.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/quic-go/quic-go v0.59.1
+	github.com/quic-go/quic-go v0.60.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sagernet/sing v0.6.7
 	github.com/spf13/cobra v1.10.2
@@ -24,9 +24,9 @@ require (
 	go.uber.org/zap v1.28.0
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
-	golang.org/x/net v0.54.0
+	golang.org/x/net v0.55.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	golang.org/x/time v0.15.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
