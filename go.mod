@@ -1,10 +1,10 @@
 module github.com/IrineSistiana/mosdns/v5
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/IrineSistiana/go-bytes-pool v0.0.0-20230918115058-c72bd9761c57
-	github.com/cilium/ebpf v0.20.0
+	github.com/cilium/ebpf v0.21.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/nftables v0.3.0

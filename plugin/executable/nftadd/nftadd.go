@@ -496,8 +496,12 @@ func (p *NftAdd) setupEbpf(ipSet *netipx.IPSet) error {
 	}
 	
 	if len(ebpfConsts) > 0 {
-		if err := spec.RewriteConstants(ebpfConsts); err != nil {
-			return fmt.Errorf("rewrite constants error: %w", err)
+		for k, v := range ebpfConsts {
+			if variable, ok := spec.Variables[k]; ok {
+				if err := variable.Set(v); err != nil {
+					return fmt.Errorf("rewrite constants error: %w", err)
+				}
+			}
 		}
 	}
 
@@ -517,7 +521,16 @@ func (p *NftAdd) setupEbpf(ipSet *netipx.IPSet) error {
 	if p.nftArgs.EbpfXdp == "xdp_true" {
 		specXDP, err := ebpf.LoadCollectionSpecFromReader(bytes.NewReader(xdpEbpfProg))
 		if err == nil {
-			if err := specXDP.RewriteConstants(ebpfConsts); err == nil {
+			xdpVarsOk := true
+			for k, v := range ebpfConsts {
+				if variable, ok := specXDP.Variables[k]; ok {
+					if err := variable.Set(v); err != nil {
+						xdpVarsOk = false
+						break
+					}
+				}
+			}
+			if xdpVarsOk {
 				collXDP, err := ebpf.NewCollectionWithOptions(specXDP, ebpf.CollectionOptions{
 					MapReplacements: map[string]*ebpf.Map{
 						"fast_dns_cache": objs.FastDnsCache,

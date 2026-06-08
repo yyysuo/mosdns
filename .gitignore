@@ -26,3 +26,6 @@ testutils/
 demo/
 /.playwright-mcp/
 /.spec-workflow/
+
+# claude knowledge base (local only)
+claude/
