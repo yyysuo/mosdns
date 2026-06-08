@@ -56,7 +56,7 @@ jobs:
           BUILD_DATE: ${{ env.BUILD_DATE }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mosdns-${{ matrix.index }}
           path: ./release/mosdns*.zip
