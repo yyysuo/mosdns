@@ -31,7 +31,7 @@ jobs:
           CGO_ENABLED: '0'
 
       - name: Publish
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: './release/mosdns*.zip'
           prerelease: false
