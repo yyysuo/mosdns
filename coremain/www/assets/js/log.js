@@ -1085,12 +1085,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const systemInfoManager = {
         parseMetrics(metricsText) {
             const lines = metricsText.split('\n');
-            const metrics = { startTime: 0, cpuTime: 0, residentMemory: 0, heapIdleMemory: 0, threads: 0, openFds: 0, grs: 0, goVersion: "N/A" };
+            const metrics = { startTime: 0, cpuTime: 0, residentMemory: 0, netRecv: 0, netSend: 0, gcCount: 0, gcSum: 0, lastGcTime: 0, threads: 0, openFds: 0, grs: 0, goVersion: "N/A" };
             lines.forEach(line => {
                 if (line.startsWith('process_start_time_seconds')) { metrics.startTime = parseFloat(line.split(' ')[1]) || 0; }
                 else if (line.startsWith('process_cpu_seconds_total')) { metrics.cpuTime = parseFloat(line.split(' ')[1]) || 0; }
                 else if (line.startsWith('process_resident_memory_bytes')) { metrics.residentMemory = parseFloat(line.split(' ')[1]) || 0; }
-                else if (line.startsWith('go_memstats_heap_idle_bytes')) { metrics.heapIdleMemory = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('process_network_receive_bytes_total')) { metrics.netRecv = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('process_network_transmit_bytes_total')) { metrics.netSend = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('go_gc_duration_seconds_count')) { metrics.gcCount = parseInt(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('go_gc_duration_seconds_sum')) { metrics.gcSum = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('go_memstats_last_gc_time_seconds')) { metrics.lastGcTime = parseFloat(line.split(' ')[1]) || 0; }
                 else if (line.startsWith('go_threads')) { metrics.threads = parseInt(line.split(' ')[1]) || 0; }
                 else if (line.startsWith('process_open_fds')) { metrics.openFds = parseInt(line.split(' ')[1]) || 0; }
                 else if (line.startsWith('go_goroutines')) { metrics.grs = parseInt(line.split(' ')[1]) || 0; }
@@ -1111,7 +1115,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 { label: '启动时间', value: data.startTime ? new Date(data.startTime * 1000).toLocaleString() : 'N/A' },
                 { label: 'CPU 时间', value: `${data.cpuTime.toFixed(2)} 秒` },
                 { label: '常驻内存 (RSS)', value: `${(data.residentMemory / 1024 / 1024).toFixed(2)} MB` },
-                { label: '待用堆内存 (Idle)', value: `${(data.heapIdleMemory / 1024 / 1024).toFixed(2)} MB` },
+                { label: '系统累计接收流量', value: `${(data.netRecv / 1024 / 1024 / 1024).toFixed(2)} GB` },
+                { label: '系统累计发送流量', value: `${(data.netSend / 1024 / 1024 / 1024).toFixed(2)} GB` },
+                { label: 'GC 次数', value: data.gcCount.toLocaleString() },
+                { label: 'GC 累计耗时', value: `${data.gcSum.toFixed(3)} 秒` },
+                { label: '上次 GC 时间', value: data.lastGcTime ? new Date(data.lastGcTime * 1000).toLocaleString() : 'N/A' },
                 { label: 'Go 版本', value: data.goVersion, accent: true },
                 { label: '线程数', value: data.threads.toLocaleString() },
                 { label: '打开文件描述符', value: data.openFds.toLocaleString() },

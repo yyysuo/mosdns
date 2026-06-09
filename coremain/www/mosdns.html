@@ -742,8 +742,9 @@
             '请求总数': 'fa-globe', '缓存命中': 'fa-check-circle', '过期缓存命中': 'fa-history', 
             '缓存命中率': 'fa-bullseye', '过期缓存命中率': 'fa-bullseye', '缓存条目数': 'fa-database', 
             '启动时间': 'fa-power-off', 'CPU 时间': 'fa-microchip', '常驻内存 (RSS)': 'fa-memory', 
-            '待用堆内存 (Idle)': 'fa-box-open', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap', 
-            '打开文件描述符': 'fa-folder-open' 
+            '系统累计接收流量': 'fa-download', '系统累计发送流量': 'fa-upload', 'GC 次数': 'fa-recycle',
+            'GC 累计耗时': 'fa-stopwatch', '上次 GC 时间': 'fa-clock', 'Go 版本': 'fa-code-branch', '线程数': 'fa-sitemap',
+            '打开文件描述符': 'fa-folder-open'
         };
 
         const switchProfiles = [
@@ -879,12 +880,16 @@
 
         function parseSystemMetrics(metricsText) {
             const lines = metricsText.split('\n');
-            const systemMetrics = { startTime: 0, cpuTime: 0, residentMemory: 0, heapIdleMemory: 0, threads: 0, openFds: 0, goVersion: "N/A" };
+            const systemMetrics = { startTime: 0, cpuTime: 0, residentMemory: 0, netRecv: 0, netSend: 0, gcCount: 0, gcSum: 0, lastGcTime: 0, threads: 0, openFds: 0, goVersion: "N/A" };
             lines.forEach(line => {
-                if (line.startsWith('process_start_time_seconds')) { systemMetrics.startTime = parseFloat(line.split(' ')[1]) || 0; } 
-                else if (line.startsWith('process_cpu_seconds_total')) { systemMetrics.cpuTime = parseFloat(line.split(' ')[1]) || 0; } 
-                else if (line.startsWith('process_resident_memory_bytes')) { systemMetrics.residentMemory = parseFloat(line.split(' ')[1]) || 0; } 
-                else if (line.startsWith('go_memstats_heap_idle_bytes')) { systemMetrics.heapIdleMemory = parseFloat(line.split(' ')[1]) || 0; } 
+                if (line.startsWith('process_start_time_seconds')) { systemMetrics.startTime = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('process_cpu_seconds_total')) { systemMetrics.cpuTime = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('process_resident_memory_bytes')) { systemMetrics.residentMemory = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('process_network_receive_bytes_total')) { systemMetrics.netRecv = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('process_network_transmit_bytes_total')) { systemMetrics.netSend = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('go_gc_duration_seconds_count')) { systemMetrics.gcCount = parseInt(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('go_gc_duration_seconds_sum')) { systemMetrics.gcSum = parseFloat(line.split(' ')[1]) || 0; }
+                else if (line.startsWith('go_memstats_last_gc_time_seconds')) { systemMetrics.lastGcTime = parseFloat(line.split(' ')[1]) || 0; }
                 else if (line.startsWith('go_threads')) { systemMetrics.threads = parseInt(line.split(' ')[1]) || 0; } 
                 else if (line.startsWith('process_open_fds')) { systemMetrics.openFds = parseInt(line.split(' ')[1]) || 0; } 
                 else if (line.startsWith('go_info{version="')) { const match = line.match(/go_info{version="([^"]+)"}/); if (match && match[1]) { systemMetrics.goVersion = match[1]; } }
@@ -910,7 +915,7 @@
                     data.caches[key] = { ...metrics, hit_rate: metrics.query_total > 0 ? ((metrics.hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%', lazy_hit_rate: metrics.query_total > 0 ? ((metrics.lazy_hit_total / metrics.query_total) * 100).toFixed(2) + '%' : '0.00%' };
                 });
                 
-                data.system = { start_time: systemMetrics.startTime ? new Date(systemMetrics.startTime * 1000).toLocaleString() : 'N/A', cpu_time: `${systemMetrics.cpuTime.toFixed(2)} 秒`, resident_memory: `${(systemMetrics.residentMemory / 1024 / 1024).toFixed(2)} MB`, heap_idle_memory: `${(systemMetrics.heapIdleMemory / 1024 / 1024).toFixed(2)} MB`, go_version: systemMetrics.goVersion, threads: systemMetrics.threads, open_fds: systemMetrics.openFds };
+                data.system = { start_time: systemMetrics.startTime ? new Date(systemMetrics.startTime * 1000).toLocaleString() : 'N/A', cpu_time: `${systemMetrics.cpuTime.toFixed(2)} 秒`, resident_memory: `${(systemMetrics.residentMemory / 1024 / 1024).toFixed(2)} MB`, net_recv: `${(systemMetrics.netRecv / 1024 / 1024 / 1024).toFixed(2)} GB`, net_send: `${(systemMetrics.netSend / 1024 / 1024 / 1024).toFixed(2)} GB`, gc_count: systemMetrics.gcCount.toLocaleString(), gc_sum: `${systemMetrics.gcSum.toFixed(3)} 秒`, last_gc_time: systemMetrics.lastGcTime ? new Date(systemMetrics.lastGcTime * 1000).toLocaleString() : 'N/A', go_version: systemMetrics.goVersion, threads: systemMetrics.threads, open_fds: systemMetrics.openFds };
                 return data;
             } catch (error) {
                 console.error('获取 /metrics 失败:', error);
@@ -981,7 +986,7 @@
                     if ((forceRebuild || updateCharts) && cardData.query_total > 0) { createOrUpdatePieChart(`chart-hit-${key}`, '命中', cardData.hit_total, cardData.query_total); createOrUpdatePieChart(`chart-lazy-${key}`, '过期命中', cardData.lazy_hit_total, cardData.query_total); }
                 }
             });
-            updateMetrics('metrics-system', [{ label: '启动时间', value: data.system.start_time }, { label: 'CPU 时间', value: data.system.cpu_time }, { label: '常驻内存 (RSS)', value: data.system.resident_memory }, { label: '待用堆内存 (Idle)', value: data.system.heap_idle_memory }, { label: 'Go 版本', value: data.system.go_version, accent: true }, { label: '线程数', numericValue: data.system.threads }, { label: '打开文件描述符', numericValue: data.system.open_fds }, ]);
+            updateMetrics('metrics-system', [{ label: '启动时间', value: data.system.start_time }, { label: 'CPU 时间', value: data.system.cpu_time }, { label: '常驻内存 (RSS)', value: data.system.resident_memory }, { label: '系统累计接收流量', value: data.system.net_recv }, { label: '系统累计发送流量', value: data.system.net_send }, { label: 'GC 次数', value: data.system.gc_count }, { label: 'GC 累计耗时', value: data.system.gc_sum }, { label: '上次 GC 时间', value: data.system.last_gc_time }, { label: 'Go 版本', value: data.system.go_version, accent: true }, { label: '线程数', numericValue: data.system.threads }, { label: '打开文件描述符', numericValue: data.system.open_fds }, ]);
             const lastUpdatedEl = getById('last_updated');
             if(lastUpdatedEl) lastUpdatedEl.innerHTML = `<i class="fas fa-clock"></i> 最后更新: ${new Date().toLocaleTimeString()}`;
             
