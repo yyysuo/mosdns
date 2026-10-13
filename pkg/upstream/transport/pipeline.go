@@ -74,12 +74,18 @@ func (t *PipelineTransport) ExchangeContext(ctx context.Context, m []byte) (*[]b
 	const maxRetry = 2
 	retry := 0
 	for {
-		dc, isNewConn, err := t.getReservedExchanger()
+		dc, conn, isNewConn, err := t.getReservedExchanger()
 		if err != nil {
 			return nil, err
 		}
 		r, err := dc.ExchangeReserved(ctx, m)
 		if err != nil {
+			if closeConnOnTimeout(ctx) {
+				// Only drop the connection that carried this query. The next
+				// query will dial a new one.
+				t.closeConn(conn)
+				return nil, err
+			}
 			// Reused connection may not stable.
 			// Try to re-send this query if it failed on a reused connection.
 			if !isNewConn && retry < maxRetry && ctx.Err() == nil {
@@ -107,7 +113,15 @@ func (t *PipelineTransport) Close() error {
 	return nil
 }
 
-func (t *PipelineTransport) getReservedExchanger() (_ ReservedExchanger, isNewConn bool, err error) {
+// closeConn removes c from t and closes it.
+func (t *PipelineTransport) closeConn(c *lazyDnsConn) {
+	t.m.Lock()
+	delete(t.conns, c)
+	t.m.Unlock()
+	c.Close()
+}
+
+func (t *PipelineTransport) getReservedExchanger() (_ ReservedExchanger, conn *lazyDnsConn, isNewConn bool, err error) {
 	t.m.Lock()
 	if t.closed {
 		err = ErrClosedTransport
@@ -125,6 +139,7 @@ func (t *PipelineTransport) getReservedExchanger() (_ ReservedExchanger, isNewCo
 			delete(t.conns, c)
 		}
 		if rxc != nil {
+			conn = c
 			break
 		} else {
 			reserveAttempt++
@@ -138,6 +153,7 @@ func (t *PipelineTransport) getReservedExchanger() (_ ReservedExchanger, isNewCo
 	if rxc == nil {
 		c := newLazyDnsConn(t.dialFunc, t.dialTimeout, t.maxLazyConnQueue, t.logger)
 		rxc, _ = c.ReserveNewQuery() // ignore the closed error for new lazy connection
+		conn = c
 		isNewConn = true
 		t.conns[c] = struct{}{}
 	}
@@ -147,5 +163,5 @@ func (t *PipelineTransport) getReservedExchanger() (_ ReservedExchanger, isNewCo
 		isNewConn = false
 		err = ErrNewConnCannotReserveQueryExchanger
 	}
-	return rxc, isNewConn, err
+	return rxc, conn, isNewConn, err
 }

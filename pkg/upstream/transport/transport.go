@@ -72,3 +72,21 @@ type NetConn interface {
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 }
+
+type closeConnOnTimeoutKey struct{}
+
+// WithCloseConnOnTimeout returns a ctx that asks the transport to close the
+// connection carrying the query if the query fails after ctx's deadline is
+// exceeded. Only that connection is closed, the transport stays usable and
+// dials a new connection for later queries. A connection that stops replying
+// (e.g. a stale quic connection) won't keep swallowing queries until its idle
+// timeout.
+// Currently only PipelineTransport (udp, quic and pipelined tcp/tls) honors it.
+// ReuseConnTransport never puts a connection with a pending query back to idle.
+func WithCloseConnOnTimeout(ctx context.Context) context.Context {
+	return context.WithValue(ctx, closeConnOnTimeoutKey{}, struct{}{})
+}
+
+func closeConnOnTimeout(ctx context.Context) bool {
+	return errors.Is(ctx.Err(), context.DeadlineExceeded) && ctx.Value(closeConnOnTimeoutKey{}) != nil
+}
