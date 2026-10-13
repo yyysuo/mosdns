@@ -76,6 +76,21 @@ var (
 
 const hexTable = "0123456789abcdef"
 
+const (
+	// switchN mirrors its state into fast flag bit switchFlagBase+N-1.
+	switchFlagBase  = 32
+	switchFlagCount = 16
+)
+
+// SwitchOfFastFlag returns N if fast flag f carries the state of switchN
+// (see GlobalSwitchMask), or 0 if f is not a switch state bit.
+func SwitchOfFastFlag(f uint8) int {
+	if f >= switchFlagBase && f < switchFlagBase+switchFlagCount {
+		return int(f-switchFlagBase) + 1
+	}
+	return 0
+}
+
 type ServerMeta = server.QueryMeta
 
 // NewContext creates a new query Context.

@@ -23,6 +23,7 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/pkg/query_context"
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 const PluginType = "domain_output"
@@ -132,8 +133,20 @@ func (h *outputRankHeap) Pop() any {
 	return x
 }
 
+// warnTargetMark warns about a target_mark that has no effect or collides with
+// a switch state bit. Not rejected, so configs that already use it keep working.
+func warnTargetMark(logger *zap.Logger, mark uint8) {
+	if mark > 63 {
+		logger.Warn(fmt.Sprintf("target_mark %d is out of range 0-63 and has no effect", mark))
+	} else if sw := query_context.SwitchOfFastFlag(mark); sw != 0 {
+		logger.Warn(fmt.Sprintf("target_mark %d collides with the switch%d state bit (32-47 are reserved for switch states): "+
+			"added domains turn switch%d on for the query. Pick another mark", mark, sw, sw))
+	}
+}
+
 func Init(bp *coremain.BP, args any) (any, error) {
 	cfg := args.(*Args)
+	warnTargetMark(bp.L(), cfg.TargetMark)
 	if cfg.DumpInterval <= 0 {
 		cfg.DumpInterval = 60
 	}

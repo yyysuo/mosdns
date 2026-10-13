@@ -68,7 +68,9 @@ func NewMapper(bp *coremain.BP, args any) (any, error) {
 		if r.Mark > 63 {
 			return nil, fmt.Errorf("rule mark for tag '%s' must be between 0 and 63, got %d", r.Tag, r.Mark)
 		}
+		warnSwitchMark(bp.L(), fmt.Sprintf("rule mark for tag '%s'", r.Tag), r.Mark)
 	}
+	warnSwitchMark(bp.L(), "default_mark", cfg.DefaultMark)
 
 	dm := &DomainMapper{
 		logger:      bp.L(),
@@ -353,6 +355,15 @@ func (dm *DomainMapper) FastMatch(qname string) ([]uint8, string, bool) {
 		return result.Marks, result.JoinedTags, true
 	}
 	return nil, "", false
+}
+
+// warnSwitchMark warns if mark collides with a switch state bit. Not rejected,
+// so configs that already use it keep working.
+func warnSwitchMark(logger *zap.Logger, what string, mark uint8) {
+	if sw := query_context.SwitchOfFastFlag(mark); sw != 0 {
+		logger.Warn(fmt.Sprintf("%s %d collides with the switch%d state bit (32-47 are reserved for switch states): "+
+			"matched domains turn switch%d on for the query. Pick another mark", what, mark, sw, sw))
+	}
 }
 
 func (dm *DomainMapper) GetRunBit() uint8 {
