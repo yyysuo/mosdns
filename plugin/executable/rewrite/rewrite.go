@@ -43,6 +43,7 @@ import (
 	"github.com/IrineSistiana/mosdns/v5/plugin/executable/sequence"
 	"github.com/go-chi/chi/v5"
 	"github.com/miekg/dns"
+	"go.uber.org/zap"
 )
 
 const PluginType = "rewrite"
@@ -56,7 +57,7 @@ func init() {
 // rewriteTarget holds the parsed target of a rewrite rule.
 type rewriteTarget struct {
 	isIP   bool
-	ip     net.IP
+	ips    []net.IP // one or more IPs, A/AAAA queries get the IPs of their family
 	domain string
 }
 
@@ -76,6 +77,8 @@ type Rewrite struct {
 	// Fields for API functionality
 	ruleFile string
 	rules    []string
+
+	logger *zap.Logger
 }
 
 // apiPayload is used for decoding JSON from the /post API endpoint.
@@ -105,6 +108,7 @@ func Init(bp *coremain.BP, args any) (any, error) {
 		dnsClient:     dnsClient,
 		dnsServerAddr: dnsServerAddr,
 		ruleFile:      cfg.Files[0], // Use the first file for API operations
+		logger:        bp.L(),
 	}
 	r.matcher.SetDefaultMatcher(domain.MatcherFull)
 
@@ -114,6 +118,7 @@ func Init(bp *coremain.BP, args any) (any, error) {
 		return nil, err
 	}
 	r.rules = loadedRules
+	r.warnDuplicateDomains(loadedRules)
 
 	// Register API endpoints
 	bp.RegAPI(r.api())
@@ -166,18 +171,34 @@ func loadRulesFromReader(reader io.Reader, targetMatcher *domain.MixMatcher[*rew
 }
 
 // parseRewriteTarget is the core parsing function for a single rule string.
+// A rule is "<domain> <IP or domain>", or "<domain> <IP> <IP>..." to give
+// several IPs (e.g. both IPv4 and IPv6) to one domain.
 func parseRewriteTarget(s string) (pattern string, result *rewriteTarget, err error) {
 	fields := strings.Fields(s)
-	if len(fields) != 2 {
-		err = fmt.Errorf("rule must have 2 fields, but got %d", len(fields))
+	if len(fields) < 2 {
+		err = fmt.Errorf("rule must have at least 2 fields, but got %d", len(fields))
 		return
 	}
 	pattern = fields[0]
 	value := fields[1]
 
+	if len(fields) > 2 {
+		ips := make([]net.IP, 0, len(fields)-1)
+		for _, v := range fields[1:] {
+			ip := net.ParseIP(v)
+			if ip == nil {
+				err = fmt.Errorf("a rule with multiple targets only accepts IPs, got %s", v)
+				return
+			}
+			ips = append(ips, ip)
+		}
+		result = &rewriteTarget{isIP: true, ips: ips}
+		return
+	}
+
 	ip := net.ParseIP(value)
 	if ip != nil {
-		result = &rewriteTarget{isIP: true, ip: ip}
+		result = &rewriteTarget{isIP: true, ips: []net.IP{ip}}
 	} else {
 		if _, ok := dns.IsDomainName(value); !ok {
 			err = fmt.Errorf("invalid domain name syntax: %s", value)
@@ -209,48 +230,45 @@ func (r *Rewrite) Exec(ctx context.Context, qCtx *query_context.Context, next se
     qCtx.StoreValue(query_context.KeyDomainSet, "重定向")
 
 	if target.isIP {
-		r.handleIPRewrite(qCtx, target.ip)
+		r.handleIPRewrite(qCtx, target.ips)
 	} else {
 		r.handleDomainRewrite(ctx, qCtx, target.domain)
 	}
 	return nil
 }
 
-// handleIPRewrite builds a response for a static IP target with a fixed TTL.
-func (r *Rewrite) handleIPRewrite(qCtx *query_context.Context, ip net.IP) {
+// handleIPRewrite builds a response for static IP targets with a fixed TTL.
+// A/AAAA queries get the IPs of their family. Other queries, or a query whose
+// family has no IP in the rule, get an empty response.
+func (r *Rewrite) handleIPRewrite(qCtx *query_context.Context, ips []net.IP) {
 	q := qCtx.Q()
-	isV6 := ip.To4() == nil
 	qType := q.Question[0].Qtype
 
-	var rr dns.RR
-	if isV6 && qType == dns.TypeAAAA {
-		rr = &dns.AAAA{
-			Hdr: dns.RR_Header{
-				Name:   q.Question[0].Name,
-				Rrtype: dns.TypeAAAA,
-				Class:  dns.ClassINET,
-				Ttl:    fixedTTL, // <-- MODIFIED: Set fixed TTL
-			},
-			AAAA: ip,
-		}
-	} else if !isV6 && qType == dns.TypeA {
-		rr = &dns.A{
-			Hdr: dns.RR_Header{
-				Name:   q.Question[0].Name,
-				Rrtype: dns.TypeA,
-				Class:  dns.ClassINET,
-				Ttl:    fixedTTL, // <-- MODIFIED: Set fixed TTL
-			},
-			A: ip,
-		}
-	} else {
-		resp := new(dns.Msg).SetReply(q)
-		qCtx.SetResponse(resp)
-		return
-	}
-
 	resp := new(dns.Msg).SetReply(q)
-	resp.Answer = []dns.RR{rr}
+	for _, ip := range ips {
+		isV6 := ip.To4() == nil
+		if isV6 && qType == dns.TypeAAAA {
+			resp.Answer = append(resp.Answer, &dns.AAAA{
+				Hdr: dns.RR_Header{
+					Name:   q.Question[0].Name,
+					Rrtype: dns.TypeAAAA,
+					Class:  dns.ClassINET,
+					Ttl:    fixedTTL, // <-- MODIFIED: Set fixed TTL
+				},
+				AAAA: ip,
+			})
+		} else if !isV6 && qType == dns.TypeA {
+			resp.Answer = append(resp.Answer, &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   q.Question[0].Name,
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    fixedTTL, // <-- MODIFIED: Set fixed TTL
+				},
+				A: ip,
+			})
+		}
+	}
 	qCtx.SetResponse(resp)
 }
 
@@ -338,6 +356,7 @@ func (r *Rewrite) handlePost(w http.ResponseWriter, req *http.Request) {
 	r.matcher = tmpMatcher
 	r.rules = tmpRules
 	r.mu.Unlock()
+	r.warnDuplicateDomains(tmpRules)
 
         tmpMatcher = nil 
         tmpRules = nil
@@ -355,6 +374,36 @@ func (r *Rewrite) handlePost(w http.ResponseWriter, req *http.Request) {
 }
 
 // --- Utility Functions ---
+
+// warnDuplicateDomains warns about domains that appear in more than one rule.
+// Only the last rule of a domain takes effect, so e.g. an IPv4 rule followed
+// by an IPv6 rule of the same domain silently drops the IPv4 answer.
+func (r *Rewrite) warnDuplicateDomains(rules []string) {
+	for _, d := range duplicateDomains(rules) {
+		r.logger.Warn(fmt.Sprintf("rewrite: domain %s has more than one rule, only the last one takes effect. "+
+			"Put all its IPs in one rule, e.g. \"%s 192.168.1.10 2001:db8::10\"", d, d))
+	}
+}
+
+// duplicateDomains returns the domain patterns that appear in more than one
+// rule, in the order of their first appearance.
+func duplicateDomains(rules []string) []string {
+	count := make(map[string]int)
+	var order []string
+	for _, rule := range rules {
+		fields := strings.Fields(rule)
+		if len(fields) == 0 {
+			continue
+		}
+		// The default matcher is "full", so "full:a.com" and "a.com" are the same.
+		key := strings.TrimSuffix(strings.ToLower(strings.TrimPrefix(fields[0], "full:")), ".")
+		if count[key] == 1 {
+			order = append(order, key)
+		}
+		count[key]++
+	}
+	return order
+}
 
 func parseUpstreamAddr(addr string) (string, error) {
 	if addr == "" {
