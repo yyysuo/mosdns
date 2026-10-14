@@ -2,6 +2,7 @@ package rewrite
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -57,6 +58,24 @@ func Test_parseRewriteTarget(t *testing.T) {
 				t.Fatalf("want IPs %v, got %+v", tt.wantIPs, got)
 			}
 		})
+	}
+}
+
+func Test_parseRewriteTarget_maxIPs(t *testing.T) {
+	rule := func(n int) string {
+		var b strings.Builder
+		b.WriteString("a.com")
+		for i := 0; i < n; i++ {
+			fmt.Fprintf(&b, " 10.0.0.%d", i)
+		}
+		return b.String()
+	}
+	_, res, err := parseRewriteTarget(rule(maxIPsPerRule))
+	if err != nil || len(res.ips) != maxIPsPerRule {
+		t.Fatalf("%d IPs should be accepted, err=%v", maxIPsPerRule, err)
+	}
+	if _, _, err := parseRewriteTarget(rule(maxIPsPerRule + 1)); err == nil {
+		t.Fatalf("%d IPs should be rejected", maxIPsPerRule+1)
 	}
 }
 
